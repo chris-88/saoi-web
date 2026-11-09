@@ -2629,6 +2629,173 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/plans': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Save a plan made in the customer’s own AI, behind a one-time link
+     * @description Public: no sign-in. Called by the Saoi MCP server (`saoi_save_plan`) with the plan `saoi_build_plan` returned (`MarketPlan`, version 1). Stores it and returns a claim link into app.saoi.ie that works once, for seven days. The body is capped at 64 KiB; saves are rate-limited per address and capped per day.
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['SavePlan']
+        }
+      }
+      responses: {
+        /** @description Saved. Give the customer the link; it opens the plan in the app once. */
+        201: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['SavePlanResponse']
+          }
+        }
+        /** @description The plan is not valid. `details` says where. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The body is larger than 64 KiB. */
+        413: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many saves. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/plans/claim': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Open a saved plan in this browser’s conversation
+     * @description Spends the link’s token and puts the plan in a conversation: the browser’s current one when it is still empty, otherwise a new one. Records the situation’s facts that map cleanly onto the fact catalogue (`customer_stated`) and writes `plan_saved` and `plan_claimed`, which the next turn narrates with the plan card. Opening it again in the same browser returns the same conversation (`reopened`).
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ClaimPlan']
+        }
+      }
+      responses: {
+        /** @description The conversation the plan is in, which this browser now opens. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ClaimPlanResponse']
+          }
+        }
+        /** @description The body is not valid. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Missing or invalid token. */
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No plan was saved behind this link. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Somebody has already opened this link. */
+        409: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The link has expired. */
+        410: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/admin/overview': {
     parameters: {
       query?: never
@@ -5490,6 +5657,90 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/admin/market-products': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Market data read from provider websites and the CCPC comparison tables
+     * @description The current version of every provider product, or every version with `history=true`. Ordered by provider and product, newest version first.
+     */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Include superseded versions. */
+          history?: 'true' | 'false'
+          /** @description Only this provider. */
+          provider?: string
+          /** @description Only rows read from this source: the provider site, or CCPC. */
+          source?: 'bank' | 'ccpc'
+          /** @description Only this product (all its versions are returned). */
+          productId?: string
+        }
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description The market products. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['AdminMarketProductList']
+          }
+        }
+        /** @description The query is not valid. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Missing or invalid token. */
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Not an administrator. */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -5853,6 +6104,36 @@ export interface components {
               }
             | {
                 /** @enum {string} */
+                type: 'saved_plan'
+                /** Format: uuid */
+                planId: string
+                title: string
+                summary: string
+                goals: {
+                  label: string
+                  target: string | null
+                }[]
+                products: {
+                  name: string
+                  providerName: string
+                  role: string
+                  amounts: string[]
+                  rate: string | null
+                  projected: string | null
+                  provenance: string
+                  unknowns: string[]
+                  checks: string[]
+                  url: string | null
+                }[]
+                debts: string[]
+                basis: string
+                assumptions: string[]
+                attributions: string[]
+                createdAt: string
+                dataCheckedAt: string
+              }
+            | {
+                /** @enum {string} */
                 type: 'connect_accounts'
                 why: string
                 banks: {
@@ -5933,6 +6214,7 @@ export interface components {
               | 'forbidden'
               | 'not_found'
               | 'conflict'
+              | 'expired'
               | 'illegal_transition'
               | 'rate_limited'
               | 'upstream_unavailable'
@@ -5987,6 +6269,7 @@ export interface components {
           | 'forbidden'
           | 'not_found'
           | 'conflict'
+          | 'expired'
           | 'illegal_transition'
           | 'rate_limited'
           | 'upstream_unavailable'
@@ -6631,6 +6914,36 @@ export interface components {
                 }
               | {
                   /** @enum {string} */
+                  type: 'saved_plan'
+                  /** Format: uuid */
+                  planId: string
+                  title: string
+                  summary: string
+                  goals: {
+                    label: string
+                    target: string | null
+                  }[]
+                  products: {
+                    name: string
+                    providerName: string
+                    role: string
+                    amounts: string[]
+                    rate: string | null
+                    projected: string | null
+                    provenance: string
+                    unknowns: string[]
+                    checks: string[]
+                    url: string | null
+                  }[]
+                  debts: string[]
+                  basis: string
+                  assumptions: string[]
+                  attributions: string[]
+                  createdAt: string
+                  dataCheckedAt: string
+                }
+              | {
+                  /** @enum {string} */
                   type: 'connect_accounts'
                   why: string
                   banks: {
@@ -6691,6 +7004,157 @@ export interface components {
             }
           }
       )[]
+    }
+    SavePlanResponse: {
+      /** Format: uri */
+      claimUrl: string
+      /** Format: date-time */
+      expiresAt: string
+    }
+    SavePlan: {
+      plan: {
+        /** @enum {number} */
+        version: 1
+        title: string
+        situation: {
+          summary: string
+          income?: {
+            annualGross?: number
+            netMonthly?: number
+          }
+          outgoings?: {
+            rentMonthly?: number
+            otherMonthly?: number
+          }
+          monthlySaving?: number
+          /** @default [] */
+          savings: {
+            label: string
+            balance: number
+            provider?: string
+            aerPct?: number
+          }[]
+          /** @default [] */
+          debts: {
+            id: string
+            label: string
+            /** @enum {string} */
+            kind:
+              'credit_card' | 'personal_loan' | 'car_finance' | 'overdraft' | 'mortgage' | 'other'
+            balance: number
+            ratePct?: number
+            monthlyRepayment?: number
+            monthsRemaining?: number
+          }[]
+        }
+        goals: {
+          id: string
+          /** @enum {string} */
+          kind:
+            | 'house_deposit'
+            | 'emergency_fund'
+            | 'pay_off_debt'
+            | 'save_for_purchase'
+            | 'grow_savings'
+            | 'switch_mortgage'
+            | 'other'
+          label: string
+          targetAmount?: number
+          targetDate?: string
+          priority?: number
+        }[]
+        recommendation: {
+          products: {
+            /** @enum {string} */
+            role:
+              | 'regular_saver'
+              | 'lump_sum'
+              | 'emergency_fund'
+              | 'mortgage'
+              | 'refinance'
+              | 'current_account'
+              | 'other'
+            /** @default [] */
+            goalIds: string[]
+            provider: string
+            providerName: string
+            /** @enum {string} */
+            source: 'bank' | 'ccpc'
+            /** @enum {string} */
+            category:
+              'savings' | 'deposit' | 'mortgage' | 'loan' | 'credit_card' | 'current_account'
+            productId: string
+            productName: string
+            amount?: number
+            monthlyAmount?: number
+            ratePct?: number
+            projected?: {
+              horizonMonths: number
+              balance?: number
+              netInterest?: number
+              totalCost?: number
+              monthlyRepayment?: number
+              goalReachedOn?: string
+            }
+            why?: string
+            /** @default [] */
+            unknowns: string[]
+            /** @default [] */
+            checks: string[]
+            /** Format: date-time */
+            checkedAt: string
+            attribution?: string
+            /** Format: uri */
+            url?: string
+          }[]
+          totals?: {
+            monthly?: number
+            lumpSum?: number
+            netInterest?: number
+          }
+        }
+        /** @default [] */
+        debts: {
+          debtId: string
+          /** @enum {string} */
+          action: 'pay_off_first' | 'overpay' | 'keep_paying' | 'refinance'
+          why: string
+          costIfKept?: number
+          costWithStep?: number
+        }[]
+        ranking: {
+          /** @enum {string} */
+          objective:
+            'highest_net_return' | 'lowest_total_cost' | 'fastest_to_goal' | 'easiest_access'
+          basis: string
+        }
+        /** @default [] */
+        assumptions: string[]
+        /** Format: date-time */
+        createdAt: string
+        /** Format: date-time */
+        dataCheckedAt: string
+      }
+      client?: string
+    }
+    ClaimPlanResponse: {
+      /** Format: uuid */
+      caseId: string
+      /** Format: uuid */
+      participantId: string
+      /** @enum {string} */
+      role: 'primary' | 'partner'
+      /** @enum {string} */
+      authLevel: 'anonymous' | 'authenticated'
+      customerFirstName: string | null
+      created: boolean
+      /** @default false */
+      hasUpdates: boolean
+      planTitle: string
+      reopened: boolean
+    }
+    ClaimPlan: {
+      token: string
     }
     AdminOverview: {
       killSwitch: boolean
@@ -7515,6 +7979,119 @@ export interface components {
       status: 'GENERATED_NOT_SENT'
       /** @enum {boolean} */
       externalRequestMade: false
+    }
+    AdminMarketProductList: {
+      items: {
+        provider: string
+        /** @enum {string} */
+        source: 'bank' | 'ccpc'
+        /** @enum {string} */
+        category: 'savings' | 'deposit' | 'mortgage' | 'loan' | 'credit_card' | 'current_account'
+        productId: string
+        providerProductName: string
+        rates:
+          | {
+              /** @enum {string} */
+              kind: 'deposit'
+              aerPct: number | null
+              /** @enum {string|null} */
+              basis: 'fixed' | 'variable' | null
+              fixedMonths?: number
+              thenAerPct?: number
+              tierCapEur?: number
+              aboveTierAerPct?: number
+              lumpSumAerPct?: number
+              tiers?: {
+                minEur: number
+                maxEur: number | null
+                aerPct: number
+              }[]
+              terms?: {
+                months: number
+                aerPct: number
+                termReturnPct?: number
+              }[]
+              termMonths?: number
+              noticeDays?: number
+            }
+          | {
+              /** @enum {string} */
+              kind: 'mortgage'
+              /** @enum {string|null} */
+              rateType: 'fixed' | 'variable' | null
+              fixedYears: number | null
+              initialRatePct: number
+              followOnRatePct: number | null
+              fullTermRatePct: number | null
+              ltvMinPct: number | null
+              ltvMaxPct: number | null
+              ber: string | null
+              cashback: boolean | null
+              customerTypes: ('first_time_buyer' | 'mover' | 'switcher')[]
+            }
+          | {
+              /** @enum {string} */
+              kind: 'loan'
+              aprPct: number
+              /** @enum {string|null} */
+              rateType: 'fixed' | 'variable' | null
+              maxAmountEur: number | null
+              maxTermMonths: number | null
+              purposes: string[]
+            }
+          | {
+              /** @enum {string} */
+              kind: 'credit_card'
+              aprPct: number | null
+              purchaseRatePct: number | null
+              cashRatePct: number | null
+              balanceTransferIntroMonths: number | null
+              balanceTransferIntroPct: number | null
+            }
+          | {
+              /** @enum {string} */
+              kind: 'current_account'
+              quarterlyFeeEur: number | null
+              creditInterestPct: number | null
+              overdraft: boolean | null
+            }
+        conditions: {
+          takesMonthly?: boolean
+          takesLumpSum?: boolean
+          minMonthlyEur?: number
+          maxMonthlyEur?: number
+          minLumpSumEur?: number
+          maxLumpSumEur?: number
+          minAge?: number
+          bonus?: {
+            amountEur: number
+            lessDirt: boolean
+            firstTimeBuyerOnly: boolean
+            requiresMortgageHere: boolean
+            minMonthlyEur: number
+            minMonths: number
+            minTotalEur: number
+            withinMonths: number
+          }
+          prose?: {
+            [key: string]: string
+          }
+          details?: {
+            [key: string]: string
+          }
+        }
+        sourceUrl: string
+        providerUrl: string | null
+        sourceProductId: string | null
+        sourceUpdatedAt: string | null
+        attribution: string | null
+        unknown: string[]
+        effectiveFrom: string | null
+        firstSeenAt: string
+        checkedAt: string
+        supersededAt: string | null
+      }[]
+      skipped: number
     }
   }
   responses: never

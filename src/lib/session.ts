@@ -1,8 +1,10 @@
 import { requireSupabase } from '@/lib/supabase'
-import { callSessionApi } from '@/lib/saoiApi'
+import { callClaimPlanApi, callSessionApi } from '@/lib/saoiApi'
 import {
+  claimPlanResponseSchema,
   listCasesResponseSchema,
   sessionResponseSchema,
+  type ClaimPlanResponse,
   type ListCasesResponse,
   type SessionRequest,
   type SessionResponse,
@@ -68,10 +70,15 @@ function send(body: SessionRequest): Promise<unknown> {
   return callSessionApi(body)
 }
 
-async function invoke(body: SessionRequest): Promise<unknown> {
+function invoke(body: SessionRequest): Promise<unknown> {
+  return withSession(() => send(body))
+}
+
+/** One call to saoi-api as this browser's user, starting again once if the user is gone. */
+async function withSession<T>(call: () => Promise<T>): Promise<T> {
   await ensureAnonymousUser()
   try {
-    return await send(body)
+    return await call()
   } catch (error) {
     if (!sessionIsStale(error)) throw error
 
@@ -86,7 +93,7 @@ async function invoke(body: SessionRequest): Promise<unknown> {
     const supabase = requireSupabase()
     await supabase.auth.signOut().catch(() => undefined)
     await ensureAnonymousUser()
-    return await send(body)
+    return await call()
   }
 }
 
@@ -228,4 +235,25 @@ export async function claimPriorConversation(): Promise<SessionResponse | null> 
     console.warn('could not carry the conversation over:', error)
     return null
   }
+}
+
+/**
+ * Open a plan the customer made in their own AI (`#/plan/<token>`).
+ *
+ * As this browser's anonymous user, like everything else: the server puts the plan in this
+ * browser's conversation, or a new one, and that is the one `startSession` returns next. One
+ * request per token per page, so a remount cannot send a second claim while the first is out.
+ */
+const claiming = new Map<string, Promise<ClaimPlanResponse>>()
+
+export function claimPlan(token: string): Promise<ClaimPlanResponse> {
+  const pending = claiming.get(token)
+  if (pending !== undefined) return pending
+  const call = withSession(() => callClaimPlanApi(token)).then((data) =>
+    claimPlanResponseSchema.parse(data),
+  )
+  claiming.set(token, call)
+  // A failure can be retried (a capacity refusal leaves the link unspent).
+  call.catch(() => claiming.delete(token))
+  return call
 }

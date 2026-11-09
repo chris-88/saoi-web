@@ -38,6 +38,13 @@ const surfaces = [
     expect: /invitation link isn.{0,3}t valid/i,
     discloses: false,
   },
+  // A plan link nobody issued is refused kindly, with a way to start fresh.
+  {
+    route: '/#/plan/not-a-real-plan-tokens',
+    name: 'plan link',
+    expect: /that link didn.{0,3}t work/i,
+    discloses: false,
+  },
 ] as const
 
 function collectErrors(page: Page): string[] {

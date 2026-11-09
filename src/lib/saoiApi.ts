@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { api, apiError, SaoiApiError } from '@/api/client'
 import type { components } from '@/api/schema'
 import {
+  claimPlanResponseSchema,
   listCasesResponseSchema,
   sessionResponseSchema,
   type SessionRequest,
@@ -113,6 +114,11 @@ export function callSessionApi(request: SessionRequest): Promise<unknown> {
       return parsed(api.POST('/api/interest', { body: compact(body) }), registeredSchema)
     }
   }
+}
+
+/** Opens a saved plan's one-time link into this browser's conversation. */
+export function callClaimPlanApi(token: string): Promise<unknown> {
+  return parsed(api.POST('/api/plans/claim', { body: { token } }), claimPlanResponseSchema)
 }
 
 /** The partner's actions, one route each. Returns the partner's view. */

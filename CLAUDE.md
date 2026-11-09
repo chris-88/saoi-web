@@ -71,6 +71,7 @@ If you can't satisfy an item, say so explicitly rather than quietly skipping it.
 /#/ask             questions and offers to collaborate, from a phone
 /#/privacy         what happens to what you type
 /#/join/:token     partner experience
+/#/plan/:token     opens a plan made in the customer's own AI (one-time link), then the chat
 /#/admin/*         redirect to https://admin.saoi.ie/#/<rest> (the console's own site)
 /#/app/*, /#/try   redirect to /#/ (old links and printed QR codes)
 /#/baz             redirect to /#/ (the chat's old address; query string kept)

@@ -12,6 +12,7 @@ import { ComparisonCard } from '@/saoirse/cards/ComparisonCard'
 import { ArrangementCard } from '@/saoirse/cards/ArrangementCard'
 import { ReuseCard } from '@/saoirse/cards/ReuseCard'
 import { AccountOpenedCard } from '@/saoirse/cards/AccountOpenedCard'
+import { SavedPlanCard } from '@/saoirse/cards/SavedPlanCard'
 import { StatusCard } from '@/saoirse/cards/StatusCard'
 import { ReviewCard } from '@/saoirse/cards/ReviewCard'
 import { PausePromptCard } from '@/saoirse/cards/PausePromptCard'
@@ -212,6 +213,9 @@ function LiveCard({
 
     case 'account_opened':
       return <AccountOpenedCard card={card} />
+
+    case 'saved_plan':
+      return <SavedPlanCard card={card} />
 
     case 'status':
       return (

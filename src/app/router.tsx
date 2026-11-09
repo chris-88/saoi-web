@@ -1,5 +1,11 @@
 import { createHashRouter, Navigate, type RouteObject } from 'react-router-dom'
-import { LazyAsk, LazySaoirseScreen, LazyPartnerJoin, LazyPrivacy } from '@/app/lazySurfaces'
+import {
+  LazyAsk,
+  LazySaoirseScreen,
+  LazyPartnerJoin,
+  LazyPlanClaim,
+  LazyPrivacy,
+} from '@/app/lazySurfaces'
 import {
   AdminRedirect,
   ArticleRedirect,
@@ -24,6 +30,9 @@ const routeObjects: RouteObject[] = [
   { path: '/ask', element: <LazyAsk /> },
 
   { path: '/join/:token', element: <LazyPartnerJoin /> },
+
+  // A plan made in the customer's own AI, opened once from the link it was saved behind.
+  { path: '/plan/:token', element: <LazyPlanClaim /> },
 
   // The presenter console is its own site now (chris-88/saoi-admin, admin.saoi.ie).
   { path: '/admin/*', element: <AdminRedirect /> },

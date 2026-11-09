@@ -23,6 +23,9 @@ export const routes = {
 
   /** §33 — a second applicant, arriving on a single-use link. */
   partnerJoin: (token = ':token') => `/join/${token}`,
+
+  /** A plan made in the customer's own AI, opened from its one-time link. */
+  planClaim: (token = ':token') => `/plan/${token}`,
 } as const
 
 /**
