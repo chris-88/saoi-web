@@ -6,6 +6,11 @@ import { IconTile } from '@/components/IconTile'
 import { Reveal } from '@/components/Primitives'
 import { STAGGER } from '@/lib/motion'
 
+/** "Check: …" before a check, unless it already starts by saying so ("Check eligibility with…"). */
+export function checkLine(check: string): string {
+  return /^check\b/i.test(check.trim()) ? check : `Check: ${check}`
+}
+
 type Payload = Extract<CardPayload, { type: 'saved_plan' }>
 
 const label =
@@ -90,7 +95,7 @@ export function SavedPlanCard({ card }: { card: Payload }): ReactNode {
                   <ul className="mt-1.5 space-y-0.5">
                     {product.checks.map((check) => (
                       <li key={check} className="text-xs leading-relaxed">
-                        Check: {check}
+                        {checkLine(check)}
                       </li>
                     ))}
                   </ul>
