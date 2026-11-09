@@ -31,7 +31,7 @@ export const CLAIM_COPY: Record<ClaimProblem, { readonly title: string; readonly
   },
   expired: {
     title: 'This link has expired',
-    body: 'Plan links last seven days. Ask your assistant to save the plan again and you’ll get a fresh one.',
+    body: 'A plan is held for 24 hours, then deleted unless opened. Ask your assistant to build the plan again for a fresh link.',
   },
   busy: {
     title: 'Saoi is busy right now',
