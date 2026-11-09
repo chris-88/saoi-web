@@ -19,6 +19,7 @@ const AskForm = lazy(async () => ({ default: (await import('@/surfaces/Ask')).As
 const PrivacyNotice = lazy(async () => ({
   default: (await import('@/surfaces/Privacy')).Privacy,
 }))
+const Plan = lazy(async () => ({ default: (await import('@/surfaces/PlanClaim')).PlanClaim }))
 const Join = lazy(async () => ({ default: (await import('@/partner/PartnerJoin')).PartnerJoin }))
 
 function Pending(): ReactNode {
@@ -53,6 +54,14 @@ export function LazyPartnerJoin(): ReactNode {
   return (
     <Suspense fallback={<Pending />}>
       <Join />
+    </Suspense>
+  )
+}
+
+export function LazyPlanClaim(): ReactNode {
+  return (
+    <Suspense fallback={<Pending />}>
+      <Plan />
     </Suspense>
   )
 }
