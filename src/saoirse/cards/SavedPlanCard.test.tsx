@@ -34,7 +34,7 @@ const card: Extract<Card, { type: 'saved_plan' }> = {
       projected: null,
       provenance: 'CCPC, checked 9 Nov 2026',
       unknowns: ['Monthly maximum'],
-      checks: [],
+      checks: ['Check eligibility with AIB: CCPC does not record who can open it.'],
       url: 'https://personal.aib.ie/our-products/savings-and-deposits/online-saver',
     },
   ],
@@ -59,6 +59,9 @@ describe('the plan card', () => {
     expect(products.getByText('CCPC, checked 9 Nov 2026')).toBeInTheDocument()
     expect(products.getByText('Not published: Monthly maximum')).toBeInTheDocument()
     expect(products.getByText(/^Check: Paid by direct debit/)).toBeInTheDocument()
+    // A check that already says "Check" is not prefixed again.
+    expect(products.getByText(/^Check eligibility with AIB/)).toBeInTheDocument()
+    expect(products.queryByText(/Check: Check/)).not.toBeInTheDocument()
     expect(products.getByRole('link', { name: /AIB’s page/ })).toHaveAttribute(
       'rel',
       'noopener noreferrer',
