@@ -1,0 +1,148 @@
+# CLAUDE.md: saoi-web (the Saoirse chat)
+
+## What this is
+
+The customer-facing app of Saoi, served at `https://app.saoi.ie`: Saoirse, the conversation
+itself, plus the partner join page, the questions page and the privacy notice. A static SPA on
+GitHub Pages. It holds no business logic: every write and every turn goes to `saoi-api`.
+
+Naming: everything is `saoi`; `Saoirse` is only the assistant as a persona (`src/saoirse/`,
+`Saoirse*`). The only `baz` left is the `/baz` redirect (the chat's old address) and the contact
+mailbox in the privacy notice.
+
+The other repos:
+
+| Repo                     | What                                                                                                                                         | Where                      |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `chris-88/saoi`          | the backend: `saoi-api` (`services/api`), migrations, `supabase/functions/_shared` (domain, contracts, prompts), evals, and the product docs | `https://api.saoi.ie`      |
+| `chris-88/saoi-admin`    | the presenter console                                                                                                                        | `https://admin.saoi.ie`    |
+| `chris-88/saoi-showcase` | the showcase, explainer and article                                                                                                          | `https://showcase.saoi.ie` |
+
+The product's spec, invariants and domain model are in `chris-88/saoi`'s CLAUDE.md and in the
+vault docs it points to. Read them before changing anything a turn or a card depends on; this
+file covers only what is true of the browser app.
+
+## Operating philosophy: lean surface, high floor
+
+Two rules that look opposed but aren't:
+
+1. **Keep the surface lean.** Don't add speculative features, abstractions, or dependencies. Every new library is a decision that must be justified by a concrete, present need — not "we might want it." Prefer the platform and what's already in the stack before reaching for something new.
+2. **Keep the floor high.** Strict types, tests, linting, CI gates, accessibility, and real error handling are **not** "later" work — they are baseline and apply from the first commit. Restraint governs _scope_; it never governs _craft_.
+
+When these tension, craft wins. A small, correct, well-tested feature beats a large, untested one.
+
+## Definition of Done
+
+A change is not done until **all** of these hold. Apply this to every task without being asked:
+
+- [ ] `npm run typecheck`, `npm run lint`, `npm run format:check`, and `npm run test` all pass.
+- [ ] New/changed logic has tests (behavior, not implementation detail). Critical paths are covered.
+- [ ] Every async UI has explicit **loading, error, and empty** states — no silent failures, no spinners that never resolve.
+- [ ] User and external input is validated with **Zod** at the boundary; errors are handled and surfaced.
+- [ ] UI is keyboard-navigable and accessible (labels, focus, roles). No new `jsx-a11y` violations.
+- [ ] Any new Supabase table has **RLS enabled with explicit policies** before it ships.
+- [ ] No secrets in client code or `VITE_` vars; no `service_role` key anywhere near the client.
+- [ ] Env changes are reflected in `.env.example`.
+- [ ] Commit follows Conventional Commits. The diff is focused — no drive-by reformatting of unrelated files.
+
+If you can't satisfy an item, say so explicitly rather than quietly skipping it.
+
+## Stack
+
+| Concern              | Choice                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Build                | Vite, React, TypeScript (strict, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`)                                     |
+| UI                   | shadcn/ui (mandatory default), Tailwind v4, motion for the conversation                                                        |
+| Routing              | React Router, hash routing (GitHub Pages has no rewrites)                                                                      |
+| Server state         | TanStack Query, invalidated by the `saoi-api` change feed                                                                      |
+| Client state         | Zustand, ephemeral UI state only                                                                                               |
+| Validation and forms | Zod at every boundary; React Hook Form + zodResolver                                                                           |
+| Backend calls        | `openapi-fetch` with types generated by `openapi-typescript` from `https://api.saoi.ie/api/openapi.json`                       |
+| Auth                 | Supabase anonymous sessions, and email codes for signing in (supabase-js against `https://api.saoi.ie`, the self-hosted stack) |
+| PWA and push         | vite-plugin-pwa; Web Push handlers in `public/push-sw.js`                                                                      |
+| Tests                | Vitest + Testing Library; Playwright for route and render checks                                                               |
+| Monitoring           | Sentry in the browser, when `VITE_SENTRY_DSN` is set (it is not, today)                                                        |
+| Hosting              | GitHub Pages via Actions, custom domain `app.saoi.ie` (Cloudflare-proxied)                                                     |
+
+## Architecture
+
+```
+/#/                Saoirse itself - the same screen in a tab and in the installed PWA
+/#/ask             questions and offers to collaborate, from a phone
+/#/privacy         what happens to what you type
+/#/join/:token     partner experience
+/#/admin/*         redirect to https://admin.saoi.ie/#/<rest> (the console's own site)
+/#/app/*, /#/try   redirect to /#/ (old links and printed QR codes)
+/#/baz             redirect to /#/ (the chat's old address; query string kept)
+/#/showcase, /#/how-it-works/:section?, /#/article
+                   redirect to https://showcase.saoi.ie/
+  writes and turns: saoi-api through src/api/client.ts
+  reads:            saoi-api snapshot, history and change feed; supabase-js only for auth
+```
+
+- **`src/api/`**: `schema.d.ts` is generated (`npm run api:generate`, never edited by hand);
+  `client.ts` is the one `openapi-fetch` client, with the Supabase access token added as a bearer
+  by middleware. `src/lib/saoiApi.ts` maps the app's actions onto typed routes and parses every
+  response with its Zod contract, so a drifting server fails loudly. The turn and the change feed
+  go through the same client with `parseAs: 'stream'`.
+- **`src/shared/`**: copies of the backend's contracts and domain files this app imports
+  (`@contracts/*`, `@domain/*`). Copies, not a package: `npm run shared:sync` refreshes them from
+  a `chris-88/saoi` checkout (`../saoi` or `SAOI_DIR`), `npm run shared:check` reports drift. A
+  new import from the backend's `_shared` is added to the list in `scripts/sync-shared.ts`.
+  Never edit a copy here: change it in `saoi` and sync.
+- **`src/saoirse/`**: the portable chat UI, cards and their registry. It never imports a tenant
+  (ESLint `no-restricted-imports`, invariant 11).
+- `public/saoi-wordmark.png` is loaded by the sign-in email the auth stack sends; keep it at that
+  path.
+
+The invariants that matter here (full list in `saoi`'s CLAUDE.md): the model proposes, the UI
+commits (a card's tap calls the case action route); status cards render from the database, never
+from model text; nothing sensitive in URLs; nothing secret in `VITE_*`.
+
+## Engineering standards
+
+- No `any`. No non-null `!` outside tests. `satisfies` for config objects. Exhaustive `switch`
+  with `assertNever` for cards, stream events and states.
+- TanStack Query keys from `src/lib/queryKeys.ts`. No fetching in `useEffect`. Realtime and feed
+  handlers invalidate; they do not write to the cache. The only manual cache write is the
+  optimistic chat message.
+- Zustand for the composer draft and open sheets only.
+- shadcn components are added with the CLI; the look comes from tokens in `src/index.css`.
+  Mobile first at 390px.
+- Sentry never receives message content or fact values.
+- The PWA precaches the shell and never caches API responses.
+- The entry chunk and the up-front download have budgets (`scripts/check-bundle-size.ts`);
+  anything a first visit does not need goes behind `lazy()`. `scripts/check-bundle-secrets.ts`
+  fails the build if a credential shape reaches `dist/`.
+
+## Environment
+
+`.env` (names in `.env.example`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
+`VITE_SAOI_API_URL` (required), `VITE_VAPID_PUBLIC_KEY`, `VITE_SENTRY_DSN`, `VITE_BASE_PATH`.
+In CI and the deploy they are repo variables (all public by design).
+
+## CI and deploy
+
+- `ci.yml` on push and PR: `npm run check` (typecheck, lint, format check, test, build, bundle
+  scans) and a production dependency audit.
+- `deploy-pages.yml` after CI passes on `main`: build with the repo variables, scan, deploy.
+- Rolling deploy: merging to `main` ships. Watch CI and the Pages run, then check
+  `https://app.saoi.ie`.
+- When `saoi-api` changes a route, run `npm run api:generate` and `npm run shared:sync`, then fix
+  whatever no longer compiles.
+
+## Commands
+
+```
+npm run dev              # Vite on 5173, against VITE_SAOI_API_URL
+npm run check            # the pre-merge gate
+npm run test             # Vitest
+npm run e2e              # Playwright route and render checks
+npm run api:generate     # regenerate src/api/schema.d.ts from the live OpenAPI document
+npm run shared:sync      # refresh src/shared from ../saoi
+npm run shared:check     # report drift from ../saoi
+```
+
+## Open items
+
+- The Bank of Ireland product names in copy are due for renaming here, as a separate job.
