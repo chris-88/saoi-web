@@ -3,7 +3,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { SaoirseChat } from '@/saoirse/SaoirseChat'
 import { PlanArrival } from '@/saoirse/PlanArrival'
-import { ARRIVAL_FOLLOW_UPS, takeArrivalPrelude } from '@/lib/planArrival'
+import { arrivalFollowUps, takeArrivalPrelude } from '@/lib/planArrival'
 import { SaoirseWordmark } from '@/saoirse/SaoirseWordmark'
 import { ConversationMenu } from '@/saoirse/ConversationMenu'
 import { IdentityBadge } from '@/saoirse/IdentityBadge'
@@ -147,7 +147,7 @@ export function SaoirseScreen({ arrivalToken }: { arrivalToken?: string } = {}):
       ) : (
         <SaoirseChat
           prelude={prelude}
-          arrivalFollowUps={prelude === null ? undefined : ARRIVAL_FOLLOW_UPS}
+          arrivalFollowUps={prelude === null ? undefined : arrivalFollowUps(prelude.routeCount)}
           onStarted={setStarted}
           onCase={setCaseId}
           className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col"

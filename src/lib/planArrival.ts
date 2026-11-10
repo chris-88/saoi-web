@@ -10,6 +10,8 @@ export type ArrivalPrelude = {
   readonly welcome: string
   readonly notice: readonly string[]
   readonly accepted: string
+  /** How many routes to a home the comparison carries; 0 for none. */
+  readonly routeCount: number
 }
 
 let pending: ArrivalPrelude | null = null
@@ -24,17 +26,32 @@ export function takeArrivalPrelude(): ArrivalPrelude | null {
   return prelude
 }
 
-/** "Hi, I'm Saoirse. I've got the comparison you were working on: buying a home by November 2028." */
-export function welcomeLine(title: string): string {
+/**
+ * "Hi, I'm Saoirse. I've got the comparison you were working on: buying a home by November 2028."
+ * A home plan with routes adds the count once: "…, and 6 routes to a home."
+ */
+export function welcomeLine(title: string, routeCount = 0): string {
   const goal = title.length === 0 ? title : `${title.charAt(0).toLowerCase()}${title.slice(1)}`
-  return `Hi, I’m Saoirse. I’ve got the comparison you were working on: ${goal}.`
+  const routes =
+    routeCount > 0
+      ? `, and ${String(routeCount)} route${routeCount === 1 ? '' : 's'} to a home`
+      : ''
+  return `Hi, I’m Saoirse. I’ve got the comparison you were working on: ${goal}${routes}.`
 }
 
 export const ACCEPT_LABEL = 'That’s fine, carry on'
 
-/** The quick replies under Saoirse's line once the comparison is open. */
-export const ARRIVAL_FOLLOW_UPS = [
+const FOLLOW_UPS = [
   { id: 'through', label: 'Talk me through these' },
   { id: 'figure', label: 'Change a figure' },
   { id: 'how', label: 'How was this worked out?' },
 ] as const
+
+const ROUTES_FOLLOW_UP = { id: 'routes', label: 'Tell me about the other routes' } as const
+
+/** The quick replies under Saoirse's line once the comparison is open; the routes one only with routes. */
+export function arrivalFollowUps(
+  routeCount: number,
+): readonly { readonly id: string; readonly label: string }[] {
+  return routeCount > 0 ? [...FOLLOW_UPS, ROUTES_FOLLOW_UP] : FOLLOW_UPS
+}
