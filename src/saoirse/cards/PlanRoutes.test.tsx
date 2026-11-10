@@ -9,6 +9,9 @@ const source = (url: string) => ({ fact: 'Limits', url, checkedOn: '2026-11-10' 
 const ROUTES: PlanRoute[] = [
   {
     id: 'second_hand',
+    mechanism: 'The usual route: a deposit, stamp duty and fees',
+    keysOn: null,
+    confirmed: true,
     name: 'Second-hand',
     status: 'potential',
     line: 'Second-hand: deposit and buying costs saved by July 2028',
@@ -19,6 +22,9 @@ const ROUTES: PlanRoute[] = [
   },
   {
     id: 'new_build_help_to_buy',
+    mechanism: 'A tax refund from Revenue towards the deposit',
+    keysOn: null,
+    confirmed: true,
     name: 'New build with Help to Buy',
     status: 'needs_one_detail',
     line: 'New build: Help to Buy up to €30,000, depending on tax paid',
@@ -29,6 +35,9 @@ const ROUTES: PlanRoute[] = [
   },
   {
     id: 'first_home_scheme',
+    mechanism: 'Shared equity: the State takes a share of the price',
+    keysOn: null,
+    confirmed: true,
     name: 'First Home Scheme',
     status: 'potential',
     line: 'First Home Scheme: shared equity up to 30% on a new build',
@@ -39,6 +48,9 @@ const ROUTES: PlanRoute[] = [
   },
   {
     id: 'local_authority_home_loan',
+    mechanism: 'An alternative mortgage from the council',
+    keysOn: null,
+    confirmed: true,
     name: 'Local Authority Home Loan',
     status: 'not_applicable',
     line: 'Local Authority Home Loan: income above the €80,000 ceiling',
@@ -49,6 +61,9 @@ const ROUTES: PlanRoute[] = [
   },
   {
     id: 'vacant_property_grant',
+    mechanism: 'A grant for works after purchase, not the deposit',
+    keysOn: null,
+    confirmed: true,
     name: 'Vacant Property Refurbishment Grant',
     status: 'potential',
     line: 'Vacant Property Grant: up to €70,000 for works after purchase',
@@ -72,6 +87,7 @@ const base: Extract<Card, { type: 'saved_plan' }> = {
   attributions: [],
   createdAt: '2026-11-10T12:30:00Z',
   dataCheckedAt: '2026-11-10T12:14:36Z',
+  routes: [],
 }
 
 // Until the card contract carries `routes`, a card with them is wider than the type.

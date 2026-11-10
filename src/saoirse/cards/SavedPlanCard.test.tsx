@@ -44,6 +44,7 @@ const card: Extract<Card, { type: 'saved_plan' }> = {
   attributions: ['Source: Competition and Consumer Protection Commission, www.ccpc.ie'],
   createdAt: '2026-11-09T12:30:00Z',
   dataCheckedAt: '2026-11-09T12:14:36Z',
+  routes: [],
 }
 
 describe('the saved comparison card', () => {
