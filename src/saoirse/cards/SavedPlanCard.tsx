@@ -36,7 +36,7 @@ export function SavedPlanCard({ card }: { card: Payload }): ReactNode {
           <MapIcon />
         </IconTile>
         <div className="min-w-0 flex-1">
-          <p className={label}>Your plan</p>
+          <p className={label}>Your saved comparison</p>
           <h3 className="mt-1 text-base font-semibold text-balance">{card.title}</h3>
           <p className="text-muted-foreground mt-1 text-xs leading-relaxed text-pretty">
             {card.summary}
@@ -150,6 +150,10 @@ export function SavedPlanCard({ card }: { card: Payload }): ReactNode {
         <p className="text-muted-foreground">
           Information, not advice. Made with your AI assistant on {day(card.createdAt)}; rates
           checked {day(card.dataCheckedAt)}. Saoi opens nothing: you apply with each provider.
+        </p>
+        <p className="text-muted-foreground">
+          Saoi is not regulated by the Central Bank of Ireland and does not give advice; it compares
+          products on the figures you give.
         </p>
         {card.attributions.map((line) => (
           <p key={line} className="text-muted-foreground">
