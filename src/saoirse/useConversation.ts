@@ -159,7 +159,9 @@ export function useConversation(caseId: string | null) {
               }
 
               case 'card':
-                if (reply.length === 0) {
+                // A saved comparison is what the opening turn is about: it goes first, and
+                // Saoirse's line follows it (2026-11-10). Other cards wait for her first words.
+                if (reply.length === 0 && event.card.type !== 'saved_plan') {
                   held.push(event.card)
                   break
                 }

@@ -1,218 +1,87 @@
 import type { ReactNode } from 'react'
-import { ExternalLinkIcon, MapIcon } from 'lucide-react'
 import type { Card as CardPayload } from '@contracts/cards.ts'
 import { Card } from '@/components/ui/card'
-import { IconTile } from '@/components/IconTile'
-import { Reveal } from '@/components/Primitives'
-import { STAGGER } from '@/lib/motion'
-
-/** "Check: …" before a check, unless it already starts by saying so ("Check eligibility with…"). */
-export function checkLine(check: string): string {
-  return /^check\b/i.test(check.trim()) ? check : `Check: ${check}`
-}
 
 type Payload = Extract<CardPayload, { type: 'saved_plan' }>
 
-const label =
-  'text-muted-foreground text-[10.5px] font-semibold tracking-[0.08em] uppercase leading-none'
-
 /**
- * A plan the customer made in their own AI and opened here.
+ * A comparison the customer saved in their own AI, opened here.
  *
- * The first thing on screen after the claim link, before Saoirse says a word. Every line is the
- * server's, built from the stored plan: the goals, each product with what goes into it and what
- * it is projected to make, where those figures came from and when they were checked, and what
- * the data does not say. Read on a phone days later, without the conversation that produced
- * it, so the provenance and the unknowns are on the card rather than behind a tap.
- *
- * Something to read, not something to decide. Saoi opens nothing; the provider links go to the
- * providers.
+ * Compact on purpose (Chris, 2026-11-10: the full card overwhelmed): the goal and date, their
+ * figures in one line, and the first three options as one line each, in the order they chose.
+ * Everything else (the rest of the options, conditions, the savings split, how it was worked
+ * out) comes up in the conversation when they ask; Saoirse's context holds all of it. Every
+ * line is the server's, built from the stored plan.
  */
 export function SavedPlanCard({ card }: { card: Payload }): ReactNode {
+  const comparison = card.comparison
+  /** The sorted-by figure, named once above the rows so each row stays one short line. */
+  const by =
+    comparison === undefined
+      ? null
+      : comparison.sortBy === 'monthly_repayment'
+        ? 'monthly repayment'
+        : comparison.sortBy === 'keys_date'
+          ? 'keys date'
+          : '5-year cost'
+  const shortKind = (kind: string): string => kind.replace('-year fixed', '-yr fixed')
+  const rows: { key: string; left: string; right: string; unconfirmed: boolean }[] =
+    comparison !== undefined
+      ? comparison.options.map((option, index) => ({
+          key: String(index),
+          left: `${option.lender} · ${shortKind(option.kind)}`,
+          right: (option.lead ?? option.fiveYear).replace(/ \/ 5 yrs$| over 5 years$/, ''),
+          unconfirmed: !option.confirmed,
+        }))
+      : card.products.slice(0, 3).map((product, index) => ({
+          key: String(index),
+          left: `${product.providerName} · ${product.name}`,
+          right: product.amounts[0] ?? product.rate ?? '',
+          unconfirmed: false,
+        }))
+  const anyUnconfirmed = rows.some((row) => row.unconfirmed)
+
   return (
     <Card className="gap-0 overflow-hidden p-0">
-      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
-        <IconTile tone="deep">
-          <MapIcon />
-        </IconTile>
-        <div className="min-w-0 flex-1">
-          <p className={label}>Your saved comparison</p>
-          <h3 className="mt-1 text-base font-semibold text-balance">{card.title}</h3>
-          <p className="text-muted-foreground mt-1 text-xs leading-relaxed text-pretty">
-            {card.summary}
+      <div className="space-y-1 px-4 pt-3.5 pb-3">
+        <h3 className="text-sm font-semibold text-balance">{card.title}</h3>
+        {card.figures !== undefined && card.figures !== '' && (
+          <p className="text-muted-foreground text-xs whitespace-nowrap tabular-nums">
+            {card.figures}
           </p>
-        </div>
+        )}
+        {comparison !== undefined && by !== null && (
+          <p className="text-muted-foreground text-xs">
+            First {String(Math.min(3, comparison.total))} of {String(comparison.total)}, by {by}
+          </p>
+        )}
       </div>
-
-      {card.goals.length > 0 && (
-        <div className="border-t px-4 py-3">
-          <p className={label}>Goals</p>
-          <ul className="mt-2 space-y-1">
-            {card.goals.map((goal) => (
-              <li key={goal.label} className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="font-medium">{goal.label}</span>
-                {goal.target !== null && (
-                  <span className="text-muted-foreground text-xs tabular-nums">{goal.target}</span>
+      {rows.length > 0 && (
+        <ol
+          className="divide-y border-t px-4"
+          aria-label={comparison !== undefined ? 'The first three options' : 'In the comparison'}
+        >
+          {rows.map((row) => (
+            <li key={row.key} className="flex items-baseline justify-between gap-3 py-2 text-sm">
+              <span className="min-w-0 truncate">
+                {row.left}
+                {row.unconfirmed && (
+                  <span className="text-muted-foreground" aria-label="not confirmed">
+                    *
+                  </span>
                 )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {card.comparison !== undefined && (
-        <div className="border-t px-4 py-3">
-          <p className={label}>Your home options</p>
-          <p className="text-muted-foreground mt-1 text-xs">{card.comparison.sortedBy}</p>
-          {card.comparison.filters.map((filter) => (
-            <p key={filter} className="text-muted-foreground text-xs">
-              {filter}
-            </p>
-          ))}
-          <ol className="divide-y" aria-label="The first options, in the order chosen">
-            {card.comparison.options.map((option, index) => (
-              <li key={index} className="flex items-start justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">
-                    {option.lender}
-                    {!option.confirmed && (
-                      <span className="text-muted-foreground ml-2 rounded-md border px-1.5 text-[11px] font-normal">
-                        Unconfirmed
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {option.kind} · {option.rate}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold tabular-nums">{option.fiveYear}</p>
-                  <p className="text-muted-foreground text-xs tabular-nums">{option.monthly}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-          {card.comparison.total > card.comparison.options.length && (
-            <p className="text-muted-foreground text-xs">
-              {card.comparison.total - card.comparison.options.length} more options in the
-              comparison.
-            </p>
-          )}
-        </div>
-      )}
-
-      {card.products.length > 0 && (
-        <ol className="divide-y border-t" aria-label="Products in the plan">
-          {card.products.map((product, index) => (
-            <Reveal
-              key={`${product.providerName}-${product.name}-${String(index)}`}
-              mode="mount"
-              delay={index * STAGGER}
-            >
-              <li className="px-4 py-3">
-                <p className={label}>
-                  {String(index + 1)}. {product.role}
-                </p>
-                <div className="mt-1.5 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-pretty">{product.name}</p>
-                    <p className="text-muted-foreground text-xs">{product.providerName}</p>
-                  </div>
-                  {product.rate !== null && (
-                    <span className="shrink-0 text-sm font-semibold tabular-nums">
-                      {product.rate}
-                    </span>
-                  )}
-                </div>
-                {product.amounts.length > 0 && (
-                  <p className="mt-1.5 text-sm tabular-nums">{product.amounts.join(' · ')}</p>
-                )}
-                {product.projected !== null && (
-                  <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed tabular-nums">
-                    {product.projected}
-                  </p>
-                )}
-                {product.checks.length > 0 && (
-                  <ul className="mt-1.5 space-y-0.5">
-                    {product.checks.map((check) => (
-                      <li key={check} className="text-xs leading-relaxed">
-                        {checkLine(check)}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {product.unknowns.length > 0 && (
-                  <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-                    Not published: {product.unknowns.join(', ')}
-                  </p>
-                )}
-                <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-                  <span>{product.provenance}</span>
-                  {product.url !== null && (
-                    <a
-                      href={product.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-foreground inline-flex items-center gap-1 underline underline-offset-2"
-                    >
-                      {product.providerName}’s page
-                      <ExternalLinkIcon className="size-3" aria-hidden />
-                    </a>
-                  )}
-                </div>
-              </li>
-            </Reveal>
+              </span>
+              <span className="shrink-0 font-medium whitespace-nowrap tabular-nums">
+                {row.right}
+              </span>
+            </li>
           ))}
         </ol>
       )}
-
-      {card.debts.length > 0 && (
-        <div className="border-t px-4 py-3">
-          <p className={label}>Debts, in order</p>
-          <ol className="mt-2 list-decimal space-y-1 pl-4">
-            {card.debts.map((line) => (
-              <li key={line} className="text-sm leading-relaxed">
-                {line}
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-
-      <div className="bg-muted/40 space-y-1.5 border-t px-4 py-3 text-xs leading-relaxed">
-        <p>{card.basis}</p>
-        {card.assumptions.length > 0 && (
-          <ul className="text-muted-foreground list-disc space-y-0.5 pl-4">
-            {card.assumptions.map((assumption) => (
-              <li key={assumption}>{assumption}</li>
-            ))}
-          </ul>
-        )}
-        <p className="text-muted-foreground">
-          Information, not advice. Made with your AI assistant on {day(card.createdAt)}; rates
-          checked {day(card.dataCheckedAt)}. Saoi opens nothing: you apply with each provider.
-        </p>
-        <p className="text-muted-foreground">
-          Saoi is not regulated by the Central Bank of Ireland and does not give advice; it compares
-          products on the figures you give.
-        </p>
-        {card.attributions.map((line) => (
-          <p key={line} className="text-muted-foreground">
-            {line}
-          </p>
-        ))}
+      <div className="text-muted-foreground space-y-0.5 border-t px-4 py-2 text-[11px] leading-snug">
+        {anyUnconfirmed && <p>* Incentives from CCPC, not confirmed on the lender’s site.</p>}
+        <p>Information, not advice. Saoi is not regulated by the Central Bank of Ireland.</p>
       </div>
     </Card>
   )
-}
-
-function day(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleDateString('en-IE', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'Europe/Dublin',
-  })
 }
