@@ -1,3 +1,4 @@
+import { adoptPlanLink } from '@/app/planLink'
 import { createHashRouter, Navigate, type RouteObject } from 'react-router-dom'
 import {
   LazyAsk,
@@ -49,6 +50,9 @@ const routeObjects: RouteObject[] = [
   { path: '/index.html', element: <Navigate to="/" replace /> },
   { path: '*', element: <NotFound /> },
 ]
+
+// A saved comparison's `?plan=` link becomes `#/plan/<token>` before the router reads it.
+adoptPlanLink(window)
 
 export const router = createHashRouter(
   routeObjects.map((route) => ({ ...route, errorElement: <RouteError /> })),
