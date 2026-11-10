@@ -2640,7 +2640,7 @@ export interface paths {
     put?: never
     /**
      * Save a plan made in the customer’s own AI, behind a one-time link
-     * @description Public: no sign-in. Called by the Saoi MCP server (`saoi_save_plan`) with the plan `saoi_build_plan` returned (`MarketPlan`, version 1). Stores it and returns a claim link into app.saoi.ie that works once, for seven days. The body is capped at 64 KiB; saves are rate-limited per address and capped per day.
+     * @description Public: no sign-in. Called by the Saoi MCP server (`saoi_save_plan`) with the plan `saoi_build_plan` returned (`MarketPlan`, version 1). Holds it and returns a claim link into app.saoi.ie that works once, for 24 hours; unopened, it is then deleted. `saoi_build_plan` already returns such a link with every plan. The body is capped at 64 KiB; saves are rate-limited per address and capped per day.
      */
     post: {
       parameters: {
@@ -2683,6 +2683,94 @@ export interface paths {
           }
         }
         /** @description Too many saves. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/plans/preview': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * What a saved comparison shows, before it is opened
+     * @description Reads a saved comparison by its link’s token without spending it, so the app can welcome the customer with it and show what Saoi keeps before anything is stored against them: the title, their figures in one line, and for a home the first three options in the order they chose. No sign-in. Same errors as the claim.
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PreviewPlan']
+        }
+      }
+      responses: {
+        /** @description The comparison, as the welcome shows it. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['PreviewPlanResponse']
+          }
+        }
+        /** @description The body is not valid. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No plan was saved behind this link. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Somebody has already opened this link. */
+        409: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The link has expired. */
+        410: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
         429: {
           headers: {
             [name: string]: unknown
@@ -2780,6 +2868,781 @@ export interface paths {
           }
         }
         /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/market/search': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Search and rank Irish financial products for the customer’s own figures
+     * @description Ranks the products in one category (savings, deposit, mortgage, loan, credit_card, current_account) with the figures for the amounts given: interest after DIRT for savings and deposits, monthly repayment and total cost for mortgages and loans. Default objective: highest net return for savings and deposits, lowest total cost for debt; `objective` changes it and the result states the basis. Top 5 by default (`limit` up to 25). Every product carries its source (`bank` or `ccpc`), when it was checked and last changed, the CCPC attribution where it applies, the fields the source does not give (never treated as zero), its deposit guarantee, and eligibility to check. Providers that operate in Ireland only. Information, not advice: results are ranked by a stated objective, for the inputs given, and never pick a product for the customer. Saoi is not regulated by the Central Bank of Ireland. Unauthenticated. Nothing sent is stored, except that a plan is held for 24 hours behind a single-use link so it can be opened in the Saoi app, then deleted unless opened.
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['MarketSearch']
+        }
+      }
+      responses: {
+        /** @description Ranked products. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['MarketSearchResult']
+          }
+        }
+        /** @description The request is not valid. `details` says where. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The body is larger than 32 KiB. */
+        413: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests from this address. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/market/products/{id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * One product in full: figures, rate history, unknowns, source
+     * @description Takes a product id from search (`aib:deposit.ladder_personal_fixed_term_deposit`) or a source row id (`aib:deposit.c3743`). Returns the comparable view, every version Saoi has recorded (newest first), and the source’s own words for each row, verbatim.
+     */
+    get: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          id: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description The product. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['MarketProductDetail']
+          }
+        }
+        /** @description The request is not valid. `details` says where. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No product with this id. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The body is larger than 32 KiB. */
+        413: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests from this address. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/market/about/{topic}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * How Saoi ranks, and how Saoi earns
+     * @description `ranking`: how results are ordered and every figure worked out. `earnings`: referral fees (disclosed, never used in ranking), information not advice, and the CCPC attribution. Markdown, static.
+     */
+    get: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          topic: 'ranking' | 'earnings'
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description The text. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['MarketAbout']
+          }
+        }
+        /** @description The request is not valid. `details` says where. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The body is larger than 32 KiB. */
+        413: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests from this address. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/calc/review-situation': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Deterministic findings on a customer’s situation, with euro figures
+     * @description Given income, outgoings, savings (with what they earn) and debts (with rates and terms), returns findings with the figures behind each: money earning little against the best instant-access rate, no emergency fund (three months of outgoings), a debt costing more than savings earn, a fixed term ending within three months, a goal short at the current pace. Also the goals the findings suggest. Information, not advice: results are ranked by a stated objective, for the inputs given, and never pick a product for the customer. Saoi is not regulated by the Central Bank of Ireland. Unauthenticated. Nothing sent is stored, except that a plan is held for 24 hours behind a single-use link so it can be opened in the Saoi app, then deleted unless opened.
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ReviewSituation']
+        }
+      }
+      responses: {
+        /** @description Findings. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ReviewSituationResult']
+          }
+        }
+        /** @description The request is not valid. `details` says where. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The body is larger than 32 KiB. */
+        413: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests from this address. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/calc/savings-projection': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Savings month by month, net of DIRT, within caps and tiers
+     * @description Projects named products and amounts (`lines`, product ids from search) or, with no lines, the best available split of `lumpSum` and `monthly` across the market. Month by month, after DIRT, honouring monthly caps and balance tiers. A line stops at the end of a known period (a fixed term’s maturity, an introductory rate with no stated reversion) and says so; the totals run only as far as every line is known. With `targetAmount`, reports the month the goal is reached. Information, not advice: results are ranked by a stated objective, for the inputs given, and never pick a product for the customer. Saoi is not regulated by the Central Bank of Ireland. Unauthenticated. Nothing sent is stored, except that a plan is held for 24 hours behind a single-use link so it can be opened in the Saoi app, then deleted unless opened.
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['SavingsProjection']
+        }
+      }
+      responses: {
+        /** @description The projection. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['SavingsProjectionResult']
+          }
+        }
+        /** @description The request is not valid. `details` says where. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The body is larger than 32 KiB. */
+        413: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests from this address. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/calc/mortgage': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Mortgage affordability under the Central Bank limits, or a switch against the market
+     * @description `mode: affordability`: the Central Bank of Ireland limits (loan to income 4 times for first-time buyers, 3.5 for second and subsequent buyers; loan to value 90%), the most the income and deposit allow, the deposit a price needs, and the matching mortgages ranked by total cost. `mode: switch`: the current mortgage against switcher rates: monthly and lifetime saving, cashback, fees as stated, and break-even on any switching costs given. Information, not advice: results are ranked by a stated objective, for the inputs given, and never pick a product for the customer. Saoi is not regulated by the Central Bank of Ireland. Unauthenticated. Nothing sent is stored, except that a plan is held for 24 hours behind a single-use link so it can be opened in the Saoi app, then deleted unless opened.
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['MortgageCalculation']
+        }
+      }
+      responses: {
+        /** @description The calculation. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['MortgageCalculationResult']
+          }
+        }
+        /** @description The request is not valid. `details` says where. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The body is larger than 32 KiB. */
+        413: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests from this address. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/calc/debt': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * What debts cost, the payoff order, overpay versus save, refinance rates
+     * @description For each debt: months to clear and interest still to pay at the current repayment. The payoff order (highest rate first). With `extraMonthly` or `lumpSum`: interest saved by overpaying the top debt against interest earned saving the same money. The market’s loans and cards for the same balance, with the saving. Nothing is arranged. Information, not advice: results are ranked by a stated objective, for the inputs given, and never pick a product for the customer. Saoi is not regulated by the Central Bank of Ireland. Unauthenticated. Nothing sent is stored, except that a plan is held for 24 hours behind a single-use link so it can be opened in the Saoi app, then deleted unless opened.
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DebtCalculation']
+        }
+      }
+      responses: {
+        /** @description The calculation. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['DebtCalculationResult']
+          }
+        }
+        /** @description The request is not valid. `details` says where. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The body is larger than 32 KiB. */
+        413: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests from this address. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/calc/home': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * The home calculator: what the limits allow, the deposit, and when it is saved
+     * @description For a customer who raises buying a home. Takes whatever they have said, however partial (deposit saved, monthly saving, gross income and a second income, the price in mind, existing repayments, the date they would like the keys, first-time buyer, new build or second-hand, their bank and whether to stay with it, fixed or variable, a green home, open to switching current account) and returns the figures that move with them: what the Central Bank limits allow, the deposit and cash needed at the keys, the month that is saved at this pace, and the inputs still missing as plain questions. `rules` lets a calculator card recompute the figures as sliders move. No products: the options, every eligible one filtered and sorted as the customer chooses, come from build-plan with a house_deposit goal and `homePreferences`. Information, not advice: results are ranked by a stated objective, for the inputs given, and never pick a product for the customer. Saoi is not regulated by the Central Bank of Ireland. Unauthenticated. Nothing sent is stored, except that a plan is held for 24 hours behind a single-use link so it can be opened in the Saoi app, then deleted unless opened.
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['HomeCalculator']
+        }
+      }
+      responses: {
+        /** @description The figures. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['HomeCalculatorResult']
+          }
+        }
+        /** @description The request is not valid. `details` says where. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The body is larger than 32 KiB. */
+        413: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests from this address. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/calc/first-home': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * A first home: Help to Buy, the Central Bank limits with it, green rates, the mortgages that fit
+     * @description For a first-time buyer: Help to Buy (Revenue: new builds and self-builds up to €500,000; the lesser of 10% of the price, €35,000 and Income Tax and DIRT paid over the last four tax years; a mortgage of at least 70%; bought by 31 December 2029), what is available, not available, or depends on something not given; the Central Bank limits (loan to income 4 times, loan to value 90%, the 15% allowances, the exemptions) with Help to Buy counted towards the deposit; for a price, the deposit needed, the shortfall and whether the loan is within the income limit; green rates from the market data (no rule sets them; lenders do); the First Home shared equity scheme only as far as it is confirmed; and the mortgages that fit, ranked by total cost. Every rule carries its source page and the day it was read. Information, not advice: results are ranked by a stated objective, for the inputs given, and never pick a product for the customer. Saoi is not regulated by the Central Bank of Ireland. Unauthenticated. Nothing sent is stored, except that a plan is held for 24 hours behind a single-use link so it can be opened in the Saoi app, then deleted unless opened.
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FirstHome']
+        }
+      }
+      responses: {
+        /** @description The first-home figures. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['FirstHomeResult']
+          }
+        }
+        /** @description The request is not valid. `details` says where. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The body is larger than 32 KiB. */
+        413: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests from this address. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/calc/build-plan': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Compare the options for the customer’s goals: a worked combination under the rule they chose, with runners-up, and for a home every eligible option, filtered and sorted
+     * @description Given a situation and chosen goals: an emergency buffer (`emergencyBufferEur`, `emergencyBufferMonths` of outgoings, or an emergency_fund goal) in the best instant access, kept apart; each debt as `debts[].plan` says: `compare` (default) works it out cleared and kept, with both figures, the combination worked out with the larger; `keep` keeps it, still owed; `clear` clears it from savings (a cleared debt’s repayment is saved). To model keeping a debt, send it with `plan: "keep"`: never drop it from the call. Money in a current account (`access: "current_account"`) counts as earning what CCPC states current accounts pay (0%); the rest split across the market (regular savers to their monthly caps, the lump sum to a fixed term or notice account that ends by the goal’s date only where it beats instant access by `minLockGainEur` and `minLockGainPctPerYear`, otherwise instant access; `keepAccessible` or `goalDateCertain: false` keep everything in instant access; at most €100,000 per provider); projected to the date the main goal is reached; what-ifs (an extra €100 a month, each debt cleared or kept, the month a target is reached at this pace); for a house deposit, what it supports under the Central Bank limits and every eligible mortgage option (each lender’s cheapest per rate type and fixed period), filtered by `homePreferences` (stay with my bank, fixed or variable, green) and sorted by the metric the customer picks; the filters applied are stated. `runnersUp` are the next splits under the same rule. No single option is picked for the customer. `position` is everything held at the end (towards the goal and the buffer, named) less what is still owed; the questions that would sharpen the plan come with it, as in saoi_money_check. For a follow-up once saoi_money_check has run; one call per reply, never alongside saoi_money_check. To compare options (a debt kept or cleared, another monthly amount or date), pass up to three `alternatives` in the same call: each comes back with its own net figure. Call again only when the customer changes their situation in a later message, never to adjust figures. Returns `plan` (a `MarketPlan`, the body `POST /api/plans` takes: send it unchanged to save it behind a one-time link), the reasoning, every figure, and `next` for the host to relay. Information, not advice: results are ranked by a stated objective, for the inputs given, and never pick a product for the customer. Saoi is not regulated by the Central Bank of Ireland. Unauthenticated. Nothing sent is stored, except that a plan is held for 24 hours behind a single-use link so it can be opened in the Saoi app, then deleted unless opened.
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BuildPlan']
+        }
+      }
+      responses: {
+        /** @description The plan. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['BuildPlanResult']
+          }
+        }
+        /** @description The request is not valid. `details` says where. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The body is larger than 32 KiB. */
+        413: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests from this address. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/calc/money-check': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Start here: a money check on whatever the customer has said so far
+     * @description Call this as soon as the customer talks about their own money in Ireland: money sitting in a current account, saving for a house or anything else, a loan or credit card balance, a mortgage or switching, Help to Buy, where to put savings, whether they are paying too much. Takes whatever has been said so far, however partial, and returns in one result: what Saoi finds (money found a year, with its sources), a plan across the Irish market when there is money to place, the two or three questions that would sharpen it, the presentation to lead with, and a link that holds the plan for 24 hours so it can be opened in the Saoi app (the only thing stored). One call per reply: call it first, not alongside saoi_build_plan, and pass up to three `alternatives` to compare options in the same call. Call it again only when the customer says more about their situation in a later message. Information, not advice: results are ranked by a stated objective, for the inputs given, and never pick a product for the customer. Saoi is not regulated by the Central Bank of Ireland. Unauthenticated. Nothing sent is stored, except that a plan is held for 24 hours behind a single-use link so it can be opened in the Saoi app, then deleted unless opened.
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['MoneyCheck']
+        }
+      }
+      responses: {
+        /** @description The money check. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['MoneyCheckResult']
+          }
+        }
+        /** @description The request is not valid. `details` says where. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description The body is larger than 32 KiB. */
+        413: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests from this address. See `Retry-After`. */
         429: {
           headers: {
             [name: string]: unknown
@@ -6129,6 +6992,21 @@ export interface components {
                 basis: string
                 assumptions: string[]
                 attributions: string[]
+                comparison?: {
+                  headline: string
+                  sortedBy: string
+                  filters: string[]
+                  total: number
+                  options: {
+                    lender: string
+                    kind: string
+                    rate: string
+                    monthly: string
+                    fiveYear: string
+                    keys: string | null
+                    confirmed: boolean
+                  }[]
+                }
                 createdAt: string
                 dataCheckedAt: string
               }
@@ -6939,6 +7817,21 @@ export interface components {
                   basis: string
                   assumptions: string[]
                   attributions: string[]
+                  comparison?: {
+                    headline: string
+                    sortedBy: string
+                    filters: string[]
+                    total: number
+                    options: {
+                      lender: string
+                      kind: string
+                      rate: string
+                      monthly: string
+                      fiveYear: string
+                      keys: string | null
+                      confirmed: boolean
+                    }[]
+                  }
                   createdAt: string
                   dataCheckedAt: string
                 }
@@ -7063,7 +7956,7 @@ export interface components {
           targetDate?: string
           priority?: number
         }[]
-        recommendation: {
+        combination: {
           products: {
             /** @enum {string} */
             role:
@@ -7101,6 +7994,15 @@ export interface components {
             unknowns: string[]
             /** @default [] */
             checks: string[]
+            depositGuarantee?: {
+              scheme: string | null
+              country: string | null
+              coverEur: number | null
+              note?: string | null
+              /** Format: uri */
+              sourceUrl?: string | null
+              checkedOn?: string | null
+            }
             /** Format: date-time */
             checkedAt: string
             attribution?: string
@@ -7130,12 +8032,69 @@ export interface components {
         }
         /** @default [] */
         assumptions: string[]
+        position?: {
+          at: string
+          total: number
+          towardsGoal: number
+          buffer: number
+          owed: number
+          line: string
+        }
+        comparison?: {
+          /** @enum {string} */
+          kind: 'home'
+          headline: string
+          priceEur: number
+          /** @enum {string} */
+          sortBy: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
+          sortedBy: string
+          /** @default [] */
+          filters: string[]
+          options: {
+            lender: string
+            kind: string
+            productName: string
+            ratePct: number
+            monthlyEur: number
+            fiveYearCostEur: number
+            keysOn: string | null
+            confirmed: boolean
+          }[]
+        }
         /** Format: date-time */
         createdAt: string
         /** Format: date-time */
         dataCheckedAt: string
       }
       client?: string
+    }
+    PreviewPlanResponse: {
+      title: string
+      figures: string
+      comparison: {
+        headline: string
+        sortedBy: string
+        filters: string[]
+        total: number
+        options: {
+          lender: string
+          kind: string
+          rate: string
+          monthly: string
+          fiveYear: string
+          keys: string | null
+          confirmed: boolean
+        }[]
+      } | null
+      products: {
+        name: string
+        provider: string
+        line: string
+      }[]
+      expiresAt: string
+    }
+    PreviewPlan: {
+      token: string
     }
     ClaimPlanResponse: {
       /** Format: uuid */
@@ -7155,6 +8114,4071 @@ export interface components {
     }
     ClaimPlan: {
       token: string
+    }
+    MarketSearchResult: {
+      /** @description How the results are ordered. Information, not advice: the caller can change the objective. */
+      ranking: {
+        /** @enum {string} */
+        objective:
+          'highest_net_return' | 'easiest_access' | 'lowest_total_cost' | 'lowest_monthly_repayment'
+        /** @description What the ranking measures, stated with the inputs. */
+        basis: string
+      }
+      results: {
+        rank: number
+        /** @description One product in one comparable shape, whichever source it was read from. */
+        product: {
+          /** @description Saoi’s id for the product view: `<provider>:<productId>`. Pass it to the product route. */
+          id: string
+          /** @description The provider id: `boi`, `aib`, `ptsb`. */
+          provider: string
+          providerName: string
+          /** @description The provider’s own name for the product. */
+          name: string
+          /** @enum {string} */
+          category: 'savings' | 'deposit' | 'mortgage' | 'loan' | 'credit_card' | 'current_account'
+          terms:
+            | {
+                /** @enum {string} */
+                kind: 'deposit'
+                /**
+                 * @description `instant`: withdraw any time. `notice`: withdraw after `noticeDays`. `fixed_term`: locked for a term.
+                 * @enum {string}
+                 */
+                access: 'instant' | 'notice' | 'fixed_term'
+                noticeDays: number | null
+                /** @description The headline AER, percent. Null for a term ladder. */
+                aerPct: number | null
+                /** @enum {string|null} */
+                basis: 'fixed' | 'variable' | null
+                /** @description Balance bands, lowest first. A balance in a band earns that band’s rate. */
+                bands: {
+                  fromEur: number
+                  toEur: number | null
+                  aerPct: number
+                }[]
+                /** @description What a lump sum earns where it differs from the headline. */
+                lumpSumAerPct: number | null
+                /** @description A rate guaranteed for a period, and what follows it. */
+                introductory: {
+                  months: number
+                  /** @description The rate after it. Null: not known. */
+                  thenAerPct: number | null
+                } | null
+                /** @description Fixed terms on offer, shortest first. Empty when the product is not a ladder. */
+                ladder: {
+                  months: number
+                  aerPct: number
+                  /** @description The source row for this term. */
+                  productId: string
+                }[]
+                /** @description Takes regular monthly saving. Null: not known. */
+                takesMonthly: boolean | null
+                /** @description Takes a lump sum. Null: not known. */
+                takesLumpSum: boolean | null
+                minMonthlyEur: number | null
+                /** @description The most that can be paid in each month. */
+                maxMonthlyEur: number | null
+                minLumpSumEur: number | null
+                maxLumpSumEur: number | null
+                /** @description A bonus that gives way to base rates (bunq): every euro earns the bonus until the first reset (the first day of each month in `resetMonths`); then the threshold is the highest balance of the past `lookbackMonths`, the balance up to it earns `baseBands`, and only the part above it earns the bonus. */
+                thresholdBonus: {
+                  bonusAerPct: number
+                  resetMonths: number[]
+                  lookbackMonths: number
+                  baseBands: {
+                    fromEur: number
+                    toEur: number | null
+                    aerPct: number
+                  }[]
+                } | null
+                /**
+                 * @description How often interest is credited, as the provider states it. Null: not stated.
+                 * @enum {string|null}
+                 */
+                interestPaid:
+                  | 'daily'
+                  | 'weekly'
+                  | 'monthly'
+                  | 'quarterly'
+                  | 'yearly'
+                  | 'account_anniversary'
+                  | 'maturity'
+                  | null
+                /** @description The rate is for accounts opened now; an account already open may earn another rate. */
+                rateForNewAccounts: boolean
+                /** @description Whether DIRT (33%) is deducted from interest. State Savings products are DIRT-free. */
+                dirtApplies: boolean
+                /** @description A conditional bonus, kept apart from interest. */
+                bonus: {
+                  amountEur: number
+                  conditions: string[]
+                } | null
+              }
+            | {
+                /** @enum {string} */
+                kind: 'mortgage'
+                /** @enum {string|null} */
+                rateType: 'fixed' | 'variable' | null
+                fixedYears: number | null
+                initialRatePct: number
+                /** @description What the provider says the rate may become after the fixed period. */
+                followOnRatePct: number | null
+                /** @description CCPC’s “rate for full term”. */
+                fullTermRatePct: number | null
+                ltvMinPct: number | null
+                ltvMaxPct: number | null
+                /** @description The Building Energy Rating the rate is for. Null: any BER. */
+                ber: string | null
+                /** @description The BER was read from the product’s name. */
+                berFromName: boolean
+                buyerTypes: ('first_time_buyer' | 'mover' | 'switcher')[]
+                cashback: {
+                  offered: boolean | null
+                  /** @description Cashback as a percent of the loan, where the source states one. */
+                  pct: number | null
+                  /** @description The source’s own words. */
+                  stated: string | null
+                }
+                /** @description Fees as the source states them, verbatim. */
+                fees: {
+                  [key: string]: string
+                }
+                /** @description A high-value-mortgage rate (larger loans only). */
+                highValue: boolean
+                /** @description The smallest loan the rate is for, where the source states one ("borrowing €250,000 or more"). Null: not stated; for a high-value rate that means the threshold is unknown, not absent. */
+                minLoanEur: number | null
+              }
+            | {
+                /** @enum {string} */
+                kind: 'loan'
+                aprPct: number
+                /** @enum {string|null} */
+                rateType: 'fixed' | 'variable' | null
+                maxAmountEur: number | null
+                /** @description Null where the source gives no unit for the maximum term. */
+                maxTermMonths: number | null
+                /** @description The maximum term as the source states it. */
+                maxTermStated: string | null
+                purposes: string[]
+                setupFees: string | null
+              }
+            | {
+                /** @enum {string} */
+                kind: 'credit_card'
+                aprPct: number | null
+                purchaseRatePct: number | null
+                cashRatePct: number | null
+                balanceTransfer: {
+                  introMonths: number
+                  introPct: number
+                } | null
+              }
+            | {
+                /** @enum {string} */
+                kind: 'current_account'
+                quarterlyFeeEur: number | null
+                annualFeeEur: number | null
+                creditInterestPct: number | null
+                overdraft: boolean | null
+              }
+          /** @description Where the figures came from and how fresh they are. Nothing here is estimated. */
+          provenance: {
+            /**
+             * @description `bank`: read from the provider’s own website. `ccpc`: read from the Competition and Consumer Protection Commission’s comparison tables.
+             * @enum {string}
+             */
+            source: 'bank' | 'ccpc'
+            /** @description Where the figures were read. */
+            sourceUrl: string
+            /** @description The provider’s own page, where known. */
+            providerUrl: string | null
+            /** @description When Saoi last read the source and found these figures. */
+            checkedAt: string
+            /** @description When Saoi last saw the figures change. Null when they have not changed since Saoi first recorded them. */
+            lastChangedAt: string | null
+            /** @description When Saoi first recorded this product. */
+            firstRecordedAt: string
+            /** @description Required attribution under the source’s re-use terms. Show it with the figures. */
+            attribution: string | null
+            /** @description The source rows this product view is built from (several for a term ladder). */
+            rows: {
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              productId: string
+            }[]
+            /** @description Rows for the same product from another source, set aside because the provider’s own page is read directly. */
+            preferredOver: {
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              productId: string
+              providerProductName: string
+            }[]
+          }
+          /** @description Opened through a deposit platform rather than with the bank directly. The platform account comes first. */
+          platform: {
+            /** @enum {string} */
+            name: 'Raisin'
+            note: string
+          } | null
+          /** @description Which deposit guarantee scheme covers the money, and where that was read. */
+          depositGuarantee: {
+            /** @description The scheme that protects the deposit, e.g. "Deposit Guarantee Scheme (Central Bank of Ireland)", "Dutch Deposit Guarantee Scheme (De Nederlandsche Bank)". Null: not recorded. */
+            scheme: string | null
+            country: string | null
+            /** @description Cover per person per institution, where a limit is known. Null: no limit recorded (see `note`). */
+            coverEur: number | null
+            /** @description Anything that changes how the cover reads, e.g. a shared licence or a State guarantee with no limit. */
+            note: string | null
+            /**
+             * @description `recorded_by_saoi`: Saoi’s record, read from a primary page (`sourceUrl`, `checkedOn`). `stated_by_source`: the comparison source’s own text names the scheme. `unknown`: neither; confirm with the provider.
+             * @enum {string}
+             */
+            basis: 'stated_by_source' | 'recorded_by_saoi' | 'unknown'
+            /** @description The primary page the record was read from: the provider’s site, the Central Bank of Ireland, depositguarantee.ie. */
+            sourceUrl: string | null
+            /** @description When that page was read: YYYY-MM-DD. */
+            checkedOn: string | null
+          } | null
+          unknowns: {
+            /** @description The path in the source record, e.g. `rates.thenAerPct`. */
+            field: string
+            /** @description What is not known, in words. */
+            meaning: string
+          }[]
+          /** @description Who can open it, as the provider’s own page states it; a field it does not state is null. Null when no provider page recording it was read. */
+          eligibility: {
+            minAge: number | null
+            /** @description The country the holder must live in. */
+            residentIn: string | null
+            notForUsCitizens: boolean | null
+            individualsOnly: boolean | null
+            /** @description Whether joint accounts can be opened. */
+            jointAccounts: boolean | null
+            /** @description Another account with the provider to hold first, in its own words. */
+            needsAccountWithProvider: string | null
+          } | null
+          /** @description False for a savings or deposit rate read only from CCPC with nothing stated about what follows it: the provider may pay it only for a period, or only on part of the balance. Shown as a flag when it ranks in the top three. */
+          rateConfirmed: boolean
+          /** @description Eligibility the data cannot confirm. The source does not record who can open a product, so check with the provider. */
+          checks: string[]
+        }
+        figures:
+          | {
+              /** @enum {string} */
+              kind: 'savings'
+              horizonMonths: number
+              /** @description Months the figures cover. Less than the horizon when a rate after that is not known. */
+              knownMonths: number
+              /** @description The fixed term used, for a ladder. */
+              termMonths: number | null
+              paidIn: number
+              grossInterest: number
+              dirt: number
+              /** @description Interest after DIRT over the months covered. */
+              netInterest: number
+              endBalance: number
+              /** @description Interest after DIRT as an annual rate on the money held over the months covered. */
+              netRatePct: number
+              /** @description Where a projection stops because the next rate is not known. */
+              stop: {
+                afterMonths: number
+                reason: string
+              } | null
+              /** @description Money the product cannot take: above its cap, or a kind it does not take. */
+              notPlaced: {
+                lumpSum: number
+                monthly: number
+              }
+            }
+          | {
+              /** @enum {string} */
+              kind: 'mortgage'
+              loanAmount: number
+              ltvPct: number | null
+              termYears: number
+              monthlyRepayment: number
+              /** @description At the follow-on rate, where stated. */
+              monthlyAfterFixed: number | null
+              paidDuringFixed: number | null
+              /** @description Over the whole term, assuming the follow-on rate holds after the fixed period. */
+              totalRepaid: number | null
+              cashbackEur: number | null
+              /** @description Interest over the term less cashback. */
+              totalCostAfterCashback: number | null
+            }
+          | {
+              /** @enum {string} */
+              kind: 'loan'
+              amount: number
+              termMonths: number
+              monthlyRepayment: number
+              totalRepaid: number
+              totalInterest: number
+            }
+          | {
+              /** @enum {string} */
+              kind: 'credit_card'
+              balance: number
+              /** @description On the balance held for 12 months with nothing repaid, at the stated rates. */
+              interestOver12Months: number | null
+            }
+          | {
+              /** @enum {string} */
+              kind: 'current_account'
+              annualFeeEur: number | null
+            }
+        /** @description What to know before relying on the figures: platform, eligibility, unknowns. */
+        flags: string[]
+      }[]
+      /** @description Products that met the filters, before the limit. */
+      matched: number
+      /** @description Products left out, and why. */
+      excluded: {
+        reason: string
+        count: number
+      }[]
+      assumptions: string[]
+      /** @description When the oldest figure shown was last checked. */
+      dataCheckedAt: string | null
+      attributions: string[]
+    }
+    /** @description What to compare and for which figures. */
+    MarketSearch: {
+      /**
+       * @description `savings`: regular monthly saving. `deposit`: a lump sum (instant access, notice, fixed term). `mortgage`, `loan`, `credit_card`, `current_account`.
+       * @enum {string}
+       */
+      category: 'savings' | 'deposit' | 'mortgage' | 'loan' | 'credit_card' | 'current_account'
+      /** @description Savings and deposits: the lump sum. Loans: the amount to borrow. Cards: the balance carried. */
+      amount?: number
+      /** @description Savings: what is paid in each month. */
+      monthlyAmount?: number
+      /** @description Savings and deposits: how long until the money is needed. Default 12. No fixed term longer than this is shown. */
+      horizonMonths?: number
+      /**
+       * @description Savings and deposits: only this kind of access. Default any.
+       * @enum {string}
+       */
+      access?: 'instant' | 'notice' | 'fixed_term' | 'any'
+      maxNoticeDays?: number
+      providers?: string[]
+      /**
+       * @description Mortgages: whose list to search. Default first_time_buyer.
+       * @enum {string}
+       */
+      buyerType?: 'first_time_buyer' | 'mover' | 'switcher'
+      /** @description Mortgages: the property’s value. */
+      propertyValue?: number
+      /** @description Mortgages: the amount to borrow. */
+      loanAmount?: number
+      /** @description Mortgages: the term. Default 30. */
+      termYears?: number
+      /** @description Mortgages: the BER. Without it, BER-specific (green) rates are left out and counted. */
+      ber?: string
+      /** @description Loans: the term to repay over. Default 60. */
+      termMonths?: number
+      /**
+       * @description Loans: only loans for this purpose.
+       * @enum {string}
+       */
+      purpose?: 'personal' | 'car' | 'home_improvement' | 'energy_upgrade' | 'holiday' | 'student'
+      /**
+       * @description What to rank by. Default `highest_net_return` for savings and deposits, `lowest_total_cost` for the rest. `easiest_access` applies to savings and deposits; `lowest_monthly_repayment` to mortgages and loans.
+       * @enum {string}
+       */
+      objective?:
+        'highest_net_return' | 'easiest_access' | 'lowest_total_cost' | 'lowest_monthly_repayment'
+      /** @description How many results. Default 5. */
+      limit?: number
+    }
+    MarketProductDetail: {
+      /** @description One product in one comparable shape, whichever source it was read from. */
+      product: {
+        /** @description Saoi’s id for the product view: `<provider>:<productId>`. Pass it to the product route. */
+        id: string
+        /** @description The provider id: `boi`, `aib`, `ptsb`. */
+        provider: string
+        providerName: string
+        /** @description The provider’s own name for the product. */
+        name: string
+        /** @enum {string} */
+        category: 'savings' | 'deposit' | 'mortgage' | 'loan' | 'credit_card' | 'current_account'
+        terms:
+          | {
+              /** @enum {string} */
+              kind: 'deposit'
+              /**
+               * @description `instant`: withdraw any time. `notice`: withdraw after `noticeDays`. `fixed_term`: locked for a term.
+               * @enum {string}
+               */
+              access: 'instant' | 'notice' | 'fixed_term'
+              noticeDays: number | null
+              /** @description The headline AER, percent. Null for a term ladder. */
+              aerPct: number | null
+              /** @enum {string|null} */
+              basis: 'fixed' | 'variable' | null
+              /** @description Balance bands, lowest first. A balance in a band earns that band’s rate. */
+              bands: {
+                fromEur: number
+                toEur: number | null
+                aerPct: number
+              }[]
+              /** @description What a lump sum earns where it differs from the headline. */
+              lumpSumAerPct: number | null
+              /** @description A rate guaranteed for a period, and what follows it. */
+              introductory: {
+                months: number
+                /** @description The rate after it. Null: not known. */
+                thenAerPct: number | null
+              } | null
+              /** @description Fixed terms on offer, shortest first. Empty when the product is not a ladder. */
+              ladder: {
+                months: number
+                aerPct: number
+                /** @description The source row for this term. */
+                productId: string
+              }[]
+              /** @description Takes regular monthly saving. Null: not known. */
+              takesMonthly: boolean | null
+              /** @description Takes a lump sum. Null: not known. */
+              takesLumpSum: boolean | null
+              minMonthlyEur: number | null
+              /** @description The most that can be paid in each month. */
+              maxMonthlyEur: number | null
+              minLumpSumEur: number | null
+              maxLumpSumEur: number | null
+              /** @description A bonus that gives way to base rates (bunq): every euro earns the bonus until the first reset (the first day of each month in `resetMonths`); then the threshold is the highest balance of the past `lookbackMonths`, the balance up to it earns `baseBands`, and only the part above it earns the bonus. */
+              thresholdBonus: {
+                bonusAerPct: number
+                resetMonths: number[]
+                lookbackMonths: number
+                baseBands: {
+                  fromEur: number
+                  toEur: number | null
+                  aerPct: number
+                }[]
+              } | null
+              /**
+               * @description How often interest is credited, as the provider states it. Null: not stated.
+               * @enum {string|null}
+               */
+              interestPaid:
+                | 'daily'
+                | 'weekly'
+                | 'monthly'
+                | 'quarterly'
+                | 'yearly'
+                | 'account_anniversary'
+                | 'maturity'
+                | null
+              /** @description The rate is for accounts opened now; an account already open may earn another rate. */
+              rateForNewAccounts: boolean
+              /** @description Whether DIRT (33%) is deducted from interest. State Savings products are DIRT-free. */
+              dirtApplies: boolean
+              /** @description A conditional bonus, kept apart from interest. */
+              bonus: {
+                amountEur: number
+                conditions: string[]
+              } | null
+            }
+          | {
+              /** @enum {string} */
+              kind: 'mortgage'
+              /** @enum {string|null} */
+              rateType: 'fixed' | 'variable' | null
+              fixedYears: number | null
+              initialRatePct: number
+              /** @description What the provider says the rate may become after the fixed period. */
+              followOnRatePct: number | null
+              /** @description CCPC’s “rate for full term”. */
+              fullTermRatePct: number | null
+              ltvMinPct: number | null
+              ltvMaxPct: number | null
+              /** @description The Building Energy Rating the rate is for. Null: any BER. */
+              ber: string | null
+              /** @description The BER was read from the product’s name. */
+              berFromName: boolean
+              buyerTypes: ('first_time_buyer' | 'mover' | 'switcher')[]
+              cashback: {
+                offered: boolean | null
+                /** @description Cashback as a percent of the loan, where the source states one. */
+                pct: number | null
+                /** @description The source’s own words. */
+                stated: string | null
+              }
+              /** @description Fees as the source states them, verbatim. */
+              fees: {
+                [key: string]: string
+              }
+              /** @description A high-value-mortgage rate (larger loans only). */
+              highValue: boolean
+              /** @description The smallest loan the rate is for, where the source states one ("borrowing €250,000 or more"). Null: not stated; for a high-value rate that means the threshold is unknown, not absent. */
+              minLoanEur: number | null
+            }
+          | {
+              /** @enum {string} */
+              kind: 'loan'
+              aprPct: number
+              /** @enum {string|null} */
+              rateType: 'fixed' | 'variable' | null
+              maxAmountEur: number | null
+              /** @description Null where the source gives no unit for the maximum term. */
+              maxTermMonths: number | null
+              /** @description The maximum term as the source states it. */
+              maxTermStated: string | null
+              purposes: string[]
+              setupFees: string | null
+            }
+          | {
+              /** @enum {string} */
+              kind: 'credit_card'
+              aprPct: number | null
+              purchaseRatePct: number | null
+              cashRatePct: number | null
+              balanceTransfer: {
+                introMonths: number
+                introPct: number
+              } | null
+            }
+          | {
+              /** @enum {string} */
+              kind: 'current_account'
+              quarterlyFeeEur: number | null
+              annualFeeEur: number | null
+              creditInterestPct: number | null
+              overdraft: boolean | null
+            }
+        /** @description Where the figures came from and how fresh they are. Nothing here is estimated. */
+        provenance: {
+          /**
+           * @description `bank`: read from the provider’s own website. `ccpc`: read from the Competition and Consumer Protection Commission’s comparison tables.
+           * @enum {string}
+           */
+          source: 'bank' | 'ccpc'
+          /** @description Where the figures were read. */
+          sourceUrl: string
+          /** @description The provider’s own page, where known. */
+          providerUrl: string | null
+          /** @description When Saoi last read the source and found these figures. */
+          checkedAt: string
+          /** @description When Saoi last saw the figures change. Null when they have not changed since Saoi first recorded them. */
+          lastChangedAt: string | null
+          /** @description When Saoi first recorded this product. */
+          firstRecordedAt: string
+          /** @description Required attribution under the source’s re-use terms. Show it with the figures. */
+          attribution: string | null
+          /** @description The source rows this product view is built from (several for a term ladder). */
+          rows: {
+            /** @enum {string} */
+            source: 'bank' | 'ccpc'
+            productId: string
+          }[]
+          /** @description Rows for the same product from another source, set aside because the provider’s own page is read directly. */
+          preferredOver: {
+            /** @enum {string} */
+            source: 'bank' | 'ccpc'
+            productId: string
+            providerProductName: string
+          }[]
+        }
+        /** @description Opened through a deposit platform rather than with the bank directly. The platform account comes first. */
+        platform: {
+          /** @enum {string} */
+          name: 'Raisin'
+          note: string
+        } | null
+        /** @description Which deposit guarantee scheme covers the money, and where that was read. */
+        depositGuarantee: {
+          /** @description The scheme that protects the deposit, e.g. "Deposit Guarantee Scheme (Central Bank of Ireland)", "Dutch Deposit Guarantee Scheme (De Nederlandsche Bank)". Null: not recorded. */
+          scheme: string | null
+          country: string | null
+          /** @description Cover per person per institution, where a limit is known. Null: no limit recorded (see `note`). */
+          coverEur: number | null
+          /** @description Anything that changes how the cover reads, e.g. a shared licence or a State guarantee with no limit. */
+          note: string | null
+          /**
+           * @description `recorded_by_saoi`: Saoi’s record, read from a primary page (`sourceUrl`, `checkedOn`). `stated_by_source`: the comparison source’s own text names the scheme. `unknown`: neither; confirm with the provider.
+           * @enum {string}
+           */
+          basis: 'stated_by_source' | 'recorded_by_saoi' | 'unknown'
+          /** @description The primary page the record was read from: the provider’s site, the Central Bank of Ireland, depositguarantee.ie. */
+          sourceUrl: string | null
+          /** @description When that page was read: YYYY-MM-DD. */
+          checkedOn: string | null
+        } | null
+        unknowns: {
+          /** @description The path in the source record, e.g. `rates.thenAerPct`. */
+          field: string
+          /** @description What is not known, in words. */
+          meaning: string
+        }[]
+        /** @description Who can open it, as the provider’s own page states it; a field it does not state is null. Null when no provider page recording it was read. */
+        eligibility: {
+          minAge: number | null
+          /** @description The country the holder must live in. */
+          residentIn: string | null
+          notForUsCitizens: boolean | null
+          individualsOnly: boolean | null
+          /** @description Whether joint accounts can be opened. */
+          jointAccounts: boolean | null
+          /** @description Another account with the provider to hold first, in its own words. */
+          needsAccountWithProvider: string | null
+        } | null
+        /** @description False for a savings or deposit rate read only from CCPC with nothing stated about what follows it: the provider may pay it only for a period, or only on part of the balance. Shown as a flag when it ranks in the top three. */
+        rateConfirmed: boolean
+        /** @description Eligibility the data cannot confirm. The source does not record who can open a product, so check with the provider. */
+        checks: string[]
+      }
+      /** @description Every version Saoi has recorded, newest first. */
+      history: {
+        /** @enum {string} */
+        source: 'bank' | 'ccpc'
+        productId: string
+        /** @description When Saoi first saw this version. */
+        from: string
+        /** @description When it was replaced. Null: current. */
+        to: string | null
+        /** @description The headline figure of this version, e.g. "3.00% AER". */
+        headline: string
+      }[]
+      /** @description The source’s own words for each row, unedited: offers, conditions, fees. */
+      verbatim: {
+        /** @enum {string} */
+        source: 'bank' | 'ccpc'
+        productId: string
+        prose: {
+          [key: string]: string
+        }
+        details: {
+          [key: string]: string
+        }
+      }[]
+    }
+    MarketAbout: {
+      /** @enum {string} */
+      topic: 'ranking' | 'earnings'
+      title: string
+      /** @description Markdown. */
+      text: string
+      /** @description When the text was last revised: YYYY-MM-DD. */
+      updatedOn: string
+    }
+    ReviewSituationResult: {
+      /** @description Present to the customer: the headline sentences, in order, as options with their figures. Lead with these; the fields below are the detail behind them. */
+      presentation: string[]
+      /** @description Money a year the figures support finding: idle cash against the best accessible rate after DIRT, debt interest not paid, a mortgage switch. Each part sourced and dated. */
+      moneyFound: {
+        /** @description The total a year, after DIRT: the sum of `parts`. Nothing in `notCounted` is in it. */
+        annualEur: number
+        /** @description One line for the host to lead with. */
+        headline: string
+        parts: {
+          /** @enum {string} */
+          kind: 'idle_cash' | 'debt_interest' | 'mortgage_switch'
+          label: string
+          annualEur: number
+          /** @description How the figure is worked out, with its inputs. */
+          detail: string
+          /** @description Where the rate behind it comes from: a provider or CCPC, or the customer’s own figures. */
+          source: string
+          sourceUrl: string | null
+          /** @description When that rate was last checked. */
+          checkedAt: string | null
+        }[]
+        /** @description Money that may be there but is not counted: a rate not confirmed beyond CCPC’s one figure, a current rate not given, bonuses, cashback. */
+        notCounted: {
+          label: string
+          annualEur: number | null
+          why: string
+        }[]
+        basis: string
+      }
+      findings: {
+        /** @enum {string} */
+        kind:
+          | 'idle_money'
+          | 'no_emergency_fund'
+          | 'debt_costs_more_than_savings_earn'
+          | 'fixed_term_ending'
+          | 'goal_short_at_current_pace'
+          | 'unknown_rate'
+          | 'help_to_buy'
+        headline: string
+        detail: string
+        /** @description The euro figures behind the finding, by name. */
+        figures: {
+          [key: string]: number
+        }
+      }[]
+      candidateGoals: {
+        /** @enum {string} */
+        kind:
+          | 'house_deposit'
+          | 'emergency_fund'
+          | 'pay_off_debt'
+          | 'save_for_purchase'
+          | 'grow_savings'
+          | 'switch_mortgage'
+          | 'other'
+        label: string
+        why: string
+      }[]
+      assumptions: string[]
+      dataCheckedAt: string | null
+      attributions: string[]
+      /** @description For the host to relay: what can be done next, including a plan saved into the Saoi app. */
+      next: string
+    }
+    ReviewSituation: {
+      /** @description The customer’s circumstances, sent with each call. Only a plan is ever held, as a 24-hour draft behind a single-use link. Every figure is what they said. */
+      situation: {
+        /** @description Two or three sentences of what the customer said. */
+        summary?: string
+        income?: {
+          /** @description Gross income a year, before tax; joint for two applicants. */
+          annualGross?: number
+          /** @description Take-home pay a month. */
+          netMonthly?: number
+        }
+        outgoings?: {
+          rentMonthly?: number
+          otherMonthly?: number
+        }
+        /** @description What they can put aside each month. */
+        monthlySaving?: number
+        /** @default [] */
+        savings: {
+          /** @description In the customer’s words: "current account", "credit union". */
+          label: string
+          balance: number
+          provider?: string
+          /** @description What it earns now, if the customer said. Absent on a savings account: not known (never treated as zero). Absent on a current account: counted at the credit interest CCPC states for current accounts (0% in practice), with that basis stated. */
+          aerPct?: number
+          /**
+           * @description Where the money is. `current_account` for money in a current account ("sitting in my current account"): it is counted as earning what CCPC states current accounts pay (0% in practice), so moving it counts as money found. `instant`, `notice`, `fixed_term` for a savings or deposit account. Absent: read from the label ("current account" counts as one).
+           * @enum {string}
+           */
+          access?: 'instant' | 'notice' | 'fixed_term' | 'current_account'
+          fixedTermEndsOn?: string
+        }[]
+        /** @default [] */
+        debts: {
+          id: string
+          label: string
+          /** @enum {string} */
+          kind: 'credit_card' | 'personal_loan' | 'car_finance' | 'overdraft' | 'mortgage' | 'other'
+          balance: number
+          ratePct?: number
+          monthlyRepayment?: number
+          monthsRemaining?: number
+          /**
+           * @description For saoi_build_plan, what the customer wants modelled for this debt. `compare` (default): worked out both ways, cleared from savings and kept, and the plan takes the one leaving more. `keep`: kept and repaid as it is, still owed in the net position. `clear`: cleared from the savings held. To model keeping a debt, send it with `plan: "keep"`; never leave it out, or the plan has no debt to set against the savings.
+           * @enum {string}
+           */
+          plan?: 'clear' | 'keep' | 'compare'
+        }[]
+        firstTimeBuyer?: boolean
+      }
+      /** @default [] */
+      goals: {
+        id: string
+        /** @enum {string} */
+        kind:
+          | 'house_deposit'
+          | 'emergency_fund'
+          | 'pay_off_debt'
+          | 'save_for_purchase'
+          | 'grow_savings'
+          | 'switch_mortgage'
+          | 'other'
+        label: string
+        targetAmount?: number
+        targetDate?: string
+        priority?: number
+      }[]
+    }
+    SavingsProjectionResult: {
+      lines: {
+        /** @description One product in one comparable shape, whichever source it was read from. */
+        product: {
+          /** @description Saoi’s id for the product view: `<provider>:<productId>`. Pass it to the product route. */
+          id: string
+          /** @description The provider id: `boi`, `aib`, `ptsb`. */
+          provider: string
+          providerName: string
+          /** @description The provider’s own name for the product. */
+          name: string
+          /** @enum {string} */
+          category: 'savings' | 'deposit' | 'mortgage' | 'loan' | 'credit_card' | 'current_account'
+          terms:
+            | {
+                /** @enum {string} */
+                kind: 'deposit'
+                /**
+                 * @description `instant`: withdraw any time. `notice`: withdraw after `noticeDays`. `fixed_term`: locked for a term.
+                 * @enum {string}
+                 */
+                access: 'instant' | 'notice' | 'fixed_term'
+                noticeDays: number | null
+                /** @description The headline AER, percent. Null for a term ladder. */
+                aerPct: number | null
+                /** @enum {string|null} */
+                basis: 'fixed' | 'variable' | null
+                /** @description Balance bands, lowest first. A balance in a band earns that band’s rate. */
+                bands: {
+                  fromEur: number
+                  toEur: number | null
+                  aerPct: number
+                }[]
+                /** @description What a lump sum earns where it differs from the headline. */
+                lumpSumAerPct: number | null
+                /** @description A rate guaranteed for a period, and what follows it. */
+                introductory: {
+                  months: number
+                  /** @description The rate after it. Null: not known. */
+                  thenAerPct: number | null
+                } | null
+                /** @description Fixed terms on offer, shortest first. Empty when the product is not a ladder. */
+                ladder: {
+                  months: number
+                  aerPct: number
+                  /** @description The source row for this term. */
+                  productId: string
+                }[]
+                /** @description Takes regular monthly saving. Null: not known. */
+                takesMonthly: boolean | null
+                /** @description Takes a lump sum. Null: not known. */
+                takesLumpSum: boolean | null
+                minMonthlyEur: number | null
+                /** @description The most that can be paid in each month. */
+                maxMonthlyEur: number | null
+                minLumpSumEur: number | null
+                maxLumpSumEur: number | null
+                /** @description A bonus that gives way to base rates (bunq): every euro earns the bonus until the first reset (the first day of each month in `resetMonths`); then the threshold is the highest balance of the past `lookbackMonths`, the balance up to it earns `baseBands`, and only the part above it earns the bonus. */
+                thresholdBonus: {
+                  bonusAerPct: number
+                  resetMonths: number[]
+                  lookbackMonths: number
+                  baseBands: {
+                    fromEur: number
+                    toEur: number | null
+                    aerPct: number
+                  }[]
+                } | null
+                /**
+                 * @description How often interest is credited, as the provider states it. Null: not stated.
+                 * @enum {string|null}
+                 */
+                interestPaid:
+                  | 'daily'
+                  | 'weekly'
+                  | 'monthly'
+                  | 'quarterly'
+                  | 'yearly'
+                  | 'account_anniversary'
+                  | 'maturity'
+                  | null
+                /** @description The rate is for accounts opened now; an account already open may earn another rate. */
+                rateForNewAccounts: boolean
+                /** @description Whether DIRT (33%) is deducted from interest. State Savings products are DIRT-free. */
+                dirtApplies: boolean
+                /** @description A conditional bonus, kept apart from interest. */
+                bonus: {
+                  amountEur: number
+                  conditions: string[]
+                } | null
+              }
+            | {
+                /** @enum {string} */
+                kind: 'mortgage'
+                /** @enum {string|null} */
+                rateType: 'fixed' | 'variable' | null
+                fixedYears: number | null
+                initialRatePct: number
+                /** @description What the provider says the rate may become after the fixed period. */
+                followOnRatePct: number | null
+                /** @description CCPC’s “rate for full term”. */
+                fullTermRatePct: number | null
+                ltvMinPct: number | null
+                ltvMaxPct: number | null
+                /** @description The Building Energy Rating the rate is for. Null: any BER. */
+                ber: string | null
+                /** @description The BER was read from the product’s name. */
+                berFromName: boolean
+                buyerTypes: ('first_time_buyer' | 'mover' | 'switcher')[]
+                cashback: {
+                  offered: boolean | null
+                  /** @description Cashback as a percent of the loan, where the source states one. */
+                  pct: number | null
+                  /** @description The source’s own words. */
+                  stated: string | null
+                }
+                /** @description Fees as the source states them, verbatim. */
+                fees: {
+                  [key: string]: string
+                }
+                /** @description A high-value-mortgage rate (larger loans only). */
+                highValue: boolean
+                /** @description The smallest loan the rate is for, where the source states one ("borrowing €250,000 or more"). Null: not stated; for a high-value rate that means the threshold is unknown, not absent. */
+                minLoanEur: number | null
+              }
+            | {
+                /** @enum {string} */
+                kind: 'loan'
+                aprPct: number
+                /** @enum {string|null} */
+                rateType: 'fixed' | 'variable' | null
+                maxAmountEur: number | null
+                /** @description Null where the source gives no unit for the maximum term. */
+                maxTermMonths: number | null
+                /** @description The maximum term as the source states it. */
+                maxTermStated: string | null
+                purposes: string[]
+                setupFees: string | null
+              }
+            | {
+                /** @enum {string} */
+                kind: 'credit_card'
+                aprPct: number | null
+                purchaseRatePct: number | null
+                cashRatePct: number | null
+                balanceTransfer: {
+                  introMonths: number
+                  introPct: number
+                } | null
+              }
+            | {
+                /** @enum {string} */
+                kind: 'current_account'
+                quarterlyFeeEur: number | null
+                annualFeeEur: number | null
+                creditInterestPct: number | null
+                overdraft: boolean | null
+              }
+          /** @description Where the figures came from and how fresh they are. Nothing here is estimated. */
+          provenance: {
+            /**
+             * @description `bank`: read from the provider’s own website. `ccpc`: read from the Competition and Consumer Protection Commission’s comparison tables.
+             * @enum {string}
+             */
+            source: 'bank' | 'ccpc'
+            /** @description Where the figures were read. */
+            sourceUrl: string
+            /** @description The provider’s own page, where known. */
+            providerUrl: string | null
+            /** @description When Saoi last read the source and found these figures. */
+            checkedAt: string
+            /** @description When Saoi last saw the figures change. Null when they have not changed since Saoi first recorded them. */
+            lastChangedAt: string | null
+            /** @description When Saoi first recorded this product. */
+            firstRecordedAt: string
+            /** @description Required attribution under the source’s re-use terms. Show it with the figures. */
+            attribution: string | null
+            /** @description The source rows this product view is built from (several for a term ladder). */
+            rows: {
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              productId: string
+            }[]
+            /** @description Rows for the same product from another source, set aside because the provider’s own page is read directly. */
+            preferredOver: {
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              productId: string
+              providerProductName: string
+            }[]
+          }
+          /** @description Opened through a deposit platform rather than with the bank directly. The platform account comes first. */
+          platform: {
+            /** @enum {string} */
+            name: 'Raisin'
+            note: string
+          } | null
+          /** @description Which deposit guarantee scheme covers the money, and where that was read. */
+          depositGuarantee: {
+            /** @description The scheme that protects the deposit, e.g. "Deposit Guarantee Scheme (Central Bank of Ireland)", "Dutch Deposit Guarantee Scheme (De Nederlandsche Bank)". Null: not recorded. */
+            scheme: string | null
+            country: string | null
+            /** @description Cover per person per institution, where a limit is known. Null: no limit recorded (see `note`). */
+            coverEur: number | null
+            /** @description Anything that changes how the cover reads, e.g. a shared licence or a State guarantee with no limit. */
+            note: string | null
+            /**
+             * @description `recorded_by_saoi`: Saoi’s record, read from a primary page (`sourceUrl`, `checkedOn`). `stated_by_source`: the comparison source’s own text names the scheme. `unknown`: neither; confirm with the provider.
+             * @enum {string}
+             */
+            basis: 'stated_by_source' | 'recorded_by_saoi' | 'unknown'
+            /** @description The primary page the record was read from: the provider’s site, the Central Bank of Ireland, depositguarantee.ie. */
+            sourceUrl: string | null
+            /** @description When that page was read: YYYY-MM-DD. */
+            checkedOn: string | null
+          } | null
+          unknowns: {
+            /** @description The path in the source record, e.g. `rates.thenAerPct`. */
+            field: string
+            /** @description What is not known, in words. */
+            meaning: string
+          }[]
+          /** @description Who can open it, as the provider’s own page states it; a field it does not state is null. Null when no provider page recording it was read. */
+          eligibility: {
+            minAge: number | null
+            /** @description The country the holder must live in. */
+            residentIn: string | null
+            notForUsCitizens: boolean | null
+            individualsOnly: boolean | null
+            /** @description Whether joint accounts can be opened. */
+            jointAccounts: boolean | null
+            /** @description Another account with the provider to hold first, in its own words. */
+            needsAccountWithProvider: string | null
+          } | null
+          /** @description False for a savings or deposit rate read only from CCPC with nothing stated about what follows it: the provider may pay it only for a period, or only on part of the balance. Shown as a flag when it ranks in the top three. */
+          rateConfirmed: boolean
+          /** @description Eligibility the data cannot confirm. The source does not record who can open a product, so check with the provider. */
+          checks: string[]
+        }
+        lumpSum: number
+        monthly: number
+        termMonths: number | null
+        figures: {
+          /** @enum {string} */
+          kind: 'savings'
+          horizonMonths: number
+          /** @description Months the figures cover. Less than the horizon when a rate after that is not known. */
+          knownMonths: number
+          /** @description The fixed term used, for a ladder. */
+          termMonths: number | null
+          paidIn: number
+          grossInterest: number
+          dirt: number
+          /** @description Interest after DIRT over the months covered. */
+          netInterest: number
+          endBalance: number
+          /** @description Interest after DIRT as an annual rate on the money held over the months covered. */
+          netRatePct: number
+          /** @description Where a projection stops because the next rate is not known. */
+          stop: {
+            afterMonths: number
+            reason: string
+          } | null
+          /** @description Money the product cannot take: above its cap, or a kind it does not take. */
+          notPlaced: {
+            lumpSum: number
+            monthly: number
+          }
+        }
+        months: {
+          month: number
+          /** @description YYYY-MM */
+          date: string
+          paidIn: number
+          /** @description After DIRT. */
+          balance: number
+          /** @description Cumulative interest after DIRT. */
+          netInterest: number
+        }[]
+        notes: string[]
+      }[]
+      totals: {
+        /** @description The totals run to here: the first month a line stops for want of a rate, or the horizon. */
+        knownThroughMonth: number
+        months: {
+          month: number
+          /** @description YYYY-MM */
+          date: string
+          paidIn: number
+          /** @description After DIRT. */
+          balance: number
+          /** @description Cumulative interest after DIRT. */
+          netInterest: number
+        }[]
+        paidIn: number
+        netInterest: number
+        balance: number
+      }
+      goal: {
+        targetAmount: number
+        reachedMonth: number | null
+        /** @description YYYY-MM. Null: not within the months the totals cover. */
+        reachedOn: string | null
+      } | null
+      basis: string
+      assumptions: string[]
+      dataCheckedAt: string | null
+      attributions: string[]
+    }
+    /** @description Amounts, a horizon, and either named products or "best available". */
+    SavingsProjection: {
+      horizonMonths: number
+      /** @description The products and amounts to project. Omit to use the best available for the amounts below. */
+      lines?: {
+        /** @description A product view id from search, e.g. `aib:savings.c396`. */
+        productId: string
+        lumpSum?: number
+        monthly?: number
+        /** @description For a term ladder: which term. Default the longest within the horizon. */
+        termMonths?: number
+      }[]
+      /** @description With no `lines`: the lump sum to place in the best available home. */
+      lumpSum?: number
+      /** @description With no `lines`: the monthly saving to place in the best available regular savers. */
+      monthly?: number
+      /** @description A goal: the month it is reached is reported. */
+      targetAmount?: number
+    }
+    MortgageCalculationResult:
+      | {
+          /** @enum {string} */
+          mode: 'affordability'
+          limits: {
+            loanToIncome: number
+            maxLtvPct: number
+            source: string
+            allowance: string
+          }
+          maxLoanByIncome: number
+          /** @description The most the deposit supports at the LTV limit. */
+          maxPriceByDeposit: number
+          /** @description The lower of the two limits: deposit plus the most that can be borrowed. */
+          maxPrice: number
+          /** @enum {string} */
+          bindingLimit: 'income' | 'deposit'
+          forProperty: {
+            propertyValue: number
+            depositNeeded: number
+            depositShortfall: number
+            loanNeeded: number
+            withinIncomeLimit: boolean
+            ltvPct: number
+          } | null
+          loanAmount: number
+          ltvPct: number
+          options: {
+            /** @description One product in one comparable shape, whichever source it was read from. */
+            product: {
+              /** @description Saoi’s id for the product view: `<provider>:<productId>`. Pass it to the product route. */
+              id: string
+              /** @description The provider id: `boi`, `aib`, `ptsb`. */
+              provider: string
+              providerName: string
+              /** @description The provider’s own name for the product. */
+              name: string
+              /** @enum {string} */
+              category:
+                'savings' | 'deposit' | 'mortgage' | 'loan' | 'credit_card' | 'current_account'
+              terms:
+                | {
+                    /** @enum {string} */
+                    kind: 'deposit'
+                    /**
+                     * @description `instant`: withdraw any time. `notice`: withdraw after `noticeDays`. `fixed_term`: locked for a term.
+                     * @enum {string}
+                     */
+                    access: 'instant' | 'notice' | 'fixed_term'
+                    noticeDays: number | null
+                    /** @description The headline AER, percent. Null for a term ladder. */
+                    aerPct: number | null
+                    /** @enum {string|null} */
+                    basis: 'fixed' | 'variable' | null
+                    /** @description Balance bands, lowest first. A balance in a band earns that band’s rate. */
+                    bands: {
+                      fromEur: number
+                      toEur: number | null
+                      aerPct: number
+                    }[]
+                    /** @description What a lump sum earns where it differs from the headline. */
+                    lumpSumAerPct: number | null
+                    /** @description A rate guaranteed for a period, and what follows it. */
+                    introductory: {
+                      months: number
+                      /** @description The rate after it. Null: not known. */
+                      thenAerPct: number | null
+                    } | null
+                    /** @description Fixed terms on offer, shortest first. Empty when the product is not a ladder. */
+                    ladder: {
+                      months: number
+                      aerPct: number
+                      /** @description The source row for this term. */
+                      productId: string
+                    }[]
+                    /** @description Takes regular monthly saving. Null: not known. */
+                    takesMonthly: boolean | null
+                    /** @description Takes a lump sum. Null: not known. */
+                    takesLumpSum: boolean | null
+                    minMonthlyEur: number | null
+                    /** @description The most that can be paid in each month. */
+                    maxMonthlyEur: number | null
+                    minLumpSumEur: number | null
+                    maxLumpSumEur: number | null
+                    /** @description A bonus that gives way to base rates (bunq): every euro earns the bonus until the first reset (the first day of each month in `resetMonths`); then the threshold is the highest balance of the past `lookbackMonths`, the balance up to it earns `baseBands`, and only the part above it earns the bonus. */
+                    thresholdBonus: {
+                      bonusAerPct: number
+                      resetMonths: number[]
+                      lookbackMonths: number
+                      baseBands: {
+                        fromEur: number
+                        toEur: number | null
+                        aerPct: number
+                      }[]
+                    } | null
+                    /**
+                     * @description How often interest is credited, as the provider states it. Null: not stated.
+                     * @enum {string|null}
+                     */
+                    interestPaid:
+                      | 'daily'
+                      | 'weekly'
+                      | 'monthly'
+                      | 'quarterly'
+                      | 'yearly'
+                      | 'account_anniversary'
+                      | 'maturity'
+                      | null
+                    /** @description The rate is for accounts opened now; an account already open may earn another rate. */
+                    rateForNewAccounts: boolean
+                    /** @description Whether DIRT (33%) is deducted from interest. State Savings products are DIRT-free. */
+                    dirtApplies: boolean
+                    /** @description A conditional bonus, kept apart from interest. */
+                    bonus: {
+                      amountEur: number
+                      conditions: string[]
+                    } | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'mortgage'
+                    /** @enum {string|null} */
+                    rateType: 'fixed' | 'variable' | null
+                    fixedYears: number | null
+                    initialRatePct: number
+                    /** @description What the provider says the rate may become after the fixed period. */
+                    followOnRatePct: number | null
+                    /** @description CCPC’s “rate for full term”. */
+                    fullTermRatePct: number | null
+                    ltvMinPct: number | null
+                    ltvMaxPct: number | null
+                    /** @description The Building Energy Rating the rate is for. Null: any BER. */
+                    ber: string | null
+                    /** @description The BER was read from the product’s name. */
+                    berFromName: boolean
+                    buyerTypes: ('first_time_buyer' | 'mover' | 'switcher')[]
+                    cashback: {
+                      offered: boolean | null
+                      /** @description Cashback as a percent of the loan, where the source states one. */
+                      pct: number | null
+                      /** @description The source’s own words. */
+                      stated: string | null
+                    }
+                    /** @description Fees as the source states them, verbatim. */
+                    fees: {
+                      [key: string]: string
+                    }
+                    /** @description A high-value-mortgage rate (larger loans only). */
+                    highValue: boolean
+                    /** @description The smallest loan the rate is for, where the source states one ("borrowing €250,000 or more"). Null: not stated; for a high-value rate that means the threshold is unknown, not absent. */
+                    minLoanEur: number | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'loan'
+                    aprPct: number
+                    /** @enum {string|null} */
+                    rateType: 'fixed' | 'variable' | null
+                    maxAmountEur: number | null
+                    /** @description Null where the source gives no unit for the maximum term. */
+                    maxTermMonths: number | null
+                    /** @description The maximum term as the source states it. */
+                    maxTermStated: string | null
+                    purposes: string[]
+                    setupFees: string | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'credit_card'
+                    aprPct: number | null
+                    purchaseRatePct: number | null
+                    cashRatePct: number | null
+                    balanceTransfer: {
+                      introMonths: number
+                      introPct: number
+                    } | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'current_account'
+                    quarterlyFeeEur: number | null
+                    annualFeeEur: number | null
+                    creditInterestPct: number | null
+                    overdraft: boolean | null
+                  }
+              /** @description Where the figures came from and how fresh they are. Nothing here is estimated. */
+              provenance: {
+                /**
+                 * @description `bank`: read from the provider’s own website. `ccpc`: read from the Competition and Consumer Protection Commission’s comparison tables.
+                 * @enum {string}
+                 */
+                source: 'bank' | 'ccpc'
+                /** @description Where the figures were read. */
+                sourceUrl: string
+                /** @description The provider’s own page, where known. */
+                providerUrl: string | null
+                /** @description When Saoi last read the source and found these figures. */
+                checkedAt: string
+                /** @description When Saoi last saw the figures change. Null when they have not changed since Saoi first recorded them. */
+                lastChangedAt: string | null
+                /** @description When Saoi first recorded this product. */
+                firstRecordedAt: string
+                /** @description Required attribution under the source’s re-use terms. Show it with the figures. */
+                attribution: string | null
+                /** @description The source rows this product view is built from (several for a term ladder). */
+                rows: {
+                  /** @enum {string} */
+                  source: 'bank' | 'ccpc'
+                  productId: string
+                }[]
+                /** @description Rows for the same product from another source, set aside because the provider’s own page is read directly. */
+                preferredOver: {
+                  /** @enum {string} */
+                  source: 'bank' | 'ccpc'
+                  productId: string
+                  providerProductName: string
+                }[]
+              }
+              /** @description Opened through a deposit platform rather than with the bank directly. The platform account comes first. */
+              platform: {
+                /** @enum {string} */
+                name: 'Raisin'
+                note: string
+              } | null
+              /** @description Which deposit guarantee scheme covers the money, and where that was read. */
+              depositGuarantee: {
+                /** @description The scheme that protects the deposit, e.g. "Deposit Guarantee Scheme (Central Bank of Ireland)", "Dutch Deposit Guarantee Scheme (De Nederlandsche Bank)". Null: not recorded. */
+                scheme: string | null
+                country: string | null
+                /** @description Cover per person per institution, where a limit is known. Null: no limit recorded (see `note`). */
+                coverEur: number | null
+                /** @description Anything that changes how the cover reads, e.g. a shared licence or a State guarantee with no limit. */
+                note: string | null
+                /**
+                 * @description `recorded_by_saoi`: Saoi’s record, read from a primary page (`sourceUrl`, `checkedOn`). `stated_by_source`: the comparison source’s own text names the scheme. `unknown`: neither; confirm with the provider.
+                 * @enum {string}
+                 */
+                basis: 'stated_by_source' | 'recorded_by_saoi' | 'unknown'
+                /** @description The primary page the record was read from: the provider’s site, the Central Bank of Ireland, depositguarantee.ie. */
+                sourceUrl: string | null
+                /** @description When that page was read: YYYY-MM-DD. */
+                checkedOn: string | null
+              } | null
+              unknowns: {
+                /** @description The path in the source record, e.g. `rates.thenAerPct`. */
+                field: string
+                /** @description What is not known, in words. */
+                meaning: string
+              }[]
+              /** @description Who can open it, as the provider’s own page states it; a field it does not state is null. Null when no provider page recording it was read. */
+              eligibility: {
+                minAge: number | null
+                /** @description The country the holder must live in. */
+                residentIn: string | null
+                notForUsCitizens: boolean | null
+                individualsOnly: boolean | null
+                /** @description Whether joint accounts can be opened. */
+                jointAccounts: boolean | null
+                /** @description Another account with the provider to hold first, in its own words. */
+                needsAccountWithProvider: string | null
+              } | null
+              /** @description False for a savings or deposit rate read only from CCPC with nothing stated about what follows it: the provider may pay it only for a period, or only on part of the balance. Shown as a flag when it ranks in the top three. */
+              rateConfirmed: boolean
+              /** @description Eligibility the data cannot confirm. The source does not record who can open a product, so check with the provider. */
+              checks: string[]
+            }
+            figures: {
+              /** @enum {string} */
+              kind: 'mortgage'
+              loanAmount: number
+              ltvPct: number | null
+              termYears: number
+              monthlyRepayment: number
+              /** @description At the follow-on rate, where stated. */
+              monthlyAfterFixed: number | null
+              paidDuringFixed: number | null
+              /** @description Over the whole term, assuming the follow-on rate holds after the fixed period. */
+              totalRepaid: number | null
+              cashbackEur: number | null
+              /** @description Interest over the term less cashback. */
+              totalCostAfterCashback: number | null
+            }
+            flags: string[]
+          }[]
+          /** @description How the results are ordered. Information, not advice: the caller can change the objective. */
+          ranking: {
+            /** @enum {string} */
+            objective:
+              | 'highest_net_return'
+              | 'easiest_access'
+              | 'lowest_total_cost'
+              | 'lowest_monthly_repayment'
+            /** @description What the ranking measures, stated with the inputs. */
+            basis: string
+          }
+          assumptions: string[]
+          dataCheckedAt: string | null
+          attributions: string[]
+        }
+      | {
+          /** @enum {string} */
+          mode: 'switch'
+          current: {
+            ratePct: number
+            monthlyRepayment: number
+            totalRemaining: number
+          }
+          ltvPct: number | null
+          options: {
+            /** @description One product in one comparable shape, whichever source it was read from. */
+            product: {
+              /** @description Saoi’s id for the product view: `<provider>:<productId>`. Pass it to the product route. */
+              id: string
+              /** @description The provider id: `boi`, `aib`, `ptsb`. */
+              provider: string
+              providerName: string
+              /** @description The provider’s own name for the product. */
+              name: string
+              /** @enum {string} */
+              category:
+                'savings' | 'deposit' | 'mortgage' | 'loan' | 'credit_card' | 'current_account'
+              terms:
+                | {
+                    /** @enum {string} */
+                    kind: 'deposit'
+                    /**
+                     * @description `instant`: withdraw any time. `notice`: withdraw after `noticeDays`. `fixed_term`: locked for a term.
+                     * @enum {string}
+                     */
+                    access: 'instant' | 'notice' | 'fixed_term'
+                    noticeDays: number | null
+                    /** @description The headline AER, percent. Null for a term ladder. */
+                    aerPct: number | null
+                    /** @enum {string|null} */
+                    basis: 'fixed' | 'variable' | null
+                    /** @description Balance bands, lowest first. A balance in a band earns that band’s rate. */
+                    bands: {
+                      fromEur: number
+                      toEur: number | null
+                      aerPct: number
+                    }[]
+                    /** @description What a lump sum earns where it differs from the headline. */
+                    lumpSumAerPct: number | null
+                    /** @description A rate guaranteed for a period, and what follows it. */
+                    introductory: {
+                      months: number
+                      /** @description The rate after it. Null: not known. */
+                      thenAerPct: number | null
+                    } | null
+                    /** @description Fixed terms on offer, shortest first. Empty when the product is not a ladder. */
+                    ladder: {
+                      months: number
+                      aerPct: number
+                      /** @description The source row for this term. */
+                      productId: string
+                    }[]
+                    /** @description Takes regular monthly saving. Null: not known. */
+                    takesMonthly: boolean | null
+                    /** @description Takes a lump sum. Null: not known. */
+                    takesLumpSum: boolean | null
+                    minMonthlyEur: number | null
+                    /** @description The most that can be paid in each month. */
+                    maxMonthlyEur: number | null
+                    minLumpSumEur: number | null
+                    maxLumpSumEur: number | null
+                    /** @description A bonus that gives way to base rates (bunq): every euro earns the bonus until the first reset (the first day of each month in `resetMonths`); then the threshold is the highest balance of the past `lookbackMonths`, the balance up to it earns `baseBands`, and only the part above it earns the bonus. */
+                    thresholdBonus: {
+                      bonusAerPct: number
+                      resetMonths: number[]
+                      lookbackMonths: number
+                      baseBands: {
+                        fromEur: number
+                        toEur: number | null
+                        aerPct: number
+                      }[]
+                    } | null
+                    /**
+                     * @description How often interest is credited, as the provider states it. Null: not stated.
+                     * @enum {string|null}
+                     */
+                    interestPaid:
+                      | 'daily'
+                      | 'weekly'
+                      | 'monthly'
+                      | 'quarterly'
+                      | 'yearly'
+                      | 'account_anniversary'
+                      | 'maturity'
+                      | null
+                    /** @description The rate is for accounts opened now; an account already open may earn another rate. */
+                    rateForNewAccounts: boolean
+                    /** @description Whether DIRT (33%) is deducted from interest. State Savings products are DIRT-free. */
+                    dirtApplies: boolean
+                    /** @description A conditional bonus, kept apart from interest. */
+                    bonus: {
+                      amountEur: number
+                      conditions: string[]
+                    } | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'mortgage'
+                    /** @enum {string|null} */
+                    rateType: 'fixed' | 'variable' | null
+                    fixedYears: number | null
+                    initialRatePct: number
+                    /** @description What the provider says the rate may become after the fixed period. */
+                    followOnRatePct: number | null
+                    /** @description CCPC’s “rate for full term”. */
+                    fullTermRatePct: number | null
+                    ltvMinPct: number | null
+                    ltvMaxPct: number | null
+                    /** @description The Building Energy Rating the rate is for. Null: any BER. */
+                    ber: string | null
+                    /** @description The BER was read from the product’s name. */
+                    berFromName: boolean
+                    buyerTypes: ('first_time_buyer' | 'mover' | 'switcher')[]
+                    cashback: {
+                      offered: boolean | null
+                      /** @description Cashback as a percent of the loan, where the source states one. */
+                      pct: number | null
+                      /** @description The source’s own words. */
+                      stated: string | null
+                    }
+                    /** @description Fees as the source states them, verbatim. */
+                    fees: {
+                      [key: string]: string
+                    }
+                    /** @description A high-value-mortgage rate (larger loans only). */
+                    highValue: boolean
+                    /** @description The smallest loan the rate is for, where the source states one ("borrowing €250,000 or more"). Null: not stated; for a high-value rate that means the threshold is unknown, not absent. */
+                    minLoanEur: number | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'loan'
+                    aprPct: number
+                    /** @enum {string|null} */
+                    rateType: 'fixed' | 'variable' | null
+                    maxAmountEur: number | null
+                    /** @description Null where the source gives no unit for the maximum term. */
+                    maxTermMonths: number | null
+                    /** @description The maximum term as the source states it. */
+                    maxTermStated: string | null
+                    purposes: string[]
+                    setupFees: string | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'credit_card'
+                    aprPct: number | null
+                    purchaseRatePct: number | null
+                    cashRatePct: number | null
+                    balanceTransfer: {
+                      introMonths: number
+                      introPct: number
+                    } | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'current_account'
+                    quarterlyFeeEur: number | null
+                    annualFeeEur: number | null
+                    creditInterestPct: number | null
+                    overdraft: boolean | null
+                  }
+              /** @description Where the figures came from and how fresh they are. Nothing here is estimated. */
+              provenance: {
+                /**
+                 * @description `bank`: read from the provider’s own website. `ccpc`: read from the Competition and Consumer Protection Commission’s comparison tables.
+                 * @enum {string}
+                 */
+                source: 'bank' | 'ccpc'
+                /** @description Where the figures were read. */
+                sourceUrl: string
+                /** @description The provider’s own page, where known. */
+                providerUrl: string | null
+                /** @description When Saoi last read the source and found these figures. */
+                checkedAt: string
+                /** @description When Saoi last saw the figures change. Null when they have not changed since Saoi first recorded them. */
+                lastChangedAt: string | null
+                /** @description When Saoi first recorded this product. */
+                firstRecordedAt: string
+                /** @description Required attribution under the source’s re-use terms. Show it with the figures. */
+                attribution: string | null
+                /** @description The source rows this product view is built from (several for a term ladder). */
+                rows: {
+                  /** @enum {string} */
+                  source: 'bank' | 'ccpc'
+                  productId: string
+                }[]
+                /** @description Rows for the same product from another source, set aside because the provider’s own page is read directly. */
+                preferredOver: {
+                  /** @enum {string} */
+                  source: 'bank' | 'ccpc'
+                  productId: string
+                  providerProductName: string
+                }[]
+              }
+              /** @description Opened through a deposit platform rather than with the bank directly. The platform account comes first. */
+              platform: {
+                /** @enum {string} */
+                name: 'Raisin'
+                note: string
+              } | null
+              /** @description Which deposit guarantee scheme covers the money, and where that was read. */
+              depositGuarantee: {
+                /** @description The scheme that protects the deposit, e.g. "Deposit Guarantee Scheme (Central Bank of Ireland)", "Dutch Deposit Guarantee Scheme (De Nederlandsche Bank)". Null: not recorded. */
+                scheme: string | null
+                country: string | null
+                /** @description Cover per person per institution, where a limit is known. Null: no limit recorded (see `note`). */
+                coverEur: number | null
+                /** @description Anything that changes how the cover reads, e.g. a shared licence or a State guarantee with no limit. */
+                note: string | null
+                /**
+                 * @description `recorded_by_saoi`: Saoi’s record, read from a primary page (`sourceUrl`, `checkedOn`). `stated_by_source`: the comparison source’s own text names the scheme. `unknown`: neither; confirm with the provider.
+                 * @enum {string}
+                 */
+                basis: 'stated_by_source' | 'recorded_by_saoi' | 'unknown'
+                /** @description The primary page the record was read from: the provider’s site, the Central Bank of Ireland, depositguarantee.ie. */
+                sourceUrl: string | null
+                /** @description When that page was read: YYYY-MM-DD. */
+                checkedOn: string | null
+              } | null
+              unknowns: {
+                /** @description The path in the source record, e.g. `rates.thenAerPct`. */
+                field: string
+                /** @description What is not known, in words. */
+                meaning: string
+              }[]
+              /** @description Who can open it, as the provider’s own page states it; a field it does not state is null. Null when no provider page recording it was read. */
+              eligibility: {
+                minAge: number | null
+                /** @description The country the holder must live in. */
+                residentIn: string | null
+                notForUsCitizens: boolean | null
+                individualsOnly: boolean | null
+                /** @description Whether joint accounts can be opened. */
+                jointAccounts: boolean | null
+                /** @description Another account with the provider to hold first, in its own words. */
+                needsAccountWithProvider: string | null
+              } | null
+              /** @description False for a savings or deposit rate read only from CCPC with nothing stated about what follows it: the provider may pay it only for a period, or only on part of the balance. Shown as a flag when it ranks in the top three. */
+              rateConfirmed: boolean
+              /** @description Eligibility the data cannot confirm. The source does not record who can open a product, so check with the provider. */
+              checks: string[]
+            }
+            figures: {
+              /** @enum {string} */
+              kind: 'mortgage'
+              loanAmount: number
+              ltvPct: number | null
+              termYears: number
+              monthlyRepayment: number
+              /** @description At the follow-on rate, where stated. */
+              monthlyAfterFixed: number | null
+              paidDuringFixed: number | null
+              /** @description Over the whole term, assuming the follow-on rate holds after the fixed period. */
+              totalRepaid: number | null
+              cashbackEur: number | null
+              /** @description Interest over the term less cashback. */
+              totalCostAfterCashback: number | null
+            }
+            /** @description Positive: cheaper each month than now. */
+            monthlySaving: number
+            savingOverFixedPeriod: number | null
+            /** @description Over the remaining term, assuming the follow-on rate after the fixed period and the current rate held, after cashback and any switching costs given. Null where no follow-on rate is stated. */
+            lifetimeSaving: number | null
+            /** @description Months for the monthly saving to repay switching costs less cashback. Null when it never does; 0 when cashback covers them. */
+            breakEvenMonths: number | null
+            flags: string[]
+          }[]
+          /** @description How the results are ordered. Information, not advice: the caller can change the objective. */
+          ranking: {
+            /** @enum {string} */
+            objective:
+              | 'highest_net_return'
+              | 'easiest_access'
+              | 'lowest_total_cost'
+              | 'lowest_monthly_repayment'
+            /** @description What the ranking measures, stated with the inputs. */
+            basis: string
+          }
+          assumptions: string[]
+          dataCheckedAt: string | null
+          attributions: string[]
+        }
+    MortgageCalculation:
+      | {
+          /** @enum {string} */
+          mode: 'affordability'
+          /**
+           * @description Decides the Central Bank limits that apply.
+           * @enum {string}
+           */
+          buyer: 'first_time_buyer' | 'second_and_subsequent'
+          /** @description Gross income a year; joint for two applicants. */
+          annualGrossIncome: number
+          /** @description Savings available for the deposit. */
+          deposit: number
+          /** @description A price in mind. Without it, the most the limits allow. */
+          propertyValue?: number
+          /** @description Default 30. */
+          termYears?: number
+          ber?: string
+          limit?: number
+        }
+      | {
+          /** @enum {string} */
+          mode: 'switch'
+          /** @description What is owed now. */
+          balance: number
+          currentRatePct: number
+          remainingTermYears: number
+          /** @description For the loan-to-value band. Without it, the LTV is not known and every band is shown. */
+          propertyValue?: number
+          /** @description Months left on a current fixed rate, if any: breaking it early can cost a fee the data does not give. */
+          currentFixedMonthsLeft?: number
+          /** @description Legal, valuation and other switching costs, if known. Not estimated when absent. */
+          switchingCostsEur?: number
+          ber?: string
+          limit?: number
+        }
+    DebtCalculationResult: {
+      costs: {
+        debtId: string
+        label: string
+        ratePct: number | null
+        monthlyRepayment: number | null
+        monthsToClear: number | null
+        /** @description Interest still to pay at the current repayment. */
+        interestRemaining: number | null
+        /** @description Interest on the balance over the next year, roughly balance × rate. */
+        annualInterestNow: number | null
+        notes: string[]
+      }[]
+      /** @description Highest rate first: each euro repaid there saves the most interest. */
+      payoffOrder: {
+        debtId: string
+        why: string
+      }[]
+      overpayVersusSave: {
+        debtId: string
+        amount: number
+        /** @enum {string} */
+        cadence: 'monthly' | 'once'
+        horizonMonths: number
+        interestSavedByOverpaying: number
+        netInterestBySaving: number
+        savingProduct: string | null
+        /** @description Overpaying less saving. Positive: overpaying is worth more over the horizon. */
+        difference: number
+      }[]
+      refinance: {
+        debtId: string
+        options: {
+          /** @description One product in one comparable shape, whichever source it was read from. */
+          product: {
+            /** @description Saoi’s id for the product view: `<provider>:<productId>`. Pass it to the product route. */
+            id: string
+            /** @description The provider id: `boi`, `aib`, `ptsb`. */
+            provider: string
+            providerName: string
+            /** @description The provider’s own name for the product. */
+            name: string
+            /** @enum {string} */
+            category:
+              'savings' | 'deposit' | 'mortgage' | 'loan' | 'credit_card' | 'current_account'
+            terms:
+              | {
+                  /** @enum {string} */
+                  kind: 'deposit'
+                  /**
+                   * @description `instant`: withdraw any time. `notice`: withdraw after `noticeDays`. `fixed_term`: locked for a term.
+                   * @enum {string}
+                   */
+                  access: 'instant' | 'notice' | 'fixed_term'
+                  noticeDays: number | null
+                  /** @description The headline AER, percent. Null for a term ladder. */
+                  aerPct: number | null
+                  /** @enum {string|null} */
+                  basis: 'fixed' | 'variable' | null
+                  /** @description Balance bands, lowest first. A balance in a band earns that band’s rate. */
+                  bands: {
+                    fromEur: number
+                    toEur: number | null
+                    aerPct: number
+                  }[]
+                  /** @description What a lump sum earns where it differs from the headline. */
+                  lumpSumAerPct: number | null
+                  /** @description A rate guaranteed for a period, and what follows it. */
+                  introductory: {
+                    months: number
+                    /** @description The rate after it. Null: not known. */
+                    thenAerPct: number | null
+                  } | null
+                  /** @description Fixed terms on offer, shortest first. Empty when the product is not a ladder. */
+                  ladder: {
+                    months: number
+                    aerPct: number
+                    /** @description The source row for this term. */
+                    productId: string
+                  }[]
+                  /** @description Takes regular monthly saving. Null: not known. */
+                  takesMonthly: boolean | null
+                  /** @description Takes a lump sum. Null: not known. */
+                  takesLumpSum: boolean | null
+                  minMonthlyEur: number | null
+                  /** @description The most that can be paid in each month. */
+                  maxMonthlyEur: number | null
+                  minLumpSumEur: number | null
+                  maxLumpSumEur: number | null
+                  /** @description A bonus that gives way to base rates (bunq): every euro earns the bonus until the first reset (the first day of each month in `resetMonths`); then the threshold is the highest balance of the past `lookbackMonths`, the balance up to it earns `baseBands`, and only the part above it earns the bonus. */
+                  thresholdBonus: {
+                    bonusAerPct: number
+                    resetMonths: number[]
+                    lookbackMonths: number
+                    baseBands: {
+                      fromEur: number
+                      toEur: number | null
+                      aerPct: number
+                    }[]
+                  } | null
+                  /**
+                   * @description How often interest is credited, as the provider states it. Null: not stated.
+                   * @enum {string|null}
+                   */
+                  interestPaid:
+                    | 'daily'
+                    | 'weekly'
+                    | 'monthly'
+                    | 'quarterly'
+                    | 'yearly'
+                    | 'account_anniversary'
+                    | 'maturity'
+                    | null
+                  /** @description The rate is for accounts opened now; an account already open may earn another rate. */
+                  rateForNewAccounts: boolean
+                  /** @description Whether DIRT (33%) is deducted from interest. State Savings products are DIRT-free. */
+                  dirtApplies: boolean
+                  /** @description A conditional bonus, kept apart from interest. */
+                  bonus: {
+                    amountEur: number
+                    conditions: string[]
+                  } | null
+                }
+              | {
+                  /** @enum {string} */
+                  kind: 'mortgage'
+                  /** @enum {string|null} */
+                  rateType: 'fixed' | 'variable' | null
+                  fixedYears: number | null
+                  initialRatePct: number
+                  /** @description What the provider says the rate may become after the fixed period. */
+                  followOnRatePct: number | null
+                  /** @description CCPC’s “rate for full term”. */
+                  fullTermRatePct: number | null
+                  ltvMinPct: number | null
+                  ltvMaxPct: number | null
+                  /** @description The Building Energy Rating the rate is for. Null: any BER. */
+                  ber: string | null
+                  /** @description The BER was read from the product’s name. */
+                  berFromName: boolean
+                  buyerTypes: ('first_time_buyer' | 'mover' | 'switcher')[]
+                  cashback: {
+                    offered: boolean | null
+                    /** @description Cashback as a percent of the loan, where the source states one. */
+                    pct: number | null
+                    /** @description The source’s own words. */
+                    stated: string | null
+                  }
+                  /** @description Fees as the source states them, verbatim. */
+                  fees: {
+                    [key: string]: string
+                  }
+                  /** @description A high-value-mortgage rate (larger loans only). */
+                  highValue: boolean
+                  /** @description The smallest loan the rate is for, where the source states one ("borrowing €250,000 or more"). Null: not stated; for a high-value rate that means the threshold is unknown, not absent. */
+                  minLoanEur: number | null
+                }
+              | {
+                  /** @enum {string} */
+                  kind: 'loan'
+                  aprPct: number
+                  /** @enum {string|null} */
+                  rateType: 'fixed' | 'variable' | null
+                  maxAmountEur: number | null
+                  /** @description Null where the source gives no unit for the maximum term. */
+                  maxTermMonths: number | null
+                  /** @description The maximum term as the source states it. */
+                  maxTermStated: string | null
+                  purposes: string[]
+                  setupFees: string | null
+                }
+              | {
+                  /** @enum {string} */
+                  kind: 'credit_card'
+                  aprPct: number | null
+                  purchaseRatePct: number | null
+                  cashRatePct: number | null
+                  balanceTransfer: {
+                    introMonths: number
+                    introPct: number
+                  } | null
+                }
+              | {
+                  /** @enum {string} */
+                  kind: 'current_account'
+                  quarterlyFeeEur: number | null
+                  annualFeeEur: number | null
+                  creditInterestPct: number | null
+                  overdraft: boolean | null
+                }
+            /** @description Where the figures came from and how fresh they are. Nothing here is estimated. */
+            provenance: {
+              /**
+               * @description `bank`: read from the provider’s own website. `ccpc`: read from the Competition and Consumer Protection Commission’s comparison tables.
+               * @enum {string}
+               */
+              source: 'bank' | 'ccpc'
+              /** @description Where the figures were read. */
+              sourceUrl: string
+              /** @description The provider’s own page, where known. */
+              providerUrl: string | null
+              /** @description When Saoi last read the source and found these figures. */
+              checkedAt: string
+              /** @description When Saoi last saw the figures change. Null when they have not changed since Saoi first recorded them. */
+              lastChangedAt: string | null
+              /** @description When Saoi first recorded this product. */
+              firstRecordedAt: string
+              /** @description Required attribution under the source’s re-use terms. Show it with the figures. */
+              attribution: string | null
+              /** @description The source rows this product view is built from (several for a term ladder). */
+              rows: {
+                /** @enum {string} */
+                source: 'bank' | 'ccpc'
+                productId: string
+              }[]
+              /** @description Rows for the same product from another source, set aside because the provider’s own page is read directly. */
+              preferredOver: {
+                /** @enum {string} */
+                source: 'bank' | 'ccpc'
+                productId: string
+                providerProductName: string
+              }[]
+            }
+            /** @description Opened through a deposit platform rather than with the bank directly. The platform account comes first. */
+            platform: {
+              /** @enum {string} */
+              name: 'Raisin'
+              note: string
+            } | null
+            /** @description Which deposit guarantee scheme covers the money, and where that was read. */
+            depositGuarantee: {
+              /** @description The scheme that protects the deposit, e.g. "Deposit Guarantee Scheme (Central Bank of Ireland)", "Dutch Deposit Guarantee Scheme (De Nederlandsche Bank)". Null: not recorded. */
+              scheme: string | null
+              country: string | null
+              /** @description Cover per person per institution, where a limit is known. Null: no limit recorded (see `note`). */
+              coverEur: number | null
+              /** @description Anything that changes how the cover reads, e.g. a shared licence or a State guarantee with no limit. */
+              note: string | null
+              /**
+               * @description `recorded_by_saoi`: Saoi’s record, read from a primary page (`sourceUrl`, `checkedOn`). `stated_by_source`: the comparison source’s own text names the scheme. `unknown`: neither; confirm with the provider.
+               * @enum {string}
+               */
+              basis: 'stated_by_source' | 'recorded_by_saoi' | 'unknown'
+              /** @description The primary page the record was read from: the provider’s site, the Central Bank of Ireland, depositguarantee.ie. */
+              sourceUrl: string | null
+              /** @description When that page was read: YYYY-MM-DD. */
+              checkedOn: string | null
+            } | null
+            unknowns: {
+              /** @description The path in the source record, e.g. `rates.thenAerPct`. */
+              field: string
+              /** @description What is not known, in words. */
+              meaning: string
+            }[]
+            /** @description Who can open it, as the provider’s own page states it; a field it does not state is null. Null when no provider page recording it was read. */
+            eligibility: {
+              minAge: number | null
+              /** @description The country the holder must live in. */
+              residentIn: string | null
+              notForUsCitizens: boolean | null
+              individualsOnly: boolean | null
+              /** @description Whether joint accounts can be opened. */
+              jointAccounts: boolean | null
+              /** @description Another account with the provider to hold first, in its own words. */
+              needsAccountWithProvider: string | null
+            } | null
+            /** @description False for a savings or deposit rate read only from CCPC with nothing stated about what follows it: the provider may pay it only for a period, or only on part of the balance. Shown as a flag when it ranks in the top three. */
+            rateConfirmed: boolean
+            /** @description Eligibility the data cannot confirm. The source does not record who can open a product, so check with the provider. */
+            checks: string[]
+          }
+          figures:
+            | {
+                /** @enum {string} */
+                kind: 'loan'
+                amount: number
+                termMonths: number
+                monthlyRepayment: number
+                totalRepaid: number
+                totalInterest: number
+              }
+            | {
+                /** @enum {string} */
+                kind: 'credit_card'
+                balance: number
+                /** @description On the balance held for 12 months with nothing repaid, at the stated rates. */
+                interestOver12Months: number | null
+              }
+          /** @description Against the debt’s remaining interest. Positive is cheaper. */
+          interestSaving: number | null
+          flags: string[]
+        }[]
+        note: string
+      }[]
+      assumptions: string[]
+      dataCheckedAt: string | null
+      attributions: string[]
+    }
+    DebtCalculation: {
+      debts: {
+        id: string
+        label: string
+        /** @enum {string} */
+        kind: 'credit_card' | 'personal_loan' | 'car_finance' | 'overdraft' | 'mortgage' | 'other'
+        balance: number
+        ratePct?: number
+        monthlyRepayment?: number
+        monthsRemaining?: number
+        /**
+         * @description For saoi_build_plan, what the customer wants modelled for this debt. `compare` (default): worked out both ways, cleared from savings and kept, and the plan takes the one leaving more. `keep`: kept and repaid as it is, still owed in the net position. `clear`: cleared from the savings held. To model keeping a debt, send it with `plan: "keep"`; never leave it out, or the plan has no debt to set against the savings.
+         * @enum {string}
+         */
+        plan?: 'clear' | 'keep' | 'compare'
+      }[]
+      /** @description An amount that could go to overpaying or to saving, to compare the two. */
+      extraMonthly?: number
+      /** @description Savings that could clear debt, to compare clearing against saving. */
+      lumpSum?: number
+    }
+    HomeCalculatorResult: {
+      /** @description The inputs as received, for the calculator card to start from. */
+      inputs: {
+        /** @description What is saved towards the deposit today. */
+        depositSavedEur?: number
+        /** @description What can be put aside each month. */
+        monthlySavingEur?: number
+        /** @description Gross income a year, before tax: the first (or only) applicant. */
+        annualGrossIncomeEur?: number
+        /** @description A second applicant’s gross income a year, for a joint mortgage. */
+        secondIncomeEur?: number
+        /** @description The price in mind for the home. */
+        targetPriceEur?: number
+        /** @description Existing loan and card repayments a month (not rent). */
+        monthlyDebtRepaymentsEur?: number
+        /** @description When the customer would like the keys: "YYYY-MM". */
+        targetDate?: string
+        /** @description Default true. */
+        firstTimeBuyer?: boolean
+        /**
+         * @description `new_build`, `self_build` or `second_hand`. Help to Buy is for the first two.
+         * @enum {string}
+         */
+        propertyKind?: 'new_build' | 'self_build' | 'second_hand'
+        /** @description Income Tax and DIRT paid over the last four tax years: the most Help to Buy can be. */
+        taxPaidLastFourYearsEur?: number
+        /** @description Who the customer banks with now, as they said it: "Bank of Ireland", "AIB". */
+        currentBank?: string
+        /** @description True: show only `currentBank`’s options, because the customer asked to stay with their bank. A filter they chose, and the result says so. */
+        stayWithBank?: boolean
+        /**
+         * @description Fixed or variable rates only, as the customer chose. Default either.
+         * @enum {string}
+         */
+        rateType?: 'fixed' | 'variable' | 'either'
+        /** @description True: the home is BER B3 or better, so green rates count. A new build is taken as BER A either way. */
+        green?: boolean
+        /** @description False: leave out options that need a current account with the lender. Default true. */
+        openToCurrentAccountSwitch?: boolean
+        /**
+         * @description What the options are sorted by, as the customer chose: `five_year_cost` (default: interest and fees less cashback and bonuses over the first 5 years), `keys_date` (soonest first), `monthly_repayment` (lowest first).
+         * @enum {string}
+         */
+        sortBy?: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
+      }
+      /** @description The rules the figures use, so the card can recompute them as inputs move. */
+      rules: {
+        /** @description Times gross income: 4 for first-time buyers, 3.5 for others. */
+        loanToIncome: number
+        maxLtvPct: number
+        stampDutyPct: number
+        /** @description Legal fees and a survey: an estimate. */
+        legalAndSurveyEur: number
+        helpToBuy: {
+          shareOfPrice: number
+          capEur: number
+          maxPriceEur: number
+        }
+        firstTimeBuyer: {
+          loanToIncome: number
+          maxLtvPct: number
+        }
+        otherBuyer: {
+          loanToIncome: number
+          maxLtvPct: number
+        }
+        sources: string[]
+      }
+      figures: {
+        /** @description Gross income counted: both applicants together. */
+        incomeEur: number | null
+        /** @description What the Central Bank income limit allows. Null: no income given. */
+        maxLoanEur: number | null
+        priceEur: number | null
+        /**
+         * @description `given`, or `limits`: the most the deposit by the date and the income limit allow.
+         * @enum {string|null}
+         */
+        priceFrom: 'given' | 'limits' | null
+        loanEur: number | null
+        ltvPct: number | null
+        depositNeededEur: number | null
+        stampDutyEur: number | null
+        legalAndSurveyEur: number
+        helpToBuyEur: number
+        /** @description Deposit plus stamp duty and fees, less Help to Buy. */
+        neededAtKeysEur: number | null
+        /** @description YYYY-MM the money needed at the keys is saved, at this pace, before interest. */
+        depositReachedOn: string | null
+        targetDateMet: boolean | null
+        monthlyCommitmentsNote: string | null
+      }
+      /** @description The figures in words, as options and facts. */
+      lines: string[]
+      /** @description The inputs not given yet, as plain questions, most useful first. */
+      questions: {
+        /** @enum {string} */
+        key:
+          | 'depositSavedEur'
+          | 'monthlySavingEur'
+          | 'annualGrossIncomeEur'
+          | 'targetPriceEur'
+          | 'targetDate'
+          | 'firstTimeBuyer'
+          | 'propertyKind'
+          | 'currentBank'
+          | 'rateType'
+        question: string
+      }[]
+      /** @description How to see the options: the card’s "Show my options" button, or saoi_build_plan with these inputs. */
+      next: string
+      /** @description Present to the customer, in this order. */
+      presentation: string[]
+      /** @description The statutory mortgage warnings. */
+      warnings: string[]
+      /** @description Saoi is not regulated and does not give advice. */
+      statement: string
+    }
+    /** @description Whatever the customer has said about buying a home, however partial. Every field is optional; what is missing comes back as a plain question. */
+    HomeCalculator: {
+      /** @description What is saved towards the deposit today. */
+      depositSavedEur?: number
+      /** @description What can be put aside each month. */
+      monthlySavingEur?: number
+      /** @description Gross income a year, before tax: the first (or only) applicant. */
+      annualGrossIncomeEur?: number
+      /** @description A second applicant’s gross income a year, for a joint mortgage. */
+      secondIncomeEur?: number
+      /** @description The price in mind for the home. */
+      targetPriceEur?: number
+      /** @description Existing loan and card repayments a month (not rent). */
+      monthlyDebtRepaymentsEur?: number
+      /** @description When the customer would like the keys: "YYYY-MM". */
+      targetDate?: string
+      /** @description Default true. */
+      firstTimeBuyer?: boolean
+      /**
+       * @description `new_build`, `self_build` or `second_hand`. Help to Buy is for the first two.
+       * @enum {string}
+       */
+      propertyKind?: 'new_build' | 'self_build' | 'second_hand'
+      /** @description Income Tax and DIRT paid over the last four tax years: the most Help to Buy can be. */
+      taxPaidLastFourYearsEur?: number
+      /** @description Who the customer banks with now, as they said it: "Bank of Ireland", "AIB". */
+      currentBank?: string
+      /** @description True: show only `currentBank`’s options, because the customer asked to stay with their bank. A filter they chose, and the result says so. */
+      stayWithBank?: boolean
+      /**
+       * @description Fixed or variable rates only, as the customer chose. Default either.
+       * @enum {string}
+       */
+      rateType?: 'fixed' | 'variable' | 'either'
+      /** @description True: the home is BER B3 or better, so green rates count. A new build is taken as BER A either way. */
+      green?: boolean
+      /** @description False: leave out options that need a current account with the lender. Default true. */
+      openToCurrentAccountSwitch?: boolean
+      /**
+       * @description What the options are sorted by, as the customer chose: `five_year_cost` (default: interest and fees less cashback and bonuses over the first 5 years), `keys_date` (soonest first), `monthly_repayment` (lowest first).
+       * @enum {string}
+       */
+      sortBy?: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
+    }
+    FirstHomeResult: {
+      /** @description Present to the customer: the headline sentences, in order, as options with their figures. Lead with these; the fields below are the detail behind them. */
+      presentation: string[]
+      helpToBuy: {
+        /**
+         * @description `depends`: on something not given (the kind of property, or tax paid).
+         * @enum {string}
+         */
+        status: 'available' | 'not_available' | 'depends'
+        /** @description The refund, when every input it rests on was given. Null otherwise. */
+        amountEur: number | null
+        /** @description The most it could be: 10% of the price, at most the cap, before the tax-paid limit. */
+        upToEur: number
+        /** @enum {string|null} */
+        limitedBy: 'share_of_price' | 'cap' | 'tax_paid' | null
+        /** @description Why it is, or is not, or may be, available, with the figures. */
+        reasons: string[]
+        /** @description What has to hold for it, from Revenue. */
+        conditions: string[]
+        capEur: number
+        maxPriceEur: number
+        endsOn: string
+        sources: {
+          fact: string
+          url: string
+          /** @description YYYY-MM-DD the page was read. */
+          checkedOn: string
+        }[]
+      }
+      lending: {
+        loanToIncome: number
+        maxLtvPct: number
+        /** @description The share of each lender’s lending allowed above the limits. */
+        allowancePct: number
+        allowance: string
+        exemptions: string
+        maxLoanByIncome: number
+        maxPriceWithoutHelpToBuy: number
+        /** @description With Help to Buy counted towards the deposit (a new build or self-build, within its price cap). Null when it cannot apply. */
+        maxPriceWithHelpToBuy: number | null
+        forPrice: {
+          price: number
+          /** @description 10% of the price. */
+          depositNeeded: number
+          /** @description Counted towards the deposit: the amount, or "up to" when tax paid was not given. */
+          helpToBuy: number
+          depositShortfall: number
+          loanNeeded: number
+          ltvPct: number
+          withinIncomeLimit: boolean
+          aboveIncomeLimitBy: number
+          /** @description Whether the mortgage is at least 70% of the price, as Help to Buy needs. Null when Help to Buy does not apply. */
+          helpToBuyMortgageShareMet: boolean | null
+        } | null
+        source: {
+          fact: string
+          url: string
+          /** @description YYYY-MM-DD the page was read. */
+          checkedOn: string
+        }
+      }
+      firstHomeScheme: {
+        /** @description False: not confirmed from a primary page; nothing about it is stated as fact. */
+        confirmed: boolean
+        note: string
+        source: {
+          fact: string
+          url: string
+          /** @description YYYY-MM-DD the page was read. */
+          checkedOn: string
+        }
+      }
+      greenRates: {
+        note: string
+        cheapestGreen: {
+          productId: string
+          name: string
+          ratePct: number
+          berNeeded: string | null
+        } | null
+        cheapestStandard: {
+          productId: string
+          name: string
+          ratePct: number
+        } | null
+      }
+      options: {
+        /** @description One product in one comparable shape, whichever source it was read from. */
+        product: {
+          /** @description Saoi’s id for the product view: `<provider>:<productId>`. Pass it to the product route. */
+          id: string
+          /** @description The provider id: `boi`, `aib`, `ptsb`. */
+          provider: string
+          providerName: string
+          /** @description The provider’s own name for the product. */
+          name: string
+          /** @enum {string} */
+          category: 'savings' | 'deposit' | 'mortgage' | 'loan' | 'credit_card' | 'current_account'
+          terms:
+            | {
+                /** @enum {string} */
+                kind: 'deposit'
+                /**
+                 * @description `instant`: withdraw any time. `notice`: withdraw after `noticeDays`. `fixed_term`: locked for a term.
+                 * @enum {string}
+                 */
+                access: 'instant' | 'notice' | 'fixed_term'
+                noticeDays: number | null
+                /** @description The headline AER, percent. Null for a term ladder. */
+                aerPct: number | null
+                /** @enum {string|null} */
+                basis: 'fixed' | 'variable' | null
+                /** @description Balance bands, lowest first. A balance in a band earns that band’s rate. */
+                bands: {
+                  fromEur: number
+                  toEur: number | null
+                  aerPct: number
+                }[]
+                /** @description What a lump sum earns where it differs from the headline. */
+                lumpSumAerPct: number | null
+                /** @description A rate guaranteed for a period, and what follows it. */
+                introductory: {
+                  months: number
+                  /** @description The rate after it. Null: not known. */
+                  thenAerPct: number | null
+                } | null
+                /** @description Fixed terms on offer, shortest first. Empty when the product is not a ladder. */
+                ladder: {
+                  months: number
+                  aerPct: number
+                  /** @description The source row for this term. */
+                  productId: string
+                }[]
+                /** @description Takes regular monthly saving. Null: not known. */
+                takesMonthly: boolean | null
+                /** @description Takes a lump sum. Null: not known. */
+                takesLumpSum: boolean | null
+                minMonthlyEur: number | null
+                /** @description The most that can be paid in each month. */
+                maxMonthlyEur: number | null
+                minLumpSumEur: number | null
+                maxLumpSumEur: number | null
+                /** @description A bonus that gives way to base rates (bunq): every euro earns the bonus until the first reset (the first day of each month in `resetMonths`); then the threshold is the highest balance of the past `lookbackMonths`, the balance up to it earns `baseBands`, and only the part above it earns the bonus. */
+                thresholdBonus: {
+                  bonusAerPct: number
+                  resetMonths: number[]
+                  lookbackMonths: number
+                  baseBands: {
+                    fromEur: number
+                    toEur: number | null
+                    aerPct: number
+                  }[]
+                } | null
+                /**
+                 * @description How often interest is credited, as the provider states it. Null: not stated.
+                 * @enum {string|null}
+                 */
+                interestPaid:
+                  | 'daily'
+                  | 'weekly'
+                  | 'monthly'
+                  | 'quarterly'
+                  | 'yearly'
+                  | 'account_anniversary'
+                  | 'maturity'
+                  | null
+                /** @description The rate is for accounts opened now; an account already open may earn another rate. */
+                rateForNewAccounts: boolean
+                /** @description Whether DIRT (33%) is deducted from interest. State Savings products are DIRT-free. */
+                dirtApplies: boolean
+                /** @description A conditional bonus, kept apart from interest. */
+                bonus: {
+                  amountEur: number
+                  conditions: string[]
+                } | null
+              }
+            | {
+                /** @enum {string} */
+                kind: 'mortgage'
+                /** @enum {string|null} */
+                rateType: 'fixed' | 'variable' | null
+                fixedYears: number | null
+                initialRatePct: number
+                /** @description What the provider says the rate may become after the fixed period. */
+                followOnRatePct: number | null
+                /** @description CCPC’s “rate for full term”. */
+                fullTermRatePct: number | null
+                ltvMinPct: number | null
+                ltvMaxPct: number | null
+                /** @description The Building Energy Rating the rate is for. Null: any BER. */
+                ber: string | null
+                /** @description The BER was read from the product’s name. */
+                berFromName: boolean
+                buyerTypes: ('first_time_buyer' | 'mover' | 'switcher')[]
+                cashback: {
+                  offered: boolean | null
+                  /** @description Cashback as a percent of the loan, where the source states one. */
+                  pct: number | null
+                  /** @description The source’s own words. */
+                  stated: string | null
+                }
+                /** @description Fees as the source states them, verbatim. */
+                fees: {
+                  [key: string]: string
+                }
+                /** @description A high-value-mortgage rate (larger loans only). */
+                highValue: boolean
+                /** @description The smallest loan the rate is for, where the source states one ("borrowing €250,000 or more"). Null: not stated; for a high-value rate that means the threshold is unknown, not absent. */
+                minLoanEur: number | null
+              }
+            | {
+                /** @enum {string} */
+                kind: 'loan'
+                aprPct: number
+                /** @enum {string|null} */
+                rateType: 'fixed' | 'variable' | null
+                maxAmountEur: number | null
+                /** @description Null where the source gives no unit for the maximum term. */
+                maxTermMonths: number | null
+                /** @description The maximum term as the source states it. */
+                maxTermStated: string | null
+                purposes: string[]
+                setupFees: string | null
+              }
+            | {
+                /** @enum {string} */
+                kind: 'credit_card'
+                aprPct: number | null
+                purchaseRatePct: number | null
+                cashRatePct: number | null
+                balanceTransfer: {
+                  introMonths: number
+                  introPct: number
+                } | null
+              }
+            | {
+                /** @enum {string} */
+                kind: 'current_account'
+                quarterlyFeeEur: number | null
+                annualFeeEur: number | null
+                creditInterestPct: number | null
+                overdraft: boolean | null
+              }
+          /** @description Where the figures came from and how fresh they are. Nothing here is estimated. */
+          provenance: {
+            /**
+             * @description `bank`: read from the provider’s own website. `ccpc`: read from the Competition and Consumer Protection Commission’s comparison tables.
+             * @enum {string}
+             */
+            source: 'bank' | 'ccpc'
+            /** @description Where the figures were read. */
+            sourceUrl: string
+            /** @description The provider’s own page, where known. */
+            providerUrl: string | null
+            /** @description When Saoi last read the source and found these figures. */
+            checkedAt: string
+            /** @description When Saoi last saw the figures change. Null when they have not changed since Saoi first recorded them. */
+            lastChangedAt: string | null
+            /** @description When Saoi first recorded this product. */
+            firstRecordedAt: string
+            /** @description Required attribution under the source’s re-use terms. Show it with the figures. */
+            attribution: string | null
+            /** @description The source rows this product view is built from (several for a term ladder). */
+            rows: {
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              productId: string
+            }[]
+            /** @description Rows for the same product from another source, set aside because the provider’s own page is read directly. */
+            preferredOver: {
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              productId: string
+              providerProductName: string
+            }[]
+          }
+          /** @description Opened through a deposit platform rather than with the bank directly. The platform account comes first. */
+          platform: {
+            /** @enum {string} */
+            name: 'Raisin'
+            note: string
+          } | null
+          /** @description Which deposit guarantee scheme covers the money, and where that was read. */
+          depositGuarantee: {
+            /** @description The scheme that protects the deposit, e.g. "Deposit Guarantee Scheme (Central Bank of Ireland)", "Dutch Deposit Guarantee Scheme (De Nederlandsche Bank)". Null: not recorded. */
+            scheme: string | null
+            country: string | null
+            /** @description Cover per person per institution, where a limit is known. Null: no limit recorded (see `note`). */
+            coverEur: number | null
+            /** @description Anything that changes how the cover reads, e.g. a shared licence or a State guarantee with no limit. */
+            note: string | null
+            /**
+             * @description `recorded_by_saoi`: Saoi’s record, read from a primary page (`sourceUrl`, `checkedOn`). `stated_by_source`: the comparison source’s own text names the scheme. `unknown`: neither; confirm with the provider.
+             * @enum {string}
+             */
+            basis: 'stated_by_source' | 'recorded_by_saoi' | 'unknown'
+            /** @description The primary page the record was read from: the provider’s site, the Central Bank of Ireland, depositguarantee.ie. */
+            sourceUrl: string | null
+            /** @description When that page was read: YYYY-MM-DD. */
+            checkedOn: string | null
+          } | null
+          unknowns: {
+            /** @description The path in the source record, e.g. `rates.thenAerPct`. */
+            field: string
+            /** @description What is not known, in words. */
+            meaning: string
+          }[]
+          /** @description Who can open it, as the provider’s own page states it; a field it does not state is null. Null when no provider page recording it was read. */
+          eligibility: {
+            minAge: number | null
+            /** @description The country the holder must live in. */
+            residentIn: string | null
+            notForUsCitizens: boolean | null
+            individualsOnly: boolean | null
+            /** @description Whether joint accounts can be opened. */
+            jointAccounts: boolean | null
+            /** @description Another account with the provider to hold first, in its own words. */
+            needsAccountWithProvider: string | null
+          } | null
+          /** @description False for a savings or deposit rate read only from CCPC with nothing stated about what follows it: the provider may pay it only for a period, or only on part of the balance. Shown as a flag when it ranks in the top three. */
+          rateConfirmed: boolean
+          /** @description Eligibility the data cannot confirm. The source does not record who can open a product, so check with the provider. */
+          checks: string[]
+        }
+        figures: {
+          /** @enum {string} */
+          kind: 'mortgage'
+          loanAmount: number
+          ltvPct: number | null
+          termYears: number
+          monthlyRepayment: number
+          /** @description At the follow-on rate, where stated. */
+          monthlyAfterFixed: number | null
+          paidDuringFixed: number | null
+          /** @description Over the whole term, assuming the follow-on rate holds after the fixed period. */
+          totalRepaid: number | null
+          cashbackEur: number | null
+          /** @description Interest over the term less cashback. */
+          totalCostAfterCashback: number | null
+        }
+        flags: string[]
+      }[]
+      /** @description How the results are ordered. Information, not advice: the caller can change the objective. */
+      ranking: {
+        /** @enum {string} */
+        objective:
+          'highest_net_return' | 'easiest_access' | 'lowest_total_cost' | 'lowest_monthly_repayment'
+        /** @description What the ranking measures, stated with the inputs. */
+        basis: string
+      }
+      assumptions: string[]
+      dataCheckedAt: string | null
+      attributions: string[]
+      next: string
+    }
+    FirstHome: {
+      /** @description Gross income a year, before tax; joint for two applicants. */
+      annualGrossIncome: number
+      /** @description Savings for the deposit, not counting Help to Buy. */
+      deposit: number
+      /** @description A price in mind (for a self-build, the approved valuation). Without it, the most the limits allow. */
+      propertyPrice?: number
+      /**
+       * @description `new_build` bought from a builder, `self_build`, or `second_hand`. Help to Buy is for new builds and self-builds only. Absent: Help to Buy is shown as depending on it.
+       * @enum {string}
+       */
+      propertyKind?: 'new_build' | 'self_build' | 'second_hand'
+      /** @description Default true. */
+      firstTimeBuyer?: boolean
+      /** @description Income Tax and DIRT paid over the four tax years before applying (not USC or PRSI), across the buyers, less any Help to Buy already claimed. Help to Buy cannot be more than this. Absent: the amount is shown as "up to". */
+      taxPaidLastFourYearsEur?: number
+      /** @description Default 30. */
+      termYears?: number
+      /** @description The home’s BER, for green rates. Absent: green rates are shown with the BER they need. */
+      ber?: string
+      limit?: number
+    }
+    BuildPlanResult: {
+      /** @description Other splits, each worked out without one product of the first, with how much more or less each holds towards the goal: shown beside it, so there is no single answer. */
+      runnersUp: {
+        /** @description The product left out to find this split: "AIB Online Saver". */
+        without: string
+        /** @description The split, in words. */
+        split: string
+        /** @description Towards the main goal at the same date, after DIRT. */
+        towardsGoalEur: number
+        /** @description Towards the goal less the worked combination’s, at the same date (negative: less). */
+        differenceEur: number
+        goalReachedOn: string | null
+        /** @description The runner-up in one sentence, with what differs. */
+        line: string
+      }[]
+      /** @description The one question whose answer would change the plan most. Ask this one, and only this one, in the reply. */
+      nextQuestion: {
+        /** @enum {string} */
+        key:
+          | 'income'
+          | 'property_kind'
+          | 'home_price'
+          | 'debt_repayment'
+          | 'current_account_bank'
+          | 'goal'
+        /** @description For the host to ask, in its own words. */
+        question: string
+        /** @description What the answer changes, with the figures from the runs. */
+        why: string
+        /** @description How far the plan moved across a few plausible answers. */
+        spread: {
+          keysMonths: number
+          /** @description Reported, not scored: a bigger home costs more. */
+          costEur: number
+          /** @description The spread in cost per €100,000 borrowed: scored. */
+          costPer100kEur: number
+          priceEur: number
+          totalEur: number
+        }
+        /** @description The spread in euro, the order questions are asked in. */
+        scoreEur: number
+      } | null
+      /** @description The rest, in order, for later replies. */
+      laterQuestions: {
+        /** @enum {string} */
+        key:
+          | 'income'
+          | 'property_kind'
+          | 'home_price'
+          | 'debt_repayment'
+          | 'current_account_bank'
+          | 'goal'
+        /** @description For the host to ask, in its own words. */
+        question: string
+        /** @description What the answer changes, with the figures from the runs. */
+        why: string
+        /** @description How far the plan moved across a few plausible answers. */
+        spread: {
+          keysMonths: number
+          /** @description Reported, not scored: a bigger home costs more. */
+          costEur: number
+          /** @description The spread in cost per €100,000 borrowed: scored. */
+          costPer100kEur: number
+          priceEur: number
+          totalEur: number
+        }
+        /** @description The spread in euro, the order questions are asked in. */
+        scoreEur: number
+      }[]
+      completeness: {
+        answered: string[]
+        assumed: string[]
+        /** @description "Plan based on 4 of 6 answers". */
+        line: string
+      }
+      saveCall: {
+        /** @description True once the inputs that move the plan most are answered (for a home: income and new or second-hand). */
+        ready: boolean
+        label: string
+        note: string
+        /** @description What the Saoi app does with the plan today. */
+        appToday: string[]
+        /** @description Not built yet: never offered as available. */
+        coming: string[]
+      }
+      /** @description Pathways to a home, when the main goal is a house deposit. Null otherwise. */
+      home: {
+        /** @description "At these figures, the deposit and buying costs are in place around <month>": a date, not an outcome. */
+        headline: string
+        /** @description Each one stated and correctable. */
+        assumptions: string[]
+        price: number
+        /** @enum {string} */
+        priceFrom: 'given' | 'savings'
+        /** @enum {string} */
+        bindingLimit: 'deposit' | 'income' | 'income_not_given' | 'price_given'
+        loan: number
+        ltvPct: number
+        depositEur: number
+        stampDutyEur: number
+        legalAndSurveyEur: number
+        helpToBuyEur: number
+        /** @description Deposit plus stamp duty and fees, less Help to Buy. */
+        neededAtKeysEur: number
+        keysOn: string | null
+        /** @description The period every pathway is costed over, the same for all. */
+        comparedOver: {
+          /** @enum {string} */
+          basis: 'term' | 'fixed_period' | 'first_years'
+          years: number
+        }
+        /**
+         * @description What `pathways` is sorted by, as the customer chose.
+         * @enum {string}
+         */
+        sortBy: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
+        /** @description The sort order in words, for the presentation. */
+        sortedBy: string
+        /** @description Each filter applied, in words, naming the customer’s own choices ("Showing Bank of Ireland options, as you asked."). */
+        filters: string[]
+        /** @description Every eligible option that fits the filters (each lender’s cheapest product per rate type and fixed period), sorted by `sortBy`. No single pick. */
+        pathways: {
+          lender: string
+          lenderName: string
+          mortgage: {
+            productId: string
+            name: string
+            /** @enum {string|null} */
+            rateType: 'fixed' | 'variable' | null
+            ratePct: number
+            fixedYears: number | null
+            followOnRatePct: number | null
+            monthlyRepayment: number
+          }
+          /** @description YYYY-MM the money for the deposit and buying costs is in place. */
+          keysOn: string | null
+          /** @description Interest over the period compared (the term, or the fixed period). */
+          interestEur: number
+          /** @description Cashback counted: at drawdown, plus a later payment where it falls in the period. */
+          cashbackEur: number
+          /** @description Savings bonuses tied to this lender’s mortgage, net of DIRT. */
+          bonusEur: number
+          /** @description Over the first 5 years: interest on a 30-year term plus the valuation fee, less cashback paid within 5 years and any savings bonus. What pathways are ranked by. */
+          netCostEur: number
+          /** @description Cashback paid after the 5 years if repayments are on time: listed, not ranked. */
+          cashbackAfterEur: number
+          /** @description The same over 30 years, if today’s follow-on rates held for 30 years. Secondary detail. */
+          thirtyYearNetEur: number | null
+          /** @description A fix shorter than 5 years with no stated follow-on rate: the fixed rate carried on, unconfirmed. */
+          followOnAssumed: boolean
+          /** @description Net cost less the lowest net cost shown. 0 for the lowest; a fact, not a pick. */
+          vsCheapestEur: number
+          /** @description What makes this option differ, in a few words. */
+          drivers: string
+          conditions: string[]
+          /** @description True when every incentive counted was read from the lender’s own site. */
+          confirmed: boolean
+          greenNote: string | null
+          sources: string[]
+          /** @description The lowest initial rate among this lender’s eligible products. */
+          lowestRatePct: number
+          /** @description Runners-up: this lender’s other eligible products of the same rate type and fixed period, by net cost, this one first. */
+          considered: {
+            productId: string
+            name: string
+            ratePct: number
+            netCostEur: number
+          }[]
+          /** @description What would be held with this lender for this option, and what stays where it is. */
+          bundle: {
+            products: {
+              /** @enum {string} */
+              role: 'linked_saver' | 'regular_saver' | 'mortgage' | 'cashback'
+              name: string
+              detail: string
+            }[]
+            /** @description Whether any product here needs a current account with the lender, as a fact. */
+            currentAccount: string
+          }
+          /** @description The option in one sentence, with its figures. */
+          line: string
+        }[]
+        leftOut: string[]
+        /** @description The statutory mortgage warnings, shown with every mortgage result. */
+        warnings: string[]
+      } | null
+      /** @description The variations asked for in `alternatives`, each worked out in this call. Empty when none were asked for. */
+      alternatives: {
+        name: string
+        /** @description What differs from the main plan, in words. */
+        changes: string[]
+        /** @description The alternative’s own position, everything held less what is still owed. */
+        position: {
+          /** @description YYYY-MM: the end of the months the plan covers. */
+          at: string
+          /** @description Everything held then, after DIRT (towards the goal plus the buffer), less what is still owed on the debts given. */
+          total: number
+          /** @description Savings towards the main goal then, after DIRT. */
+          towardsGoal: number
+          /** @description The emergency buffer then, with its interest. 0 when none is held. */
+          buffer: number
+          /** @description Still owed then on the debts given. 0 when none is owed or none given. */
+          owed: number
+          /** @description True when a debt’s repayment was not given, so today’s balance is counted as owed: the most it can be, and `total` the least. */
+          owedIsCeiling: boolean
+          /** @description False when the call had no debts: `total` is then savings only, not a net position against debts. */
+          debtsGiven: boolean
+          /** @description The position in one sentence, with its parts named. */
+          line: string
+        }
+        /** @description Its total less the main plan’s total, at the same date where the date is the same. */
+        differenceEur: number
+        /** @description What goes towards the main goal less the main plan’s, at the same date: the figure options are compared by. A buffer moves money out of the goal without changing the total held. */
+        towardsGoalDifferenceEur: number
+        goalReachedOn: string | null
+        moneyFoundAnnualEur: number
+        /** @description The comparison in one sentence, for the presentation and the card. */
+        line: string
+      }[]
+      /** @description Debts whose repayment was assumed. Empty when every repayment was given. */
+      assumedRepayments: {
+        debtId: string
+        label: string
+        balance: number
+        /** @description Repaid evenly over this many months: the plan’s horizon. */
+        months: number
+        /** @description The level repayment that assumes, at the debt’s rate. */
+        monthlyRepayment: number
+        /** @description The assumption in words, for the host to relay. */
+        note: string
+      }[]
+      /** @description Present to the customer: the headline sentences, in order, as options with their figures. Lead with these; the fields below are the detail behind them. */
+      presentation: string[]
+      /** @description The two or three questions that would sharpen the plan (the same as saoi_money_check asks), for the host to ask in its own words. Call again once the customer answers, in a later message. */
+      questions: string[]
+      /** @description What the plan holds at its end, everything included and each part named: towards the goal, the buffer, less what is still owed. */
+      position: {
+        /** @description YYYY-MM: the end of the months the plan covers. */
+        at: string
+        /** @description Everything held then, after DIRT (towards the goal plus the buffer), less what is still owed on the debts given. */
+        total: number
+        /** @description Savings towards the main goal then, after DIRT. */
+        towardsGoal: number
+        /** @description The emergency buffer then, with its interest. 0 when none is held. */
+        buffer: number
+        /** @description Still owed then on the debts given. 0 when none is owed or none given. */
+        owed: number
+        /** @description True when a debt’s repayment was not given, so today’s balance is counted as owed: the most it can be, and `total` the least. */
+        owedIsCeiling: boolean
+        /** @description False when the call had no debts: `total` is then savings only, not a net position against debts. */
+        debtsGiven: boolean
+        /** @description The position in one sentence, with its parts named. */
+        line: string
+      }
+      /** @description The plan held as a draft for 24 hours behind a single-use link, then deleted unless opened. Null when the draft could not be held (the daily or per-address limit); saoi_save_plan can then save it. */
+      saveLink: {
+        /** @description Opens the plan in the Saoi app, once. */
+        url: string
+        expiresAt: string
+      } | null
+      /** @description For a house deposit goal and a first-time buyer: Help to Buy, as far as the inputs allow. Null otherwise. */
+      helpToBuy: {
+        /** @enum {string} */
+        status: 'available' | 'not_available' | 'depends'
+        amountEur: number | null
+        upToEur: number
+        note: string
+        sourceUrl: string
+        checkedOn: string
+      } | null
+      /** @description Money a year the figures support finding: idle cash against the best accessible rate after DIRT, debt interest not paid, a mortgage switch. Each part sourced and dated. */
+      moneyFound: {
+        /** @description The total a year, after DIRT: the sum of `parts`. Nothing in `notCounted` is in it. */
+        annualEur: number
+        /** @description One line for the host to lead with. */
+        headline: string
+        parts: {
+          /** @enum {string} */
+          kind: 'idle_cash' | 'debt_interest' | 'mortgage_switch'
+          label: string
+          annualEur: number
+          /** @description How the figure is worked out, with its inputs. */
+          detail: string
+          /** @description Where the rate behind it comes from: a provider or CCPC, or the customer’s own figures. */
+          source: string
+          sourceUrl: string | null
+          /** @description When that rate was last checked. */
+          checkedAt: string | null
+        }[]
+        /** @description Money that may be there but is not counted: a rate not confirmed beyond CCPC’s one figure, a current rate not given, bonuses, cashback. */
+        notCounted: {
+          label: string
+          annualEur: number | null
+          why: string
+        }[]
+        basis: string
+      }
+      /** @description The plan, in the shape `POST /api/plans` takes. Send it back unchanged to save it behind a one-time link into the Saoi app. */
+      plan: {
+        /** @enum {number} */
+        version: 1
+        title: string
+        situation: {
+          summary: string
+          income?: {
+            annualGross?: number
+            netMonthly?: number
+          }
+          outgoings?: {
+            rentMonthly?: number
+            otherMonthly?: number
+          }
+          monthlySaving?: number
+          /** @default [] */
+          savings: {
+            label: string
+            balance: number
+            provider?: string
+            aerPct?: number
+          }[]
+          /** @default [] */
+          debts: {
+            id: string
+            label: string
+            /** @enum {string} */
+            kind:
+              'credit_card' | 'personal_loan' | 'car_finance' | 'overdraft' | 'mortgage' | 'other'
+            balance: number
+            ratePct?: number
+            monthlyRepayment?: number
+            monthsRemaining?: number
+          }[]
+        }
+        goals: {
+          id: string
+          /** @enum {string} */
+          kind:
+            | 'house_deposit'
+            | 'emergency_fund'
+            | 'pay_off_debt'
+            | 'save_for_purchase'
+            | 'grow_savings'
+            | 'switch_mortgage'
+            | 'other'
+          label: string
+          targetAmount?: number
+          targetDate?: string
+          priority?: number
+        }[]
+        combination: {
+          products: {
+            /** @enum {string} */
+            role:
+              | 'regular_saver'
+              | 'lump_sum'
+              | 'emergency_fund'
+              | 'mortgage'
+              | 'refinance'
+              | 'current_account'
+              | 'other'
+            /** @default [] */
+            goalIds: string[]
+            provider: string
+            providerName: string
+            /** @enum {string} */
+            source: 'bank' | 'ccpc'
+            /** @enum {string} */
+            category:
+              'savings' | 'deposit' | 'mortgage' | 'loan' | 'credit_card' | 'current_account'
+            productId: string
+            productName: string
+            amount?: number
+            monthlyAmount?: number
+            ratePct?: number
+            projected?: {
+              horizonMonths: number
+              balance?: number
+              netInterest?: number
+              totalCost?: number
+              monthlyRepayment?: number
+              goalReachedOn?: string
+            }
+            why?: string
+            /** @default [] */
+            unknowns: string[]
+            /** @default [] */
+            checks: string[]
+            depositGuarantee?: {
+              scheme: string | null
+              country: string | null
+              coverEur: number | null
+              note?: string | null
+              /** Format: uri */
+              sourceUrl?: string | null
+              checkedOn?: string | null
+            }
+            /** Format: date-time */
+            checkedAt: string
+            attribution?: string
+            /** Format: uri */
+            url?: string
+          }[]
+          totals?: {
+            monthly?: number
+            lumpSum?: number
+            netInterest?: number
+          }
+        }
+        /** @default [] */
+        debts: {
+          debtId: string
+          /** @enum {string} */
+          action: 'pay_off_first' | 'overpay' | 'keep_paying' | 'refinance'
+          why: string
+          costIfKept?: number
+          costWithStep?: number
+        }[]
+        ranking: {
+          /** @enum {string} */
+          objective:
+            'highest_net_return' | 'lowest_total_cost' | 'fastest_to_goal' | 'easiest_access'
+          basis: string
+        }
+        /** @default [] */
+        assumptions: string[]
+        position?: {
+          at: string
+          total: number
+          towardsGoal: number
+          buffer: number
+          owed: number
+          line: string
+        }
+        comparison?: {
+          /** @enum {string} */
+          kind: 'home'
+          headline: string
+          priceEur: number
+          /** @enum {string} */
+          sortBy: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
+          sortedBy: string
+          /** @default [] */
+          filters: string[]
+          options: {
+            lender: string
+            kind: string
+            productName: string
+            ratePct: number
+            monthlyEur: number
+            fiveYearCostEur: number
+            keysOn: string | null
+            confirmed: boolean
+          }[]
+        }
+        /** Format: date-time */
+        createdAt: string
+        /** Format: date-time */
+        dataCheckedAt: string
+      }
+      /** @description Months to the main goal’s date, or 12 when there is no date. */
+      horizonMonths: number
+      /** @description The figures run to here; less than the horizon where a rate after that is not known. */
+      knownThroughMonth: number
+      /** @description YYYY-MM the main goal is reached, if within the figures. */
+      goalReachedOn: string | null
+      /** @description Why the plan has the shape it has, step by step, with the figures. */
+      reasoning: string[]
+      /** @description Each debt that costs more than savings earn, with both outcomes worked out. */
+      debtScenarios: {
+        debtId: string
+        /** @description What clearing or overpaying would take from the lump sum. */
+        amount: number
+        kept: {
+          /** @description Savings at the end of the months the figures cover, after DIRT. */
+          savingsAtHorizon: number
+          /** @description What is still owed on the debt then. */
+          debtAtHorizon: number
+          /** @description Everything held (towards the goal and the buffer) less what is still owed. */
+          netPosition: number
+          /** @description YYYY-MM the main goal is reached, if within the figures. */
+          goalReachedOn: string | null
+        }
+        cleared: {
+          /** @description Savings at the end of the months the figures cover, after DIRT. */
+          savingsAtHorizon: number
+          /** @description What is still owed on the debt then. */
+          debtAtHorizon: number
+          /** @description Everything held (towards the goal and the buffer) less what is still owed. */
+          netPosition: number
+          /** @description YYYY-MM the main goal is reached, if within the figures. */
+          goalReachedOn: string | null
+        }
+        /**
+         * @description The one in this plan: the customer’s choice when the debt’s `plan` is `keep` or `clear`, otherwise the larger net position.
+         * @enum {string}
+         */
+        chosen: 'kept' | 'cleared'
+      }[]
+      /** @description For a house deposit with an income given: what the projected deposit supports under the Central Bank limits, and for a first-time buyer, with Help to Buy. */
+      affordability: {
+        deposit: number
+        maxPrice: number
+        maxLoanByIncome: number
+        /** @enum {string} */
+        bindingLimit: 'income' | 'deposit'
+        note: string
+        /** @description For a first-time buyer: what Help to Buy would add for a new build. Null otherwise. */
+        helpToBuy: {
+          /** @description Help to Buy at the price shown, before the tax-paid limit. */
+          upToEur: number
+          /** @description The highest price the limits allow with Help to Buy towards the deposit, for a new build or self-build. */
+          maxPriceWithHelpToBuy: number | null
+          note: string
+          sourceUrl: string
+          checkedOn: string
+        } | null
+      } | null
+      unplaced: {
+        lumpSum: number
+        monthly: number
+      }
+      /** @description Whether money is locked away, and why: the liquidity rule, stated. */
+      liquidity: {
+        /**
+         * @description `locked`: a fixed term or notice account beat instant access by the thresholds. `instant_access`: it did not, or the customer asked to keep the money accessible, or the goal date is not certain. `not_compared`: no lump sum, or no term ends by the goal date.
+         * @enum {string}
+         */
+        decision: 'locked' | 'instant_access' | 'not_compared'
+        /** @description The reason, with both figures where they were worked out. */
+        why: string
+        /** @description Savings less debt at the horizon with terms allowed, after DIRT. */
+        lockedNetPosition: number | null
+        /** @description The same with every euro in instant access. */
+        instantNetPosition: number | null
+        /** @description Locked less instant. */
+        gainEur: number | null
+        /** @description The gain a year as a percentage of the lump sum placed. */
+        gainPctPerYear: number | null
+        thresholdEur: number
+        thresholdPctPerYear: number
+      }
+      /** @description How the result moves when one input changes. */
+      whatIf: {
+        extraMonthly: {
+          /** @description The extra a month tried: €100. */
+          extra: number
+          /** @description What it adds to savings at the horizon, after DIRT. */
+          addsAtHorizon: number
+          goalReachedOn: string | null
+        } | null
+        /** @description YYYY-MM the main goal’s target is reached at this plan’s pace, looking up to ten years ahead in instant access where the horizon is not enough. Null without a target, or when it is not reached within the figures. */
+        goalReachedAtCurrentPace: string | null
+        /** @description The what-ifs in words, with their figures, for the host to relay. To compare one properly, pass it as an `alternative` in the same call; do not adjust the figures by hand. */
+        lines: string[]
+      }
+      /** @description For the host to relay: what can be done next with this plan, including saving it into the Saoi app. */
+      next: string
+    }
+    BuildPlan: {
+      /** @description The customer’s circumstances, sent with each call. Only a plan is ever held, as a 24-hour draft behind a single-use link. Every figure is what they said. */
+      situation: {
+        /** @description Two or three sentences of what the customer said. */
+        summary?: string
+        income?: {
+          /** @description Gross income a year, before tax; joint for two applicants. */
+          annualGross?: number
+          /** @description Take-home pay a month. */
+          netMonthly?: number
+        }
+        outgoings?: {
+          rentMonthly?: number
+          otherMonthly?: number
+        }
+        /** @description What they can put aside each month. */
+        monthlySaving?: number
+        /** @default [] */
+        savings: {
+          /** @description In the customer’s words: "current account", "credit union". */
+          label: string
+          balance: number
+          provider?: string
+          /** @description What it earns now, if the customer said. Absent on a savings account: not known (never treated as zero). Absent on a current account: counted at the credit interest CCPC states for current accounts (0% in practice), with that basis stated. */
+          aerPct?: number
+          /**
+           * @description Where the money is. `current_account` for money in a current account ("sitting in my current account"): it is counted as earning what CCPC states current accounts pay (0% in practice), so moving it counts as money found. `instant`, `notice`, `fixed_term` for a savings or deposit account. Absent: read from the label ("current account" counts as one).
+           * @enum {string}
+           */
+          access?: 'instant' | 'notice' | 'fixed_term' | 'current_account'
+          fixedTermEndsOn?: string
+        }[]
+        /** @default [] */
+        debts: {
+          id: string
+          label: string
+          /** @enum {string} */
+          kind: 'credit_card' | 'personal_loan' | 'car_finance' | 'overdraft' | 'mortgage' | 'other'
+          balance: number
+          ratePct?: number
+          monthlyRepayment?: number
+          monthsRemaining?: number
+          /**
+           * @description For saoi_build_plan, what the customer wants modelled for this debt. `compare` (default): worked out both ways, cleared from savings and kept, and the plan takes the one leaving more. `keep`: kept and repaid as it is, still owed in the net position. `clear`: cleared from the savings held. To model keeping a debt, send it with `plan: "keep"`; never leave it out, or the plan has no debt to set against the savings.
+           * @enum {string}
+           */
+          plan?: 'clear' | 'keep' | 'compare'
+        }[]
+        firstTimeBuyer?: boolean
+      }
+      goals: {
+        id: string
+        /** @enum {string} */
+        kind:
+          | 'house_deposit'
+          | 'emergency_fund'
+          | 'pay_off_debt'
+          | 'save_for_purchase'
+          | 'grow_savings'
+          | 'switch_mortgage'
+          | 'other'
+        label: string
+        targetAmount?: number
+        targetDate?: string
+        priority?: number
+      }[]
+      /** @description An emergency buffer to hold first, in the best instant-access account, in euro. Wins over `emergencyBufferMonths` and over an `emergency_fund` goal’s `targetAmount`. 0 holds none. Only when the customer raises a buffer: never add one unasked. */
+      emergencyBufferEur?: number
+      /** @description An emergency buffer sized as months of outgoings (`situation.outgoings`, rent plus other). Used when `emergencyBufferEur` is absent. Without either field the buffer comes from an `emergency_fund` goal (its `targetAmount`, else 3 months of outgoings); with neither, none is held. */
+      emergencyBufferMonths?: number
+      /** @description Older name for `emergencyBufferMonths`; that field wins when both are sent. */
+      emergencyFundMonths?: number
+      /** @description True: every euro stays in instant access, nothing in a fixed term or notice account (the customer wants to reach the money at any time). Default false: a term is used only where it beats instant access by the lock thresholds. */
+      keepAccessible?: boolean
+      /** @description False: the main goal may come sooner than its date (a house sale agreed early, a purchase brought forward), so nothing is locked. Default true. */
+      goalDateCertain?: boolean
+      /** @description A fixed term or notice account is used only if the plan with it leaves at least this much more, after DIRT, at the goal date than the best plan in instant access. Default 100. */
+      minLockGainEur?: number
+      /** @description ...and at least this much more a year, as a percentage of the lump sum placed. Default 0.25. Below either threshold the plan keeps the money in instant access and says why, with both figures. */
+      minLockGainPctPerYear?: number
+      /** @description The most accounts the plan may open. Default 5. */
+      maxAccounts?: number
+      /** @description For a house deposit: the price in mind, for Help to Buy and the Central Bank limits. */
+      homePrice?: number
+      /**
+       * @description For a house deposit: `new_build`, `self_build` or `second_hand`. Help to Buy is for the first two.
+       * @enum {string}
+       */
+      propertyKind?: 'new_build' | 'self_build' | 'second_hand'
+      /** @description Income Tax and DIRT paid over the last four tax years (not USC or PRSI): the most Help to Buy can be. */
+      taxPaidLastFourYearsEur?: number
+      /** @description For a home: the customer’s own filters and sort order. Each is a choice the customer made; the result states every filter applied. */
+      homePreferences?: {
+        /** @description Who the customer banks with now, as they said it: "Bank of Ireland", "AIB". */
+        currentBank?: string
+        /** @description True: show only `currentBank`’s options, because the customer asked to stay with their bank. A filter they chose, and the result says so. */
+        stayWithBank?: boolean
+        /**
+         * @description Fixed or variable rates only, as the customer chose. Default either.
+         * @enum {string}
+         */
+        rateType?: 'fixed' | 'variable' | 'either'
+        /** @description True: the home is BER B3 or better, so green rates count. A new build is taken as BER A either way. */
+        green?: boolean
+        /** @description False: leave out options that need a current account with the lender. Default true. */
+        openToCurrentAccountSwitch?: boolean
+        /**
+         * @description What the options are sorted by, as the customer chose: `five_year_cost` (default: interest and fees less cashback and bonuses over the first 5 years), `keys_date` (soonest first), `monthly_repayment` (lowest first).
+         * @enum {string}
+         */
+        sortBy?: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
+      }
+      /** @description Up to three named variations to compare with the main plan in this same call (a debt kept or cleared, another monthly amount or date, or a buffer the customer raised). Each comes back with its net figure. Use this to compare options rather than calling again. */
+      alternatives?: {
+        /** @description A short name the customer would recognise: "Keep the car loan", "€6,000 aside". */
+        name: string
+        /** @description A different emergency buffer, in euro: only when the customer raised one. */
+        emergencyBufferEur?: number
+        /** @description Everything in instant access (true), or terms allowed (false). */
+        keepAccessible?: boolean
+        /** @description A different amount saved each month. */
+        monthlySaving?: number
+        /** @description A different date for the main goal. */
+        targetDate?: string
+        /** @description A different target for the main goal. */
+        targetAmount?: number
+        /** @description A different choice for a debt: `keep`, `clear` or `compare`, by its id. */
+        debtPlans?: {
+          debtId: string
+          /** @enum {string} */
+          plan: 'clear' | 'keep' | 'compare'
+        }[]
+        /** @description A different home price, for Help to Buy. */
+        homePrice?: number
+      }[]
+    }
+    MoneyCheckResult: {
+      /** @description Present to the customer: the headline sentences in order, ending with the questions to ask and, when there is a plan, the link to save it. */
+      presentation: string[]
+      /** @description The two or three questions that would unlock or sharpen the plan, for the host to ask in its own words. Call this tool again once the customer answers, in a later message. */
+      questions: string[]
+      review: {
+        /** @description Present to the customer: the headline sentences, in order, as options with their figures. Lead with these; the fields below are the detail behind them. */
+        presentation: string[]
+        /** @description Money a year the figures support finding: idle cash against the best accessible rate after DIRT, debt interest not paid, a mortgage switch. Each part sourced and dated. */
+        moneyFound: {
+          /** @description The total a year, after DIRT: the sum of `parts`. Nothing in `notCounted` is in it. */
+          annualEur: number
+          /** @description One line for the host to lead with. */
+          headline: string
+          parts: {
+            /** @enum {string} */
+            kind: 'idle_cash' | 'debt_interest' | 'mortgage_switch'
+            label: string
+            annualEur: number
+            /** @description How the figure is worked out, with its inputs. */
+            detail: string
+            /** @description Where the rate behind it comes from: a provider or CCPC, or the customer’s own figures. */
+            source: string
+            sourceUrl: string | null
+            /** @description When that rate was last checked. */
+            checkedAt: string | null
+          }[]
+          /** @description Money that may be there but is not counted: a rate not confirmed beyond CCPC’s one figure, a current rate not given, bonuses, cashback. */
+          notCounted: {
+            label: string
+            annualEur: number | null
+            why: string
+          }[]
+          basis: string
+        }
+        findings: {
+          /** @enum {string} */
+          kind:
+            | 'idle_money'
+            | 'no_emergency_fund'
+            | 'debt_costs_more_than_savings_earn'
+            | 'fixed_term_ending'
+            | 'goal_short_at_current_pace'
+            | 'unknown_rate'
+            | 'help_to_buy'
+          headline: string
+          detail: string
+          /** @description The euro figures behind the finding, by name. */
+          figures: {
+            [key: string]: number
+          }
+        }[]
+        candidateGoals: {
+          /** @enum {string} */
+          kind:
+            | 'house_deposit'
+            | 'emergency_fund'
+            | 'pay_off_debt'
+            | 'save_for_purchase'
+            | 'grow_savings'
+            | 'switch_mortgage'
+            | 'other'
+          label: string
+          why: string
+        }[]
+        assumptions: string[]
+        dataCheckedAt: string | null
+        attributions: string[]
+        /** @description For the host to relay: what can be done next, including a plan saved into the Saoi app. */
+        next: string
+      }
+      /** @description A plan, when there was enough to build one (money to place, or a debt to weigh). Null otherwise. */
+      plan: {
+        /** @description Other splits, each worked out without one product of the first, with how much more or less each holds towards the goal: shown beside it, so there is no single answer. */
+        runnersUp: {
+          /** @description The product left out to find this split: "AIB Online Saver". */
+          without: string
+          /** @description The split, in words. */
+          split: string
+          /** @description Towards the main goal at the same date, after DIRT. */
+          towardsGoalEur: number
+          /** @description Towards the goal less the worked combination’s, at the same date (negative: less). */
+          differenceEur: number
+          goalReachedOn: string | null
+          /** @description The runner-up in one sentence, with what differs. */
+          line: string
+        }[]
+        /** @description The one question whose answer would change the plan most. Ask this one, and only this one, in the reply. */
+        nextQuestion: {
+          /** @enum {string} */
+          key:
+            | 'income'
+            | 'property_kind'
+            | 'home_price'
+            | 'debt_repayment'
+            | 'current_account_bank'
+            | 'goal'
+          /** @description For the host to ask, in its own words. */
+          question: string
+          /** @description What the answer changes, with the figures from the runs. */
+          why: string
+          /** @description How far the plan moved across a few plausible answers. */
+          spread: {
+            keysMonths: number
+            /** @description Reported, not scored: a bigger home costs more. */
+            costEur: number
+            /** @description The spread in cost per €100,000 borrowed: scored. */
+            costPer100kEur: number
+            priceEur: number
+            totalEur: number
+          }
+          /** @description The spread in euro, the order questions are asked in. */
+          scoreEur: number
+        } | null
+        /** @description The rest, in order, for later replies. */
+        laterQuestions: {
+          /** @enum {string} */
+          key:
+            | 'income'
+            | 'property_kind'
+            | 'home_price'
+            | 'debt_repayment'
+            | 'current_account_bank'
+            | 'goal'
+          /** @description For the host to ask, in its own words. */
+          question: string
+          /** @description What the answer changes, with the figures from the runs. */
+          why: string
+          /** @description How far the plan moved across a few plausible answers. */
+          spread: {
+            keysMonths: number
+            /** @description Reported, not scored: a bigger home costs more. */
+            costEur: number
+            /** @description The spread in cost per €100,000 borrowed: scored. */
+            costPer100kEur: number
+            priceEur: number
+            totalEur: number
+          }
+          /** @description The spread in euro, the order questions are asked in. */
+          scoreEur: number
+        }[]
+        completeness: {
+          answered: string[]
+          assumed: string[]
+          /** @description "Plan based on 4 of 6 answers". */
+          line: string
+        }
+        saveCall: {
+          /** @description True once the inputs that move the plan most are answered (for a home: income and new or second-hand). */
+          ready: boolean
+          label: string
+          note: string
+          /** @description What the Saoi app does with the plan today. */
+          appToday: string[]
+          /** @description Not built yet: never offered as available. */
+          coming: string[]
+        }
+        /** @description Pathways to a home, when the main goal is a house deposit. Null otherwise. */
+        home: {
+          /** @description "At these figures, the deposit and buying costs are in place around <month>": a date, not an outcome. */
+          headline: string
+          /** @description Each one stated and correctable. */
+          assumptions: string[]
+          price: number
+          /** @enum {string} */
+          priceFrom: 'given' | 'savings'
+          /** @enum {string} */
+          bindingLimit: 'deposit' | 'income' | 'income_not_given' | 'price_given'
+          loan: number
+          ltvPct: number
+          depositEur: number
+          stampDutyEur: number
+          legalAndSurveyEur: number
+          helpToBuyEur: number
+          /** @description Deposit plus stamp duty and fees, less Help to Buy. */
+          neededAtKeysEur: number
+          keysOn: string | null
+          /** @description The period every pathway is costed over, the same for all. */
+          comparedOver: {
+            /** @enum {string} */
+            basis: 'term' | 'fixed_period' | 'first_years'
+            years: number
+          }
+          /**
+           * @description What `pathways` is sorted by, as the customer chose.
+           * @enum {string}
+           */
+          sortBy: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
+          /** @description The sort order in words, for the presentation. */
+          sortedBy: string
+          /** @description Each filter applied, in words, naming the customer’s own choices ("Showing Bank of Ireland options, as you asked."). */
+          filters: string[]
+          /** @description Every eligible option that fits the filters (each lender’s cheapest product per rate type and fixed period), sorted by `sortBy`. No single pick. */
+          pathways: {
+            lender: string
+            lenderName: string
+            mortgage: {
+              productId: string
+              name: string
+              /** @enum {string|null} */
+              rateType: 'fixed' | 'variable' | null
+              ratePct: number
+              fixedYears: number | null
+              followOnRatePct: number | null
+              monthlyRepayment: number
+            }
+            /** @description YYYY-MM the money for the deposit and buying costs is in place. */
+            keysOn: string | null
+            /** @description Interest over the period compared (the term, or the fixed period). */
+            interestEur: number
+            /** @description Cashback counted: at drawdown, plus a later payment where it falls in the period. */
+            cashbackEur: number
+            /** @description Savings bonuses tied to this lender’s mortgage, net of DIRT. */
+            bonusEur: number
+            /** @description Over the first 5 years: interest on a 30-year term plus the valuation fee, less cashback paid within 5 years and any savings bonus. What pathways are ranked by. */
+            netCostEur: number
+            /** @description Cashback paid after the 5 years if repayments are on time: listed, not ranked. */
+            cashbackAfterEur: number
+            /** @description The same over 30 years, if today’s follow-on rates held for 30 years. Secondary detail. */
+            thirtyYearNetEur: number | null
+            /** @description A fix shorter than 5 years with no stated follow-on rate: the fixed rate carried on, unconfirmed. */
+            followOnAssumed: boolean
+            /** @description Net cost less the lowest net cost shown. 0 for the lowest; a fact, not a pick. */
+            vsCheapestEur: number
+            /** @description What makes this option differ, in a few words. */
+            drivers: string
+            conditions: string[]
+            /** @description True when every incentive counted was read from the lender’s own site. */
+            confirmed: boolean
+            greenNote: string | null
+            sources: string[]
+            /** @description The lowest initial rate among this lender’s eligible products. */
+            lowestRatePct: number
+            /** @description Runners-up: this lender’s other eligible products of the same rate type and fixed period, by net cost, this one first. */
+            considered: {
+              productId: string
+              name: string
+              ratePct: number
+              netCostEur: number
+            }[]
+            /** @description What would be held with this lender for this option, and what stays where it is. */
+            bundle: {
+              products: {
+                /** @enum {string} */
+                role: 'linked_saver' | 'regular_saver' | 'mortgage' | 'cashback'
+                name: string
+                detail: string
+              }[]
+              /** @description Whether any product here needs a current account with the lender, as a fact. */
+              currentAccount: string
+            }
+            /** @description The option in one sentence, with its figures. */
+            line: string
+          }[]
+          leftOut: string[]
+          /** @description The statutory mortgage warnings, shown with every mortgage result. */
+          warnings: string[]
+        } | null
+        /** @description The variations asked for in `alternatives`, each worked out in this call. Empty when none were asked for. */
+        alternatives: {
+          name: string
+          /** @description What differs from the main plan, in words. */
+          changes: string[]
+          /** @description The alternative’s own position, everything held less what is still owed. */
+          position: {
+            /** @description YYYY-MM: the end of the months the plan covers. */
+            at: string
+            /** @description Everything held then, after DIRT (towards the goal plus the buffer), less what is still owed on the debts given. */
+            total: number
+            /** @description Savings towards the main goal then, after DIRT. */
+            towardsGoal: number
+            /** @description The emergency buffer then, with its interest. 0 when none is held. */
+            buffer: number
+            /** @description Still owed then on the debts given. 0 when none is owed or none given. */
+            owed: number
+            /** @description True when a debt’s repayment was not given, so today’s balance is counted as owed: the most it can be, and `total` the least. */
+            owedIsCeiling: boolean
+            /** @description False when the call had no debts: `total` is then savings only, not a net position against debts. */
+            debtsGiven: boolean
+            /** @description The position in one sentence, with its parts named. */
+            line: string
+          }
+          /** @description Its total less the main plan’s total, at the same date where the date is the same. */
+          differenceEur: number
+          /** @description What goes towards the main goal less the main plan’s, at the same date: the figure options are compared by. A buffer moves money out of the goal without changing the total held. */
+          towardsGoalDifferenceEur: number
+          goalReachedOn: string | null
+          moneyFoundAnnualEur: number
+          /** @description The comparison in one sentence, for the presentation and the card. */
+          line: string
+        }[]
+        /** @description Debts whose repayment was assumed. Empty when every repayment was given. */
+        assumedRepayments: {
+          debtId: string
+          label: string
+          balance: number
+          /** @description Repaid evenly over this many months: the plan’s horizon. */
+          months: number
+          /** @description The level repayment that assumes, at the debt’s rate. */
+          monthlyRepayment: number
+          /** @description The assumption in words, for the host to relay. */
+          note: string
+        }[]
+        /** @description Present to the customer: the headline sentences, in order, as options with their figures. Lead with these; the fields below are the detail behind them. */
+        presentation: string[]
+        /** @description The two or three questions that would sharpen the plan (the same as saoi_money_check asks), for the host to ask in its own words. Call again once the customer answers, in a later message. */
+        questions: string[]
+        /** @description What the plan holds at its end, everything included and each part named: towards the goal, the buffer, less what is still owed. */
+        position: {
+          /** @description YYYY-MM: the end of the months the plan covers. */
+          at: string
+          /** @description Everything held then, after DIRT (towards the goal plus the buffer), less what is still owed on the debts given. */
+          total: number
+          /** @description Savings towards the main goal then, after DIRT. */
+          towardsGoal: number
+          /** @description The emergency buffer then, with its interest. 0 when none is held. */
+          buffer: number
+          /** @description Still owed then on the debts given. 0 when none is owed or none given. */
+          owed: number
+          /** @description True when a debt’s repayment was not given, so today’s balance is counted as owed: the most it can be, and `total` the least. */
+          owedIsCeiling: boolean
+          /** @description False when the call had no debts: `total` is then savings only, not a net position against debts. */
+          debtsGiven: boolean
+          /** @description The position in one sentence, with its parts named. */
+          line: string
+        }
+        /** @description The plan held as a draft for 24 hours behind a single-use link, then deleted unless opened. Null when the draft could not be held (the daily or per-address limit); saoi_save_plan can then save it. */
+        saveLink: {
+          /** @description Opens the plan in the Saoi app, once. */
+          url: string
+          expiresAt: string
+        } | null
+        /** @description For a house deposit goal and a first-time buyer: Help to Buy, as far as the inputs allow. Null otherwise. */
+        helpToBuy: {
+          /** @enum {string} */
+          status: 'available' | 'not_available' | 'depends'
+          amountEur: number | null
+          upToEur: number
+          note: string
+          sourceUrl: string
+          checkedOn: string
+        } | null
+        /** @description Money a year the figures support finding: idle cash against the best accessible rate after DIRT, debt interest not paid, a mortgage switch. Each part sourced and dated. */
+        moneyFound: {
+          /** @description The total a year, after DIRT: the sum of `parts`. Nothing in `notCounted` is in it. */
+          annualEur: number
+          /** @description One line for the host to lead with. */
+          headline: string
+          parts: {
+            /** @enum {string} */
+            kind: 'idle_cash' | 'debt_interest' | 'mortgage_switch'
+            label: string
+            annualEur: number
+            /** @description How the figure is worked out, with its inputs. */
+            detail: string
+            /** @description Where the rate behind it comes from: a provider or CCPC, or the customer’s own figures. */
+            source: string
+            sourceUrl: string | null
+            /** @description When that rate was last checked. */
+            checkedAt: string | null
+          }[]
+          /** @description Money that may be there but is not counted: a rate not confirmed beyond CCPC’s one figure, a current rate not given, bonuses, cashback. */
+          notCounted: {
+            label: string
+            annualEur: number | null
+            why: string
+          }[]
+          basis: string
+        }
+        /** @description The plan, in the shape `POST /api/plans` takes. Send it back unchanged to save it behind a one-time link into the Saoi app. */
+        plan: {
+          /** @enum {number} */
+          version: 1
+          title: string
+          situation: {
+            summary: string
+            income?: {
+              annualGross?: number
+              netMonthly?: number
+            }
+            outgoings?: {
+              rentMonthly?: number
+              otherMonthly?: number
+            }
+            monthlySaving?: number
+            /** @default [] */
+            savings: {
+              label: string
+              balance: number
+              provider?: string
+              aerPct?: number
+            }[]
+            /** @default [] */
+            debts: {
+              id: string
+              label: string
+              /** @enum {string} */
+              kind:
+                'credit_card' | 'personal_loan' | 'car_finance' | 'overdraft' | 'mortgage' | 'other'
+              balance: number
+              ratePct?: number
+              monthlyRepayment?: number
+              monthsRemaining?: number
+            }[]
+          }
+          goals: {
+            id: string
+            /** @enum {string} */
+            kind:
+              | 'house_deposit'
+              | 'emergency_fund'
+              | 'pay_off_debt'
+              | 'save_for_purchase'
+              | 'grow_savings'
+              | 'switch_mortgage'
+              | 'other'
+            label: string
+            targetAmount?: number
+            targetDate?: string
+            priority?: number
+          }[]
+          combination: {
+            products: {
+              /** @enum {string} */
+              role:
+                | 'regular_saver'
+                | 'lump_sum'
+                | 'emergency_fund'
+                | 'mortgage'
+                | 'refinance'
+                | 'current_account'
+                | 'other'
+              /** @default [] */
+              goalIds: string[]
+              provider: string
+              providerName: string
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              /** @enum {string} */
+              category:
+                'savings' | 'deposit' | 'mortgage' | 'loan' | 'credit_card' | 'current_account'
+              productId: string
+              productName: string
+              amount?: number
+              monthlyAmount?: number
+              ratePct?: number
+              projected?: {
+                horizonMonths: number
+                balance?: number
+                netInterest?: number
+                totalCost?: number
+                monthlyRepayment?: number
+                goalReachedOn?: string
+              }
+              why?: string
+              /** @default [] */
+              unknowns: string[]
+              /** @default [] */
+              checks: string[]
+              depositGuarantee?: {
+                scheme: string | null
+                country: string | null
+                coverEur: number | null
+                note?: string | null
+                /** Format: uri */
+                sourceUrl?: string | null
+                checkedOn?: string | null
+              }
+              /** Format: date-time */
+              checkedAt: string
+              attribution?: string
+              /** Format: uri */
+              url?: string
+            }[]
+            totals?: {
+              monthly?: number
+              lumpSum?: number
+              netInterest?: number
+            }
+          }
+          /** @default [] */
+          debts: {
+            debtId: string
+            /** @enum {string} */
+            action: 'pay_off_first' | 'overpay' | 'keep_paying' | 'refinance'
+            why: string
+            costIfKept?: number
+            costWithStep?: number
+          }[]
+          ranking: {
+            /** @enum {string} */
+            objective:
+              'highest_net_return' | 'lowest_total_cost' | 'fastest_to_goal' | 'easiest_access'
+            basis: string
+          }
+          /** @default [] */
+          assumptions: string[]
+          position?: {
+            at: string
+            total: number
+            towardsGoal: number
+            buffer: number
+            owed: number
+            line: string
+          }
+          comparison?: {
+            /** @enum {string} */
+            kind: 'home'
+            headline: string
+            priceEur: number
+            /** @enum {string} */
+            sortBy: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
+            sortedBy: string
+            /** @default [] */
+            filters: string[]
+            options: {
+              lender: string
+              kind: string
+              productName: string
+              ratePct: number
+              monthlyEur: number
+              fiveYearCostEur: number
+              keysOn: string | null
+              confirmed: boolean
+            }[]
+          }
+          /** Format: date-time */
+          createdAt: string
+          /** Format: date-time */
+          dataCheckedAt: string
+        }
+        /** @description Months to the main goal’s date, or 12 when there is no date. */
+        horizonMonths: number
+        /** @description The figures run to here; less than the horizon where a rate after that is not known. */
+        knownThroughMonth: number
+        /** @description YYYY-MM the main goal is reached, if within the figures. */
+        goalReachedOn: string | null
+        /** @description Why the plan has the shape it has, step by step, with the figures. */
+        reasoning: string[]
+        /** @description Each debt that costs more than savings earn, with both outcomes worked out. */
+        debtScenarios: {
+          debtId: string
+          /** @description What clearing or overpaying would take from the lump sum. */
+          amount: number
+          kept: {
+            /** @description Savings at the end of the months the figures cover, after DIRT. */
+            savingsAtHorizon: number
+            /** @description What is still owed on the debt then. */
+            debtAtHorizon: number
+            /** @description Everything held (towards the goal and the buffer) less what is still owed. */
+            netPosition: number
+            /** @description YYYY-MM the main goal is reached, if within the figures. */
+            goalReachedOn: string | null
+          }
+          cleared: {
+            /** @description Savings at the end of the months the figures cover, after DIRT. */
+            savingsAtHorizon: number
+            /** @description What is still owed on the debt then. */
+            debtAtHorizon: number
+            /** @description Everything held (towards the goal and the buffer) less what is still owed. */
+            netPosition: number
+            /** @description YYYY-MM the main goal is reached, if within the figures. */
+            goalReachedOn: string | null
+          }
+          /**
+           * @description The one in this plan: the customer’s choice when the debt’s `plan` is `keep` or `clear`, otherwise the larger net position.
+           * @enum {string}
+           */
+          chosen: 'kept' | 'cleared'
+        }[]
+        /** @description For a house deposit with an income given: what the projected deposit supports under the Central Bank limits, and for a first-time buyer, with Help to Buy. */
+        affordability: {
+          deposit: number
+          maxPrice: number
+          maxLoanByIncome: number
+          /** @enum {string} */
+          bindingLimit: 'income' | 'deposit'
+          note: string
+          /** @description For a first-time buyer: what Help to Buy would add for a new build. Null otherwise. */
+          helpToBuy: {
+            /** @description Help to Buy at the price shown, before the tax-paid limit. */
+            upToEur: number
+            /** @description The highest price the limits allow with Help to Buy towards the deposit, for a new build or self-build. */
+            maxPriceWithHelpToBuy: number | null
+            note: string
+            sourceUrl: string
+            checkedOn: string
+          } | null
+        } | null
+        unplaced: {
+          lumpSum: number
+          monthly: number
+        }
+        /** @description Whether money is locked away, and why: the liquidity rule, stated. */
+        liquidity: {
+          /**
+           * @description `locked`: a fixed term or notice account beat instant access by the thresholds. `instant_access`: it did not, or the customer asked to keep the money accessible, or the goal date is not certain. `not_compared`: no lump sum, or no term ends by the goal date.
+           * @enum {string}
+           */
+          decision: 'locked' | 'instant_access' | 'not_compared'
+          /** @description The reason, with both figures where they were worked out. */
+          why: string
+          /** @description Savings less debt at the horizon with terms allowed, after DIRT. */
+          lockedNetPosition: number | null
+          /** @description The same with every euro in instant access. */
+          instantNetPosition: number | null
+          /** @description Locked less instant. */
+          gainEur: number | null
+          /** @description The gain a year as a percentage of the lump sum placed. */
+          gainPctPerYear: number | null
+          thresholdEur: number
+          thresholdPctPerYear: number
+        }
+        /** @description How the result moves when one input changes. */
+        whatIf: {
+          extraMonthly: {
+            /** @description The extra a month tried: €100. */
+            extra: number
+            /** @description What it adds to savings at the horizon, after DIRT. */
+            addsAtHorizon: number
+            goalReachedOn: string | null
+          } | null
+          /** @description YYYY-MM the main goal’s target is reached at this plan’s pace, looking up to ten years ahead in instant access where the horizon is not enough. Null without a target, or when it is not reached within the figures. */
+          goalReachedAtCurrentPace: string | null
+          /** @description The what-ifs in words, with their figures, for the host to relay. To compare one properly, pass it as an `alternative` in the same call; do not adjust the figures by hand. */
+          lines: string[]
+        }
+        /** @description For the host to relay: what can be done next with this plan, including saving it into the Saoi app. */
+        next: string
+      } | null
+      /** @description When no goal was given, the goal the plan was built for, stated. Null when the customer gave one. */
+      planGoalAssumed: string | null
+    }
+    MoneyCheck: {
+      /** @description An emergency buffer to hold first, in the best instant-access account, in euro. Wins over `emergencyBufferMonths` and over an `emergency_fund` goal’s `targetAmount`. 0 holds none. Only when the customer raises a buffer: never add one unasked. */
+      emergencyBufferEur?: number
+      /** @description An emergency buffer sized as months of outgoings (`situation.outgoings`, rent plus other). Used when `emergencyBufferEur` is absent. Without either field the buffer comes from an `emergency_fund` goal (its `targetAmount`, else 3 months of outgoings); with neither, none is held. */
+      emergencyBufferMonths?: number
+      /** @description Older name for `emergencyBufferMonths`; that field wins when both are sent. */
+      emergencyFundMonths?: number
+      /** @description True: every euro stays in instant access, nothing in a fixed term or notice account (the customer wants to reach the money at any time). Default false: a term is used only where it beats instant access by the lock thresholds. */
+      keepAccessible?: boolean
+      /** @description False: the main goal may come sooner than its date (a house sale agreed early, a purchase brought forward), so nothing is locked. Default true. */
+      goalDateCertain?: boolean
+      /** @description A fixed term or notice account is used only if the plan with it leaves at least this much more, after DIRT, at the goal date than the best plan in instant access. Default 100. */
+      minLockGainEur?: number
+      /** @description ...and at least this much more a year, as a percentage of the lump sum placed. Default 0.25. Below either threshold the plan keeps the money in instant access and says why, with both figures. */
+      minLockGainPctPerYear?: number
+      /** @description The most accounts the plan may open. Default 5. */
+      maxAccounts?: number
+      /** @description For a house deposit: the price in mind, for Help to Buy and the Central Bank limits. */
+      homePrice?: number
+      /**
+       * @description For a house deposit: `new_build`, `self_build` or `second_hand`. Help to Buy is for the first two.
+       * @enum {string}
+       */
+      propertyKind?: 'new_build' | 'self_build' | 'second_hand'
+      /** @description Income Tax and DIRT paid over the last four tax years (not USC or PRSI): the most Help to Buy can be. */
+      taxPaidLastFourYearsEur?: number
+      /** @description For a home: the customer’s own filters and sort order. Each is a choice the customer made; the result states every filter applied. */
+      homePreferences?: {
+        /** @description Who the customer banks with now, as they said it: "Bank of Ireland", "AIB". */
+        currentBank?: string
+        /** @description True: show only `currentBank`’s options, because the customer asked to stay with their bank. A filter they chose, and the result says so. */
+        stayWithBank?: boolean
+        /**
+         * @description Fixed or variable rates only, as the customer chose. Default either.
+         * @enum {string}
+         */
+        rateType?: 'fixed' | 'variable' | 'either'
+        /** @description True: the home is BER B3 or better, so green rates count. A new build is taken as BER A either way. */
+        green?: boolean
+        /** @description False: leave out options that need a current account with the lender. Default true. */
+        openToCurrentAccountSwitch?: boolean
+        /**
+         * @description What the options are sorted by, as the customer chose: `five_year_cost` (default: interest and fees less cashback and bonuses over the first 5 years), `keys_date` (soonest first), `monthly_repayment` (lowest first).
+         * @enum {string}
+         */
+        sortBy?: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
+      }
+      /** @description Up to three named variations to compare with the main plan in this same call (a debt kept or cleared, another monthly amount or date, or a buffer the customer raised). Each comes back with its net figure. Use this to compare options rather than calling again. */
+      alternatives?: {
+        /** @description A short name the customer would recognise: "Keep the car loan", "€6,000 aside". */
+        name: string
+        /** @description A different emergency buffer, in euro: only when the customer raised one. */
+        emergencyBufferEur?: number
+        /** @description Everything in instant access (true), or terms allowed (false). */
+        keepAccessible?: boolean
+        /** @description A different amount saved each month. */
+        monthlySaving?: number
+        /** @description A different date for the main goal. */
+        targetDate?: string
+        /** @description A different target for the main goal. */
+        targetAmount?: number
+        /** @description A different choice for a debt: `keep`, `clear` or `compare`, by its id. */
+        debtPlans?: {
+          debtId: string
+          /** @enum {string} */
+          plan: 'clear' | 'keep' | 'compare'
+        }[]
+        /** @description A different home price, for Help to Buy. */
+        homePrice?: number
+      }[]
+      /**
+       * @description Whatever the customer has said about their money so far, however partial: savings and where they are, what they can save a month, loans and cards, a mortgage, income, outgoings. Leave out what was not said; never guess.
+       * @default {
+       *       "savings": [],
+       *       "debts": []
+       *     }
+       */
+      situation: {
+        /** @description Two or three sentences of what the customer said. */
+        summary?: string
+        income?: {
+          /** @description Gross income a year, before tax; joint for two applicants. */
+          annualGross?: number
+          /** @description Take-home pay a month. */
+          netMonthly?: number
+        }
+        outgoings?: {
+          rentMonthly?: number
+          otherMonthly?: number
+        }
+        /** @description What they can put aside each month. */
+        monthlySaving?: number
+        /** @default [] */
+        savings: {
+          /** @description In the customer’s words: "current account", "credit union". */
+          label: string
+          balance: number
+          provider?: string
+          /** @description What it earns now, if the customer said. Absent on a savings account: not known (never treated as zero). Absent on a current account: counted at the credit interest CCPC states for current accounts (0% in practice), with that basis stated. */
+          aerPct?: number
+          /**
+           * @description Where the money is. `current_account` for money in a current account ("sitting in my current account"): it is counted as earning what CCPC states current accounts pay (0% in practice), so moving it counts as money found. `instant`, `notice`, `fixed_term` for a savings or deposit account. Absent: read from the label ("current account" counts as one).
+           * @enum {string}
+           */
+          access?: 'instant' | 'notice' | 'fixed_term' | 'current_account'
+          fixedTermEndsOn?: string
+        }[]
+        /** @default [] */
+        debts: {
+          id: string
+          label: string
+          /** @enum {string} */
+          kind: 'credit_card' | 'personal_loan' | 'car_finance' | 'overdraft' | 'mortgage' | 'other'
+          balance: number
+          ratePct?: number
+          monthlyRepayment?: number
+          monthsRemaining?: number
+          /**
+           * @description For saoi_build_plan, what the customer wants modelled for this debt. `compare` (default): worked out both ways, cleared from savings and kept, and the plan takes the one leaving more. `keep`: kept and repaid as it is, still owed in the net position. `clear`: cleared from the savings held. To model keeping a debt, send it with `plan: "keep"`; never leave it out, or the plan has no debt to set against the savings.
+           * @enum {string}
+           */
+          plan?: 'clear' | 'keep' | 'compare'
+        }[]
+        firstTimeBuyer?: boolean
+      }
+      /**
+       * @description What the money is for, if they said: a house, a car. Empty is fine.
+       * @default []
+       */
+      goals: {
+        id: string
+        /** @enum {string} */
+        kind:
+          | 'house_deposit'
+          | 'emergency_fund'
+          | 'pay_off_debt'
+          | 'save_for_purchase'
+          | 'grow_savings'
+          | 'switch_mortgage'
+          | 'other'
+        label: string
+        targetAmount?: number
+        targetDate?: string
+        priority?: number
+      }[]
     }
     AdminOverview: {
       killSwitch: boolean
@@ -8013,6 +13037,16 @@ export interface components {
               }[]
               termMonths?: number
               noticeDays?: number
+              thresholdBonus?: {
+                bonusAerPct: number
+                resetMonths: number[]
+                lookbackMonths: number
+                baseTiers: {
+                  minEur: number
+                  maxEur: number | null
+                  aerPct: number
+                }[]
+              }
             }
           | {
               /** @enum {string} */
@@ -8063,6 +13097,24 @@ export interface components {
           minLumpSumEur?: number
           maxLumpSumEur?: number
           minAge?: number
+          eligibility?: {
+            residentIn?: string
+            notForUsCitizens?: boolean
+            individualsOnly?: boolean
+            jointAccounts?: boolean
+            needsAccountWithProvider?: string
+          }
+          /** @enum {string} */
+          interestPaid?:
+            | 'daily'
+            | 'weekly'
+            | 'monthly'
+            | 'quarterly'
+            | 'yearly'
+            | 'account_anniversary'
+            | 'maturity'
+          rateForNewAccounts?: boolean
+          dirtAtSource?: boolean
           bonus?: {
             amountEur: number
             lessDirt: boolean

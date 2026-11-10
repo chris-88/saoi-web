@@ -66,8 +66,8 @@ export function Privacy(): ReactNode {
               are sent to their API, which is hosted in the United States.
             </li>
             <li>
-              <strong>Supabase</strong> stores the conversation and the notes, in their Ireland
-              region.
+              <strong>Saoi&rsquo;s own servers in Ireland</strong> store the conversation and the
+              notes.
             </li>
             <li>
               <strong>Sentry</strong> receives diagnostics when something breaks. It is sent a
@@ -78,6 +78,17 @@ export function Privacy(): ReactNode {
               The people building this, through an operator console, to see whether it is working.
             </li>
           </ul>
+        </Section>
+
+        <Section title="A comparison you save from your AI assistant">
+          <p>
+            Saving a comparison in your AI assistant holds its figures and preferences with Saoi
+            behind a single-use link. Unopened, it is deleted after 24 hours. Opening it shows you
+            this before anything is stored against you, then puts the comparison into a chat with
+            Saoirse. How long an opened comparison is kept: [To confirm]. Who is responsible for
+            your data: [To confirm]. You can ask for a copy of what Saoi holds about you, or for it
+            to be deleted, at the address below.
+          </p>
         </Section>
 
         <Section title="Cookies">
