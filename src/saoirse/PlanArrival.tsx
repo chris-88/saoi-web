@@ -8,6 +8,7 @@ import { SuggestionList } from '@/saoirse/SuggestionList'
 import { TypingBubble } from '@/saoirse/TypingBubble'
 import { NOTICE, PROBLEM_LINES, problemOf, type ClaimProblem } from '@/lib/planClaim'
 import { ACCEPT_LABEL, handArrivalToChat, welcomeLine } from '@/lib/planArrival'
+import { routesOf } from '@/lib/planRoutes'
 import { claimPlan, previewPlan } from '@/lib/session'
 import { isBackendConfigured } from '@/lib/env'
 import { queryKeys } from '@/lib/queryKeys'
@@ -46,10 +47,12 @@ export function PlanArrival({
     mutationFn: () => claimPlan(token),
     onSuccess: () => {
       if (preview.data === undefined) return
+      const routeCount = routesOf(preview.data).length
       handArrivalToChat({
-        welcome: welcomeLine(preview.data.title),
+        welcome: welcomeLine(preview.data.title, routeCount),
         notice: NOTICE.lines,
         accepted: ACCEPT_LABEL,
+        routeCount,
       })
       void navigate(routes.saoirse, { replace: true })
     },
@@ -99,7 +102,7 @@ export function PlanArrival({
         ) : (
           <>
             <ChatBubble author="assistant" showAvatar={false} first>
-              <p>{welcomeLine(preview.data.title)}</p>
+              <p>{welcomeLine(preview.data.title, routesOf(preview.data).length)}</p>
             </ChatBubble>
             <ChatBubble author="assistant">
               <div className="space-y-2">
