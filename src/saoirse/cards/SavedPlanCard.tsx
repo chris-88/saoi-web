@@ -60,6 +60,47 @@ export function SavedPlanCard({ card }: { card: Payload }): ReactNode {
         </div>
       )}
 
+      {card.comparison !== undefined && (
+        <div className="border-t px-4 py-3">
+          <p className={label}>Your home options</p>
+          <p className="text-muted-foreground mt-1 text-xs">{card.comparison.sortedBy}</p>
+          {card.comparison.filters.map((filter) => (
+            <p key={filter} className="text-muted-foreground text-xs">
+              {filter}
+            </p>
+          ))}
+          <ol className="divide-y" aria-label="The first options, in the order chosen">
+            {card.comparison.options.map((option, index) => (
+              <li key={index} className="flex items-start justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    {option.lender}
+                    {!option.confirmed && (
+                      <span className="text-muted-foreground ml-2 rounded-md border px-1.5 text-[11px] font-normal">
+                        Unconfirmed
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    {option.kind} · {option.rate}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold tabular-nums">{option.fiveYear}</p>
+                  <p className="text-muted-foreground text-xs tabular-nums">{option.monthly}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          {card.comparison.total > card.comparison.options.length && (
+            <p className="text-muted-foreground text-xs">
+              {card.comparison.total - card.comparison.options.length} more options in the
+              comparison.
+            </p>
+          )}
+        </div>
+      )}
+
       {card.products.length > 0 && (
         <ol className="divide-y border-t" aria-label="Products in the plan">
           {card.products.map((product, index) => (

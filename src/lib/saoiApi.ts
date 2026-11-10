@@ -1,8 +1,9 @@
 import { z } from 'zod'
-import { api, apiError, SaoiApiError } from '@/api/client'
+import { api, apiError, publicApi, SaoiApiError } from '@/api/client'
 import type { components } from '@/api/schema'
 import {
   claimPlanResponseSchema,
+  previewPlanResponseSchema,
   listCasesResponseSchema,
   sessionResponseSchema,
   type SessionRequest,
@@ -114,6 +115,14 @@ export function callSessionApi(request: SessionRequest): Promise<unknown> {
       return parsed(api.POST('/api/interest', { body: compact(body) }), registeredSchema)
     }
   }
+}
+
+/** Reads a saved comparison by its link, without spending it, for the welcome. No session. */
+export function callPreviewPlanApi(token: string): Promise<unknown> {
+  return parsed(
+    publicApi.POST('/api/plans/preview', { body: { token } }),
+    previewPlanResponseSchema,
+  )
 }
 
 /** Opens a saved plan's one-time link into this browser's conversation. */

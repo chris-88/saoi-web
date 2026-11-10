@@ -27,6 +27,8 @@ export const queryKeys = {
     forCase: (caseId: string) => ['case', caseId, 'plans'] as const,
     /** Opening a plan link. Run once per token: the claim spends it. */
     claim: (token: string) => ['plan-claim', token] as const,
+    /** What a saved comparison shows before it is opened; reading it spends nothing. */
+    preview: (token: string) => ['plan-preview', token] as const,
   },
   applications: {
     forCase: (caseId: string) => ['case', caseId, 'applications'] as const,

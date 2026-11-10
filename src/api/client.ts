@@ -33,6 +33,16 @@ export const api = createClient<paths>({
 })
 api.use(bearer)
 
+/**
+ * The same client with no bearer, for the few public routes (`POST /api/plans/preview`): a
+ * visitor arriving from a saved comparison reads it before any session exists, so nothing is
+ * created against them until they have seen what Saoi keeps.
+ */
+export const publicApi = createClient<paths>({
+  baseUrl: saoiApiUrl,
+  fetch: (request) => globalThis.fetch(request),
+})
+
 export class SaoiApiError extends Error {
   readonly status: number
   constructor(status: number, message: string) {

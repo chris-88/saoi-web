@@ -1,8 +1,10 @@
 import { requireSupabase } from '@/lib/supabase'
-import { callClaimPlanApi, callSessionApi } from '@/lib/saoiApi'
+import { callClaimPlanApi, callPreviewPlanApi, callSessionApi } from '@/lib/saoiApi'
 import {
   claimPlanResponseSchema,
   listCasesResponseSchema,
+  previewPlanResponseSchema,
+  type PreviewPlanResponse,
   sessionResponseSchema,
   type ClaimPlanResponse,
   type ListCasesResponse,
@@ -245,6 +247,11 @@ export async function claimPriorConversation(): Promise<SessionResponse | null> 
  * request per token per page, so a remount cannot send a second claim while the first is out.
  */
 const claiming = new Map<string, Promise<ClaimPlanResponse>>()
+
+/** What a saved comparison shows before it is opened: nothing is stored by reading it. */
+export async function previewPlan(token: string): Promise<PreviewPlanResponse> {
+  return previewPlanResponseSchema.parse(await callPreviewPlanApi(token))
+}
 
 export function claimPlan(token: string): Promise<ClaimPlanResponse> {
   const pending = claiming.get(token)
