@@ -20,59 +20,22 @@ export function problemOf(error: unknown): ClaimProblem {
   }
 }
 
-export const CLAIM_COPY: Record<ClaimProblem, { readonly title: string; readonly body: string }> = {
-  unknown: {
-    title: 'That link didn’t work',
-    body: 'It isn’t a link Saoi gave out. If you copied it, check it came across whole, or ask your AI assistant to save the comparison again.',
-  },
-  used: {
-    title: 'This comparison has already been opened',
-    body: 'Each link opens once, so it is in whichever browser or app opened it first. If that was you on another device, sign in there to keep it, or ask your AI assistant to save the comparison again for a fresh link.',
-  },
-  expired: {
-    title: 'This link has expired',
-    body: 'A saved comparison is held for 24 hours, then deleted unless opened. Ask your AI assistant to save it again for a fresh link, or start a chat with Saoirse here.',
-  },
-  busy: {
-    title: 'Saoi is busy right now',
-    body: 'Your link hasn’t been used up. Try it again in a few minutes.',
-  },
-  failed: {
-    title: 'Something went wrong',
-    body: 'Your comparison couldn’t be opened just now. Try the link again in a moment.',
-  },
-}
-
 /**
- * The data notice shown before a saved comparison is opened (2026-11-10). Facts from the
- * privacy page (`surfaces/Privacy.tsx`) and the infra; "[To confirm: ...]" marks what is not
- * settled in any repo yet and is Chris's to decide.
+ * The data notice, as Saoirse says it in the chat before a saved comparison is opened
+ * (2026-11-10). Facts from the privacy page (`surfaces/Privacy.tsx`) and the infra;
+ * "[To confirm: ...]" marks what is not settled in any repo yet and is Chris's to decide.
  */
 export const NOTICE = {
-  title: 'Before you continue',
-  lead: 'Opening this comparison stores it with Saoi and starts a chat with Saoirse, Saoi’s assistant. Here is what that means.',
-  points: [
-    {
-      label: 'What Saoi keeps',
-      text: 'The figures and preferences in this comparison, and your chat with Saoirse, including the notes she takes so she does not ask twice.',
-    },
-    {
-      label: 'Why',
-      text: 'To show you the comparison and let Saoirse talk it through. Nothing is sold, and nothing is shared with banks or anyone else for marketing.',
-    },
-    {
-      label: 'Where',
-      text: 'On Saoi’s own servers in Ireland. To write Saoirse’s replies, the chat is sent to Anthropic, whose service is in the United States.',
-    },
-    {
-      label: 'Your rights',
-      text: 'You can ask for a copy of what Saoi holds about you, or for it to be deleted, at any time: baz@chrisquinn.ie.',
-    },
+  lines: [
+    'Before I open it, a quick note on your data.',
+    'I keep the figures and preferences in this comparison, and our chat, so I don’t ask twice. It’s stored on Saoi’s own servers in Ireland.',
+    'To write my replies, the chat is sent to Anthropic, whose service is in the United States. Nothing is sold, or shared for marketing.',
+    'You can ask for a copy of what Saoi holds, or for it to be deleted, at any time: baz@chrisquinn.ie.',
   ],
   full: [
     {
       label: 'How long',
-      text: 'An unopened comparison is deleted 24 hours after it was saved. Once you continue: [To confirm: how long an opened comparison and its chat are kept]. Conversations are also cleared regularly while Saoi is a prototype, and one is deleted whenever you ask.',
+      text: 'An unopened comparison is deleted 24 hours after it was saved. Once you carry on: [To confirm: how long an opened comparison and its chat are kept]. Conversations are also cleared regularly while Saoi is a prototype, and one is deleted whenever you ask.',
     },
     {
       label: 'Who is responsible',
@@ -92,3 +55,14 @@ export const NOTICE = {
     },
   ],
 } as const
+
+/** What Saoirse says when a link cannot be opened, in the chat. */
+export const PROBLEM_LINES: Record<ClaimProblem, string> = {
+  unknown:
+    'That link didn’t work: it isn’t one Saoi gave out. If you copied it, check it came across whole, or ask your AI assistant to save the comparison again. Or we can start again here.',
+  used: 'That comparison has already been opened, in whichever browser or app opened it first. Ask your AI assistant to save it again for a fresh link, or we can start again here.',
+  expired:
+    'That link has expired: a saved comparison is kept for 24 hours, then deleted unless it’s opened. Ask your AI assistant to save it again, or we can start again here.',
+  busy: 'Saoi is busy right now, and your link hasn’t been used up. Try it again in a few minutes.',
+  failed: 'I couldn’t open your comparison just now. Try the link again in a moment.',
+}

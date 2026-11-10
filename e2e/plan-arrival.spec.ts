@@ -78,31 +78,34 @@ async function stub(page: Page, preview: { status: number; body: unknown }): Pro
   return claims
 }
 
-test('a ?plan= link welcomes with the comparison, shows the notice, then claims', async ({
+test('a ?plan= link opens in the chat: welcome, notice, nothing claimed until accepted', async ({
   page,
 }) => {
   const claims = await stub(page, { status: 200, body: PREVIEW })
   await page.goto(`/?plan=${TOKEN}`)
-  await expect(page.getByRole('heading', { name: 'Welcome to Saoi' })).toBeVisible()
-  // The token left the address straight away (Invariant 8).
+  await expect(
+    page.getByText(
+      'Hi, I’m Saoirse. I’ve got the comparison you were working on: buying a home by November 2028.',
+    ),
+  ).toBeVisible()
+  // The token left the address straight away (Invariant 8), and there is no separate page.
   expect(page.url()).not.toContain('?plan=')
-  await expect(page.getByText('€25k saved · €800/mo · €90k · €350k')).toBeVisible()
-  await expect(page.getByText('46 more options come with it.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Welcome to Saoi' })).toHaveCount(0)
+  await expect(page.getByText(/sent to Anthropic/)).toBeVisible()
   expect(claims).toEqual([])
 
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await expect(page.getByRole('heading', { name: 'Before you continue' })).toBeVisible()
-  expect(claims).toEqual([])
-  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: /read the full notice/i }).click()
+  await expect(page.getByText(/24 hours after it was saved/)).toBeVisible()
+  await page.getByRole('button', { name: 'That’s fine, carry on' }).click()
   await expect.poll(() => claims).toEqual([TOKEN])
 })
 
-test('an expired link says so plainly, with a way to start again', async ({ page }) => {
+test('an expired link is a message in the chat, with a chip to start again', async ({ page }) => {
   await stub(page, {
     status: 410,
     body: { ok: false, error: { code: 'expired', message: 'expired' } },
   })
   await page.goto(`/?plan=${TOKEN}`)
-  await expect(page.getByRole('heading', { name: 'This link has expired' })).toBeVisible()
-  await expect(page.getByRole('link', { name: /start a fresh chat/i })).toBeVisible()
+  await expect(page.getByText(/That link has expired/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start again' })).toBeVisible()
 })

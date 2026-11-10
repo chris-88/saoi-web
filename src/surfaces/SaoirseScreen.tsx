@@ -1,7 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { SaoirseChat } from '@/saoirse/SaoirseChat'
+import { PlanArrival } from '@/saoirse/PlanArrival'
+import { ARRIVAL_FOLLOW_UPS, takeArrivalPrelude } from '@/lib/planArrival'
 import { SaoirseWordmark } from '@/saoirse/SaoirseWordmark'
 import { ConversationMenu } from '@/saoirse/ConversationMenu'
 import { IdentityBadge } from '@/saoirse/IdentityBadge'
@@ -18,8 +20,16 @@ import { useViewportHeight } from '@/lib/useViewportHeight'
  * signed-in version with more in it. Every visitor gets a case of their own and tells Saoirse what
  * it needs to know, the way they would tell a person.
  */
-export function SaoirseScreen(): ReactNode {
+/** `#/plan/:token`: a saved comparison, opened inside the chat (2026-11-10). */
+export function PlanArrivalScreen(): ReactNode {
+  const { token = '' } = useParams<{ token: string }>()
+  return <SaoirseScreen arrivalToken={token} />
+}
+
+export function SaoirseScreen({ arrivalToken }: { arrivalToken?: string } = {}): ReactNode {
   useDocumentTitle('Saoirse')
+  /** What Saoirse said before a saved comparison was opened, carried into this chat once. */
+  const [prelude] = useState(() => (arrivalToken === undefined ? takeArrivalPrelude() : null))
   const [started, setStarted] = useState(false)
   const [caseId, setCaseId] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -129,20 +139,29 @@ export function SaoirseScreen(): ReactNode {
         </div>
       </header>
 
-      <SaoirseChat
-        onStarted={setStarted}
-        onCase={setCaseId}
-        className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col"
-        openingMessage={searchParams.get('say')}
-        mode="new"
-        source={source}
-        /*
-         * The old greeting opened by denying it was another useless bot, which is a strange
-         * thing to lead with: it raises the doubt before anyone had it, and then promises only
-         * to "see if I can actually help". This says the one thing that is actually different
-         * and asks for the thing it needs.
-         */
-      />
+      {arrivalToken !== undefined ? (
+        <PlanArrival
+          token={arrivalToken}
+          className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col"
+        />
+      ) : (
+        <SaoirseChat
+          prelude={prelude}
+          arrivalFollowUps={prelude === null ? undefined : ARRIVAL_FOLLOW_UPS}
+          onStarted={setStarted}
+          onCase={setCaseId}
+          className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col"
+          openingMessage={searchParams.get('say')}
+          mode="new"
+          source={source}
+          /*
+           * The old greeting opened by denying it was another useless bot, which is a strange
+           * thing to lead with: it raises the doubt before anyone had it, and then promises only
+           * to "see if I can actually help". This says the one thing that is actually different
+           * and asks for the thing it needs.
+           */
+        />
+      )}
     </div>
   )
 }

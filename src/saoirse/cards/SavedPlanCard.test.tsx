@@ -46,33 +46,78 @@ const card: Extract<Card, { type: 'saved_plan' }> = {
   dataCheckedAt: '2026-11-09T12:14:36Z',
 }
 
-describe('the plan card', () => {
-  it('shows the plan as the server built it, provenance and unknowns included', () => {
-    render(<SavedPlanCard card={card} />)
-
-    expect(screen.getByRole('heading', { name: card.title })).toBeInTheDocument()
-    expect(screen.getByText('€35,000 by November 2028')).toBeInTheDocument()
-
-    const products = within(screen.getByRole('list', { name: /products in the plan/i }))
-    expect(products.getAllByText(/^\d\. Monthly saving/)).toHaveLength(2)
-    expect(products.getByText('SuperSaver Account')).toBeInTheDocument()
-    expect(products.getByText('CCPC, checked 9 Nov 2026')).toBeInTheDocument()
-    expect(products.getByText('Not published: Monthly maximum')).toBeInTheDocument()
-    expect(products.getByText(/^Check: Paid by direct debit/)).toBeInTheDocument()
-    // A check that already says "Check" is not prefixed again.
-    expect(products.getByText(/^Check eligibility with AIB/)).toBeInTheDocument()
-    expect(products.queryByText(/Check: Check/)).not.toBeInTheDocument()
-    expect(products.getByRole('link', { name: /AIB’s page/ })).toHaveAttribute(
-      'rel',
-      'noopener noreferrer',
+describe('the saved comparison card', () => {
+  it('shows only the goal, the figures line and the first three options, one line each', () => {
+    render(
+      <SavedPlanCard
+        card={{
+          ...card,
+          title: 'Buying a home by November 2028',
+          figures: '€25k saved · €800/mo · €90k · €350k',
+          comparison: {
+            headline:
+              'At these figures, the deposit and buying costs are in place around July 2028.',
+            sortedBy: '49 options that fit, sorted by cost over the first 5 years.',
+            sortBy: 'five_year_cost',
+            filters: [],
+            total: 49,
+            options: [
+              {
+                lender: 'Bank of Ireland',
+                kind: '4-year fixed',
+                rate: '3.2%',
+                monthly: '€1,362/mo',
+                fiveYear: '€49,338 over 5 years',
+                keys: 'July 2028',
+                confirmed: true,
+                lead: '€49,338 / 5 yrs',
+              },
+              {
+                lender: 'Avant Money',
+                kind: '5-year fixed',
+                rate: '3.7%',
+                monthly: '€1,450/mo',
+                fiveYear: '€49,385 over 5 years',
+                keys: 'July 2028',
+                confirmed: false,
+                lead: '€49,385 / 5 yrs',
+              },
+              {
+                lender: 'Avant Money',
+                kind: '4-year fixed',
+                rate: '3.7%',
+                monthly: '€1,450/mo',
+                fiveYear: '€50,107 over 5 years',
+                keys: 'July 2028',
+                confirmed: false,
+                lead: '€50,107 / 5 yrs',
+              },
+            ],
+          },
+        }}
+      />,
     )
-
-    expect(screen.getByText(/Car loan: overpay/)).toBeInTheDocument()
-    expect(screen.getByText(/Information, not advice/)).toBeInTheDocument()
     expect(
-      screen.getByText(/not regulated by the Central Bank of Ireland and does not give advice/),
+      screen.getByRole('heading', { name: 'Buying a home by November 2028' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Your saved comparison')).toBeInTheDocument()
-    expect(screen.getByText(/Competition and Consumer Protection Commission/)).toBeInTheDocument()
+    expect(screen.getByText('€25k saved · €800/mo · €90k · €350k')).toBeInTheDocument()
+    const options = within(screen.getByRole('list', { name: 'The first three options' }))
+    expect(options.getAllByRole('listitem')).toHaveLength(3)
+    expect(options.getByText('€49,338')).toBeInTheDocument()
+    expect(options.getByText('Bank of Ireland · 4-yr fixed')).toBeInTheDocument()
+    expect(screen.getByText('First 3 of 49, by 5-year cost')).toBeInTheDocument()
+    expect(screen.getByText(/^\* Incentives from CCPC/)).toBeInTheDocument()
+    // Nothing else: no goals, no savings split, no debts, no basis.
+    expect(screen.queryByText('SuperSaver Account')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Car loan/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Ranked by/)).not.toBeInTheDocument()
+    expect(screen.getByText(/not regulated by the Central Bank of Ireland/)).toBeInTheDocument()
+  })
+
+  it('falls back to the first three products for a plan with no home comparison', () => {
+    render(<SavedPlanCard card={card} />)
+    const rows = within(screen.getByRole('list', { name: 'In the comparison' }))
+    expect(rows.getByText('Bank of Ireland · SuperSaver Account')).toBeInTheDocument()
+    expect(rows.getByText('€500 a month')).toBeInTheDocument()
   })
 })
