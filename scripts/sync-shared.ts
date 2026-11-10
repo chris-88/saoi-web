@@ -16,6 +16,7 @@ const FILES = [
   'contracts/case-action.ts',
   'contracts/case-read.ts',
   'contracts/common.ts',
+  'contracts/market-plan.ts',
   'contracts/partner.ts',
   'contracts/session.ts',
   'contracts/stream.ts',
