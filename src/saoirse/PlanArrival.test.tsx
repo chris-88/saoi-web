@@ -89,11 +89,14 @@ describe('a saved comparison arriving in the chat', () => {
     const route = {
       id: 'second_hand',
       name: 'Second-hand',
+      mechanism: 'The usual route: a deposit, stamp duty and fees',
       status: 'potential',
       line: 'Second-hand: saved by July 2028',
       reason: null,
       missing: null,
+      keysOn: '2028-07',
       conditions: [],
+      confirmed: true,
       sources: [],
     }
     previewPlan.mockResolvedValue({
