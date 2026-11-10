@@ -57,6 +57,12 @@ export function Privacy(): ReactNode {
             Please do not type anything you would mind being kept — a real PPS number, real account
             details, or anything about your health beyond what a form here explicitly asks for.
           </p>
+          <p>
+            Each run of the home calculator keeps one anonymous record: the day, an income band, how
+            many months to the keys (banded), whether the date is met, and the county, rent band,
+            kind of home and first-time buyer if given. No figures, no names, nothing that
+            identifies you.
+          </p>
         </Section>
 
         <Section title="Who sees it">
