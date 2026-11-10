@@ -19,7 +19,9 @@ const AskForm = lazy(async () => ({ default: (await import('@/surfaces/Ask')).As
 const PrivacyNotice = lazy(async () => ({
   default: (await import('@/surfaces/Privacy')).Privacy,
 }))
-const Plan = lazy(async () => ({ default: (await import('@/surfaces/PlanClaim')).PlanClaim }))
+const Plan = lazy(async () => ({
+  default: (await import('@/surfaces/SaoirseScreen')).PlanArrivalScreen,
+}))
 const Join = lazy(async () => ({ default: (await import('@/partner/PartnerJoin')).PartnerJoin }))
 
 function Pending(): ReactNode {
