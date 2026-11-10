@@ -69,6 +69,10 @@ describe('the plan card', () => {
 
     expect(screen.getByText(/Car loan: overpay/)).toBeInTheDocument()
     expect(screen.getByText(/Information, not advice/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/not regulated by the Central Bank of Ireland and does not give advice/),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Your saved comparison')).toBeInTheDocument()
     expect(screen.getByText(/Competition and Consumer Protection Commission/)).toBeInTheDocument()
   })
 })
