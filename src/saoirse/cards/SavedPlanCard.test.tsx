@@ -1,7 +1,17 @@
-import { describe, expect, it } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Card } from '@contracts/cards.ts'
-import { SavedPlanCard } from './SavedPlanCard'
+import type { CaseHoldingsResponse } from '@contracts/holdings.ts'
+
+const fetchCaseHoldings = vi.fn<(caseId: string) => Promise<CaseHoldingsResponse>>()
+vi.mock('@/lib/saoiApi', () => ({
+  fetchCaseHoldings: (caseId: string) => fetchCaseHoldings(caseId),
+}))
+
+const { SavedPlanCard } = await import('./SavedPlanCard')
+
+beforeEach(() => fetchCaseHoldings.mockReset())
 
 const card: Extract<Card, { type: 'saved_plan' }> = {
   type: 'saved_plan',
@@ -120,5 +130,52 @@ describe('the saved comparison card', () => {
     const rows = within(screen.getByRole('list', { name: 'In the comparison' }))
     expect(rows.getByText('Bank of Ireland · SuperSaver Account')).toBeInTheDocument()
     expect(rows.getByText('€500 a month')).toBeInTheDocument()
+  })
+
+  describe('progress against the plan', () => {
+    const CASE = '22222222-2222-4222-8222-222222222222'
+    const LINE =
+      '€6,500 owed, €9,000 when the plan was made; at €400 a month that is 17 months, to April 2028, before interest.'
+
+    function inCase(caseId: string | null) {
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <SavedPlanCard card={card} caseId={caseId} />
+        </QueryClientProvider>,
+      )
+    }
+
+    it('shows the server’s progress line under the figures', async () => {
+      fetchCaseHoldings.mockResolvedValue({
+        holdings: [],
+        progress: {
+          goal: 'pay_off_debt',
+          goalLabel: 'Clear the car loan',
+          owedNowEur: 6500,
+          owedFrom: 'plan',
+          planOwedEur: 9000,
+          changeEur: -2500,
+          monthlyEur: 400,
+          monthsLeft: 17,
+          clearedIn: '2028-04',
+          line: LINE,
+        },
+      })
+      inCase(CASE)
+      expect(await screen.findByText(LINE)).toBeInTheDocument()
+      expect(fetchCaseHoldings).toHaveBeenCalledWith(CASE)
+    })
+
+    it('shows nothing when the plan has no progress to report', async () => {
+      fetchCaseHoldings.mockResolvedValue({ holdings: [], progress: null })
+      inCase(CASE)
+      await waitFor(() => expect(fetchCaseHoldings).toHaveBeenCalled())
+      expect(screen.queryByText(/before interest|saved;/)).not.toBeInTheDocument()
+    })
+
+    it('reads nothing without a case', () => {
+      inCase(null)
+      expect(fetchCaseHoldings).not.toHaveBeenCalled()
+    })
   })
 })
