@@ -34,7 +34,7 @@ export const NOTICE = {
     'Each run of the home calculator keeps one anonymous record: the day, an income band, how many months to the keys (banded), whether the date is met, and the county, rent band, kind of home and first-time buyer if given. No figures, no names, nothing that identifies you.',
     REMINDERS_NOTICE_LINE,
     GOOGLE_NOTICE_LINE,
-    'You can ask for a copy of what Saoi holds, or for it to be deleted, at any time: baz@chrisquinn.ie.',
+    'You can ask for a copy of what Saoi holds, or for it to be deleted, at any time: contact@saoi.ie.',
   ],
   full: [
     {
@@ -43,7 +43,7 @@ export const NOTICE = {
     },
     {
       label: 'Who is responsible',
-      text: '[To confirm: the data controller’s name and address]. Contact: baz@chrisquinn.ie.',
+      text: '[To confirm: the data controller’s name and address]. Contact: contact@saoi.ie.',
     },
     {
       label: 'Diagnostics',

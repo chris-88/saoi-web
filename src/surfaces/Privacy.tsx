@@ -129,8 +129,8 @@ export function Privacy(): ReactNode {
         <footer className="text-muted-foreground border-border mt-10 border-t pt-8 text-sm">
           <p>
             Questions, or want a conversation removed?{' '}
-            <a className="underline" href="mailto:baz@chrisquinn.ie">
-              baz@chrisquinn.ie
+            <a className="underline" href="mailto:contact@saoi.ie">
+              contact@saoi.ie
             </a>
           </p>
         </footer>
