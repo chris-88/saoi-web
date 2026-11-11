@@ -34,7 +34,8 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { queryKeys } from '@/lib/queryKeys'
 import { listCases, startNewCase, switchCase } from '@/lib/session'
-import { pushPermission, subscribeToPush, type SubscribeResult } from '@/lib/push'
+import { PUSH_PROMPT_LINE, pushPermission, subscribeToPush, type SubscribeResult } from '@/lib/push'
+import { RemindersSection } from '@/saoirse/RemindersSection'
 import { ANONYMOUS, currentIdentity, lastKnownAddress, signOutIdentity } from '@/lib/identity'
 import { SignInForm } from '@/saoirse/SignInForm'
 import { FeedbackSheet } from '@/saoirse/FeedbackSheet'
@@ -272,6 +273,9 @@ export function ConversationMenu({
                       ? 'Check this device is registered'
                       : 'Tell me when things move'}
                 </Button>
+                <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
+                  {PUSH_PROMPT_LINE}
+                </p>
 
                 {/* What actually happened. Silence here is how the last one was missed. */}
                 {enablePush.data !== undefined &&
@@ -302,6 +306,13 @@ export function ConversationMenu({
               </>
             )}
           </section>
+
+          {caseId !== null && (
+            <>
+              <Separator />
+              <RemindersSection caseId={caseId} enabled={open} />
+            </>
+          )}
 
           {/*
             Only while something is shared. The consent screen promised "stop it any time from

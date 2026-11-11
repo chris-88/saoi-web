@@ -12,6 +12,10 @@ import { callCaseActionApi } from '@/lib/saoiApi'
  * Screen. In a tab the API is simply absent, which is why `unsupported` carries a reason.
  */
 
+/** Said under every offer of notifications: what a push is sent for (plan alerts, 2026-11-11). */
+export const PUSH_PROMPT_LINE =
+  'Saoi sends a push when a rate in your plan changes, or on a date you gave.'
+
 export type SubscribeResult =
   | { readonly state: 'subscribed' }
   | { readonly state: 'denied' }
