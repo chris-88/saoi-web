@@ -1,4 +1,5 @@
 import { SaoiApiError } from '@/lib/saoiApi'
+import { REMINDERS_NOTICE_LINE } from '@/lib/planArrival'
 
 /** Why a link did not open, as the server answered it. */
 export type ClaimProblem = 'unknown' | 'used' | 'expired' | 'busy' | 'failed'
@@ -31,6 +32,7 @@ export const NOTICE = {
     'I keep the figures and preferences in this comparison, and our chat, so I don’t ask twice. It’s stored on Saoi’s own servers in Ireland.',
     'To write my replies, the chat is sent to Anthropic, whose service is in the United States. Nothing is sold, or shared for marketing.',
     'Each run of the home calculator keeps one anonymous record: the day, an income band, how many months to the keys (banded), whether the date is met, and the county, rent band, kind of home and first-time buyer if given. No figures, no names, nothing that identifies you.',
+    REMINDERS_NOTICE_LINE,
     'You can ask for a copy of what Saoi holds, or for it to be deleted, at any time: baz@chrisquinn.ie.',
   ],
   full: [

@@ -957,6 +957,222 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/cases/{caseId}/alerts': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * The case’s alerts and reminders
+     * @description Alerts newest first (a rate changed or a product was withdrawn on a claimed plan, or a date the customer gave is coming up), and the open reminders by date. Facts with a date and a source, never advice. Returning them marks them seen. Primary customer only.
+     */
+    get: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          caseId: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description Alerts and reminders. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['CaseAlerts']
+          }
+        }
+        /** @description Missing or invalid token. */
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No such case for this caller. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/cases/{caseId}/reminders': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Set a reminder for a date the customer gave
+     * @description A fixed rate ending, a deposit maturing, or anything else. Alerts follow 90, 60, 30 and 7 days before it and on the day. The date must be today or later (Europe/Dublin).
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          caseId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['CreateReminder']
+        }
+      }
+      responses: {
+        /** @description Set. */
+        201: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Reminder']
+          }
+        }
+        /** @description The body is not valid, or the date has passed. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Missing or invalid token. */
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No such case for this caller. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/cases/{caseId}/reminders/{reminderId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Delete a reminder
+     * @description No further alerts for it. Alerts already raised stay.
+     */
+    delete: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          caseId: string
+          reminderId: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description Deleted. */
+        204: {
+          headers: {
+            [name: string]: unknown
+          }
+          content?: never
+        }
+        /** @description Missing or invalid token. */
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No such case for this caller, or no such reminder on it. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/cases/{caseId}/products/select': {
     parameters: {
       query?: never
@@ -7303,6 +7519,116 @@ export interface components {
       message?: string
       note?: string
     }
+    /** @description What the case is being told about: alerts and the dates behind reminders. */
+    CaseAlerts: {
+      /** @description Every alert on the case, newest first. Reading them marks them seen. */
+      alerts: {
+        /**
+         * Format: uuid
+         * @description The alert.
+         */
+        id: string
+        /**
+         * @description `rate_change`: a product in the claimed plan changed rate. `product_withdrawn`: it is no longer listed. `reminder`: a date the customer gave is coming up.
+         * @enum {string}
+         */
+        kind: 'rate_change' | 'product_withdrawn' | 'reminder'
+        /** @description The market product id the alert is about (`savings.supersaver`). Null for a reminder. */
+        productId: string | null
+        /**
+         * Format: uuid
+         * @description The reminder it came from. Null for a product alert.
+         */
+        reminderId: string | null
+        /** @description For a reminder: the stage it was sent at, in days before the date (0 is the day). */
+        stage: number | null
+        /** @description One line, a fact: "A rate in your plan changed". */
+        title: string
+        /** @description The fact with its date and source, and what the plan counted. No advice. */
+        body: string
+        /** @description The figures behind the body (rates, dates, source), for a card to lay out. */
+        data: {
+          [key: string]: unknown
+        }
+        /**
+         * Format: date-time
+         * @description When the alert was raised.
+         */
+        createdAt: string
+        /**
+         * Format: date-time
+         * @description When a push for it was delivered. Null: none was.
+         */
+        sentAt: string | null
+        /**
+         * Format: date-time
+         * @description When the customer first saw it, in the app or from Saoirse. Null: not yet.
+         */
+        seenAt: string | null
+      }[]
+      /** @description The open reminders (not deleted), soonest date first. */
+      reminders: {
+        /**
+         * Format: uuid
+         * @description The reminder.
+         */
+        id: string
+        /**
+         * @description What the date is: a fixed rate ending, a deposit maturing, or something else.
+         * @enum {string}
+         */
+        kind: 'fixed_rate_ends' | 'deposit_matures' | 'other'
+        /** @description In the customer’s words: "AIB fixed rate". */
+        label: string
+        /** @description The date, YYYY-MM-DD. */
+        dueOn: string
+        /** @description A market product id the date belongs to, when one was named. */
+        productId: string | null
+        /**
+         * Format: date-time
+         * @description When it was set.
+         */
+        createdAt: string
+      }[]
+    }
+    /** @description A date the customer gave. Alerts go out 90, 60, 30 and 7 days before it and on the day. */
+    Reminder: {
+      /**
+       * Format: uuid
+       * @description The reminder.
+       */
+      id: string
+      /**
+       * @description What the date is: a fixed rate ending, a deposit maturing, or something else.
+       * @enum {string}
+       */
+      kind: 'fixed_rate_ends' | 'deposit_matures' | 'other'
+      /** @description In the customer’s words: "AIB fixed rate". */
+      label: string
+      /** @description The date, YYYY-MM-DD. */
+      dueOn: string
+      /** @description A market product id the date belongs to, when one was named. */
+      productId: string | null
+      /**
+       * Format: date-time
+       * @description When it was set.
+       */
+      createdAt: string
+    }
+    /** @description A date to be reminded of. */
+    CreateReminder: {
+      /**
+       * @description What the date is.
+       * @enum {string}
+       */
+      kind: 'fixed_rate_ends' | 'deposit_matures' | 'other'
+      /** @description In the customer’s words, up to 120 characters. */
+      label: string
+      /** @description The date, YYYY-MM-DD: today or later (Europe/Dublin). */
+      dueOn: string
+      /** @description A market product id the date belongs to, when one was named. */
+      productId?: string
+    }
     CaseActionResult: {
       applications: {
         /** Format: uuid */
@@ -10412,6 +10738,10 @@ export interface components {
         loanEur: number | null
         ltvPct: number | null
         depositNeededEur: number | null
+        /** @description The most the Central Bank limits allow: the income limit (`maxLoanEur`) at the largest loan-to-value (`rules.maxLtvPct`), floored to the nearest €1,000. Lenders decide within it. Null: no income given. */
+        maxPriceEur: number | null
+        /** @description The mortgage term the figures and repayments use, in years. */
+        termYears: number
         stampDutyEur: number | null
         legalAndSurveyEur: number
         /** @description Help to Buy at this price. With `helpToBuyConditional`, what it could be (the cap or 10% of the price), not counted in the figures. */
@@ -10427,6 +10757,43 @@ export interface components {
       }
       /** @description The figures in words, as options and facts. */
       lines: string[]
+      /** @description The savings and mortgages that fit these figures, from Saoi’s market data. Null when the market data is not available. */
+      market: {
+        /** @description Savings that fit the plan. Null: no account fits. */
+        savings: {
+          /** @description The highest AER among the savings and deposit accounts that fit the plan, for the horizon (a fixed term’s rate for the longest term that ends by `by`). */
+          topRatePct: number
+          /** @description The provider whose account pays `topRatePct`. */
+          topRateProvider: string
+          /** @description How many accounts fit: open to adult saving, reachable by `by` (no fixed term or notice running past it, nothing locked without a date), and taking the whole deposit saved or the whole monthly amount within their limits. One account listed in two categories counts once. */
+          accounts: number
+          /** @description Interest after DIRT (none taken on a DIRT-free product) on the deposit saved plus the monthly saving until `by`, in the account paying `topRatePct`, from the engine’s month-by-month projection. Money that account cannot take, and months after its rate stops being known, are not counted (`basis` says so). */
+          interestToTargetEur: number
+          /** @description YYYY-MM the interest runs to: the date given, else the month the money at the keys is saved, else 12 months on. */
+          by: string
+          /** @description How the top rate and the interest are worked out, in one sentence. */
+          basis: string
+        } | null
+        /** @description Mortgages that fit the figures. Null: no price is known yet, or none fits. */
+        mortgage: {
+          /** @description The loan the figures need: the price less the deposit. */
+          loanEur: number
+          /** @description How many mortgage options fit: each lender’s options for this loan, loan-to-value, buyer and property, one per rate type and fixed period, fixed and variable, with no preference applied (the options build-plan lists without filters). */
+          options: number
+          /** @description The lowest initial rate among those options. */
+          lowestRatePct: number
+          /** @description The lowest monthly repayment among those options, at each one’s initial rate. */
+          lowestMonthlyEur: number
+          /** @description The highest monthly repayment among those options, at each one’s initial rate. */
+          highestMonthlyEur: number
+          /** @description The mortgage term the repayments use. */
+          termYears: number
+          /** @description Which mortgages are counted and how, in one sentence. */
+          basis: string
+        } | null
+        /** @description The two summaries in words, facts only; also appended to the result’s `lines`. */
+        lines: string[]
+      } | null
       /** @description What the figures take as given when it was not said (first-time buyer), each correctable. */
       assumed: string[]
       /** @description Every route to a home, the customer’s own kind of property first, then potential, needs one detail, not applicable. Show the first three lines right after the headline, then "More routes: N" for the rest; the customer chooses, and none is marked best. */

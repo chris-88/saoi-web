@@ -20,6 +20,13 @@ import {
   type CaseHistory,
   type CaseSnapshot,
 } from '@contracts/case-read.ts'
+import {
+  caseAlertsResponseSchema,
+  reminderSchema,
+  type CaseAlertsResponse,
+  type CreateReminderBody,
+  type Reminder,
+} from '@contracts/alerts.ts'
 
 export { SaoiApiError }
 
@@ -70,6 +77,33 @@ export function fetchCaseHistory(caseId: string): Promise<CaseHistory> {
     api.GET('/api/cases/{caseId}/history', { params: { path: { caseId } } }),
     caseHistorySchema,
   )
+}
+
+/** The case's alerts, newest first, and its open reminders. Reading them marks the alerts seen. */
+export function fetchCaseAlerts(caseId: string): Promise<CaseAlertsResponse> {
+  return parsed(
+    api.GET('/api/cases/{caseId}/alerts', { params: { path: { caseId } } }),
+    caseAlertsResponseSchema,
+  )
+}
+
+/** A date the customer gave, to be reminded of. The server holds the date to today or later. */
+export function createReminder(caseId: string, body: CreateReminderBody): Promise<Reminder> {
+  return parsed(
+    api.POST('/api/cases/{caseId}/reminders', {
+      params: { path: { caseId } },
+      body: compact(body),
+    }),
+    reminderSchema,
+  )
+}
+
+/** No further alerts for the reminder; the alerts already raised stay. */
+export async function deleteReminder(caseId: string, reminderId: string): Promise<void> {
+  const { error, response } = await api.DELETE('/api/cases/{caseId}/reminders/{reminderId}', {
+    params: { path: { caseId, reminderId } },
+  })
+  if (!response.ok) throw apiError(response.status, error)
 }
 
 const registeredSchema = z.object({ registered: z.literal(true) })

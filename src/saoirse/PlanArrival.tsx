@@ -7,7 +7,7 @@ import { Composer } from '@/saoirse/Composer'
 import { SuggestionList } from '@/saoirse/SuggestionList'
 import { TypingBubble } from '@/saoirse/TypingBubble'
 import { NOTICE, PROBLEM_LINES, problemOf, type ClaimProblem } from '@/lib/planClaim'
-import { ACCEPT_LABEL, handArrivalToChat, welcomeLine } from '@/lib/planArrival'
+import { ACCEPT_LABEL, handArrivalToChat, hasDepositProduct, welcomeLine } from '@/lib/planArrival'
 import { routesOf } from '@/lib/planRoutes'
 import { claimPlan, previewPlan } from '@/lib/session'
 import { isBackendConfigured } from '@/lib/env'
@@ -53,6 +53,7 @@ export function PlanArrival({
         notice: NOTICE.lines,
         accepted: ACCEPT_LABEL,
         routeCount,
+        hasDeposit: hasDepositProduct(preview.data.products),
       })
       void navigate(routes.saoirse, { replace: true })
     },

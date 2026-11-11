@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { BellIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { pushPermission, type SubscribeResult } from '@/lib/push'
+import { PUSH_PROMPT_LINE, pushPermission, type SubscribeResult } from '@/lib/push'
 import { isInstalled, platform } from '@/lib/installed'
 import { InstallSteps } from '@/saoirse/InstallSteps'
 import { CheckIcon, ClockIcon, UsersIcon } from 'lucide-react'
@@ -84,6 +84,7 @@ function NotifyRow({ onEnable }: { onEnable: () => Promise<SubscribeResult> }): 
         <BellIcon />
         {state.state === 'asking' ? 'Asking…' : 'Tell me when something changes'}
       </Button>
+      <p className="text-muted-foreground text-xs">{PUSH_PROMPT_LINE}</p>
       {state.state === 'denied' ? (
         <p className="text-muted-foreground text-xs">
           Notifications are blocked for this site. Your browser settings can turn them back on.

@@ -12,6 +12,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
 const FILES = [
+  'contracts/alerts.ts',
   'contracts/cards.ts',
   'contracts/case-action.ts',
   'contracts/case-read.ts',

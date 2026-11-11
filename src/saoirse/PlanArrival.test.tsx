@@ -119,7 +119,43 @@ describe('a saved comparison arriving in the chat', () => {
       'Change a figure',
       'How was this worked out?',
       'Tell me about the other routes',
+      'Remind me when my fixed rate ends',
     ])
+    expect(prelude?.hasDeposit).toBe(false)
+  })
+
+  it('a comparison with a term deposit offers the deposit reminder too', async () => {
+    previewPlan.mockResolvedValue({
+      ...PREVIEW,
+      products: [
+        { name: '12 Month Fixed Term Deposit', provider: 'AIB', line: '€20,000' },
+        { name: 'Online Regular Saver', provider: 'PTSB', line: '€500 a month' },
+      ],
+    })
+    claimPlan.mockResolvedValue({})
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: /that’s fine, carry on/i }))
+    expect(await screen.findByText('the conversation')).toBeInTheDocument()
+    const prelude = takeArrivalPrelude()
+    expect(prelude?.hasDeposit).toBe(true)
+    expect(
+      arrivalFollowUps(prelude?.routeCount ?? 0, prelude?.hasDeposit).map((chip) => chip.label),
+    ).toEqual([
+      'Talk me through these',
+      'Change a figure',
+      'How was this worked out?',
+      'Remind me when my fixed rate ends',
+      'Remind me when my deposit matures',
+    ])
+  })
+
+  it('the data notice says how long reminders and alerts are kept', async () => {
+    open()
+    expect(
+      await screen.findByText(
+        'Reminders you set and alerts about your plan are kept on your case until you delete them or the case is deleted.',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('no routes: no count in the welcome and no routes chip', async () => {
