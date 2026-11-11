@@ -48,6 +48,12 @@ export function welcomeLine(title: string, routeCount = 0): string {
 export const REMINDERS_NOTICE_LINE =
   'Reminders you set and alerts about your plan are kept on your case until you delete them or the case is deleted.'
 
+/**
+ * What the data notice and the privacy page say about signing in with Google (2026-11-11).
+ */
+export const GOOGLE_NOTICE_LINE =
+  'If you sign in with Google, Saoi receives the name and email address on that account and nothing else.'
+
 export const ACCEPT_LABEL = 'That’s fine, carry on'
 
 const FOLLOW_UPS = [

@@ -16,4 +16,17 @@ describe('the privacy page', () => {
       ),
     ).toBeInTheDocument()
   })
+
+  it('says what signing in with Google hands over', () => {
+    render(
+      <MemoryRouter>
+        <Privacy />
+      </MemoryRouter>,
+    )
+    expect(
+      screen.getByText(
+        'If you sign in with Google, Saoi receives the name and email address on that account and nothing else.',
+      ),
+    ).toBeInTheDocument()
+  })
 })

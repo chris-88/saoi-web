@@ -3,7 +3,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { Link } from 'react-router-dom'
 import { SaoiWordmark } from '@/saoirse/SaoiWordmark'
 import { routes } from '@/app/routes'
-import { REMINDERS_NOTICE_LINE } from '@/lib/planArrival'
+import { GOOGLE_NOTICE_LINE, REMINDERS_NOTICE_LINE } from '@/lib/planArrival'
 
 /**
  * What happens to what somebody types.
@@ -123,6 +123,7 @@ export function Privacy(): ReactNode {
             it does not connect to any real banking relationship. You can sign out at any time,
             which returns you to being an anonymous visitor.
           </p>
+          <p>{GOOGLE_NOTICE_LINE}</p>
         </Section>
 
         <footer className="text-muted-foreground border-border mt-10 border-t pt-8 text-sm">
