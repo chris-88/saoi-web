@@ -147,7 +147,9 @@ export function SaoirseScreen({ arrivalToken }: { arrivalToken?: string } = {}):
       ) : (
         <SaoirseChat
           prelude={prelude}
-          arrivalFollowUps={prelude === null ? undefined : arrivalFollowUps(prelude.routeCount)}
+          arrivalFollowUps={
+            prelude === null ? undefined : arrivalFollowUps(prelude.routeCount, prelude.hasDeposit)
+          }
           onStarted={setStarted}
           onCase={setCaseId}
           className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col"

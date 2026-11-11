@@ -12,6 +12,8 @@ export type ArrivalPrelude = {
   readonly accepted: string
   /** How many routes to a home the comparison carries; 0 for none. */
   readonly routeCount: number
+  /** Whether the comparison holds a term deposit, for the "deposit matures" reminder chip. */
+  readonly hasDeposit: boolean
 }
 
 let pending: ArrivalPrelude | null = null
@@ -39,6 +41,13 @@ export function welcomeLine(title: string, routeCount = 0): string {
   return `Hi, I’m Saoirse. I’ve got the comparison you were working on: ${goal}${routes}.`
 }
 
+/**
+ * What the data notice (`NOTICE` in `planClaim.ts`) and the privacy page say about reminders
+ * and plan alerts (2026-11-11).
+ */
+export const REMINDERS_NOTICE_LINE =
+  'Reminders you set and alerts about your plan are kept on your case until you delete them or the case is deleted.'
+
 export const ACCEPT_LABEL = 'That’s fine, carry on'
 
 const FOLLOW_UPS = [
@@ -49,9 +58,41 @@ const FOLLOW_UPS = [
 
 const ROUTES_FOLLOW_UP = { id: 'routes', label: 'Tell me about the other routes' } as const
 
-/** The quick replies under Saoirse's line once the comparison is open; the routes one only with routes. */
+/**
+ * The reminder chips (plan alerts, 2026-11-11). A tap sends the sentence as the customer's
+ * message; Saoirse asks for the date and sets the reminder with its `set_reminder` tool, so the
+ * app has no date picker of its own.
+ */
+export const FIXED_RATE_REMINDER = {
+  id: 'remind-fixed',
+  label: 'Remind me when my fixed rate ends',
+} as const
+export const DEPOSIT_REMINDER = {
+  id: 'remind-deposit',
+  label: 'Remind me when my deposit matures',
+} as const
+
+/**
+ * Whether a saved comparison's products include a term deposit. The preview names its products
+ * but not their category, so this reads the name: the market's term deposits are all called
+ * "… Fixed Term Deposit" or "… Fixed Term Account".
+ */
+export function hasDepositProduct(products: readonly { readonly name: string }[]): boolean {
+  return products.some((product) => /\bdeposit\b|\bfixed term\b/i.test(product.name))
+}
+
+/**
+ * The quick replies under Saoirse's line once the comparison is open: the routes one only with
+ * routes, the fixed-rate reminder always, the deposit reminder only with a deposit in the plan.
+ */
 export function arrivalFollowUps(
   routeCount: number,
+  hasDeposit = false,
 ): readonly { readonly id: string; readonly label: string }[] {
-  return routeCount > 0 ? [...FOLLOW_UPS, ROUTES_FOLLOW_UP] : FOLLOW_UPS
+  return [
+    ...FOLLOW_UPS,
+    ...(routeCount > 0 ? [ROUTES_FOLLOW_UP] : []),
+    FIXED_RATE_REMINDER,
+    ...(hasDeposit ? [DEPOSIT_REMINDER] : []),
+  ]
 }

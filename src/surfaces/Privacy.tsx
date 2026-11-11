@@ -3,6 +3,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { Link } from 'react-router-dom'
 import { SaoiWordmark } from '@/saoirse/SaoiWordmark'
 import { routes } from '@/app/routes'
+import { REMINDERS_NOTICE_LINE } from '@/lib/planArrival'
 
 /**
  * What happens to what somebody types.
@@ -63,6 +64,7 @@ export function Privacy(): ReactNode {
             kind of home and first-time buyer if given. No figures, no names, nothing that
             identifies you.
           </p>
+          <p>{REMINDERS_NOTICE_LINE}</p>
         </Section>
 
         <Section title="Who sees it">
