@@ -1173,6 +1173,272 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/cases/{caseId}/holdings': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * The case’s holdings and progress against the plan
+     * @description The accounts and debts on the case (not deleted), and progress against the claimed plan’s house-deposit or debt goal: held now against what is needed, the month at this pace and the difference from the plan’s own path, before interest. Facts, never advice. Primary customer only.
+     */
+    get: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          caseId: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description Holdings and progress. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['CaseHoldings']
+          }
+        }
+        /** @description Missing or invalid token. */
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No such case for this caller. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    put?: never
+    /**
+     * Add an account or a debt
+     * @description Noted today unless `notedOn` says otherwise. A `fixedUntil` date of today or later keeps a reminder for it (a fixed rate ending, a deposit maturing).
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          caseId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['CreateHolding']
+        }
+      }
+      responses: {
+        /** @description Added. */
+        201: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Holding']
+          }
+        }
+        /** @description The body is not valid. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Missing or invalid token. */
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No such case for this caller. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/cases/{caseId}/holdings/{holdingId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Delete an account or a debt
+     * @description Its reminder is deleted with it.
+     */
+    delete: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          caseId: string
+          holdingId: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description Deleted. */
+        204: {
+          headers: {
+            [name: string]: unknown
+          }
+          content?: never
+        }
+        /** @description Missing or invalid token. */
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No such case for this caller, or no such holding on it. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    options?: never
+    head?: never
+    /**
+     * Change an account or a debt
+     * @description Fields left out stay as they are; null clears an optional one. A new balance is noted today unless `notedOn` is given. A changed `fixedUntil` replaces its reminder; null deletes it.
+     */
+    patch: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          caseId: string
+          holdingId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['UpdateHolding']
+        }
+      }
+      responses: {
+        /** @description Changed. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Holding']
+          }
+        }
+        /** @description The body is not valid. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Missing or invalid token. */
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No such case for this caller, or no such holding on it. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    trace?: never
+  }
   '/api/cases/{caseId}/products/select': {
     parameters: {
       query?: never
@@ -7629,6 +7895,250 @@ export interface components {
       /** @description A market product id the date belongs to, when one was named. */
       productId?: string
     }
+    /** @description What the customer holds and where that leaves the plan. */
+    CaseHoldings: {
+      /** @description The holdings on the case that are not deleted, oldest first. */
+      holdings: {
+        /**
+         * Format: uuid
+         * @description The holding.
+         */
+        id: string
+        /**
+         * @description What it is. Accounts: `current`, `savings`, `deposit` (a fixed-term deposit). Debts: `credit_card`, `personal_loan`, `car_finance`, `overdraft`, `mortgage`, `other_debt`.
+         * @enum {string}
+         */
+        kind:
+          | 'current'
+          | 'savings'
+          | 'deposit'
+          | 'credit_card'
+          | 'personal_loan'
+          | 'car_finance'
+          | 'overdraft'
+          | 'mortgage'
+          | 'other_debt'
+        /** @description In the customer’s words. */
+        label: string
+        /** @description Who it is with, when given. */
+        provider: string | null
+        /** @description A market product id, when it is one Saoi lists. */
+        productId: string | null
+        /** @description What is held in an account, or what is owed on a debt, in euro: always a positive amount. */
+        balance: number
+        /** @description AER for an account; APR or the mortgage rate for a debt. */
+        ratePct: number | null
+        /** @description Each month: saved in, for an account; the repayment, for a debt. */
+        monthlyAmountEur: number | null
+        /** @description When a fixed rate ends or a deposit matures, YYYY-MM-DD; null when none. */
+        fixedUntil: string | null
+        /** @description The day the balance was true, YYYY-MM-DD. */
+        notedOn: string
+        /**
+         * @description Where it came from: `plan` (seeded from the claimed plan), `customer` (entered in the app), `saoirse` (said in the conversation).
+         * @enum {string}
+         */
+        source: 'plan' | 'customer' | 'saoirse'
+        /**
+         * Format: uuid
+         * @description The reminder kept for `fixedUntil`, when there is one.
+         */
+        reminderId: string | null
+        /**
+         * Format: date-time
+         * @description When it was added.
+         */
+        createdAt: string
+        /**
+         * Format: date-time
+         * @description When it was last changed.
+         */
+        updatedAt: string
+      }[]
+      /** @description Progress against the claimed plan; null when no plan is claimed or it has no house-deposit or debt goal. */
+      progress:
+        | {
+            /**
+             * @description A house-deposit goal.
+             * @enum {string}
+             */
+            goal: 'house_deposit'
+            /** @description The goal, in the plan’s words. */
+            goalLabel: string
+            /** @description Held now: the sum of `current`, `savings` and `deposit` holdings, or the plan’s own savings when there are none. */
+            savedNowEur: number
+            /**
+             * @description Whether `savedNowEur` is from the holdings or, with none, from the plan.
+             * @enum {string}
+             */
+            savedFrom: 'holdings' | 'plan'
+            /** @description The cash the plan needs at the keys (deposit, stamp duty and fees), else the goal’s target; null when the plan has neither. */
+            neededEur: number | null
+            /** @description Saved each month: the sum of the accounts’ monthly amounts, else the plan’s monthly saving; null when neither is known. */
+            monthlyEur: number | null
+            /** @description YYYY-MM the needed amount is held at this pace, before interest (the plan’s own arithmetic); null when it is not reached or nothing is needed. */
+            monthAtThisPace: string | null
+            /** @description What the plan’s own path had by this month: its savings plus its monthly saving for each month since it was made, before interest. */
+            planExpectedNowEur: number
+            /** @description Held now less the plan’s path: positive is ahead, negative behind. Null when no account is held as a holding. */
+            differenceEur: number | null
+            /** @description The progress in one sentence, a fact: "€33,000 of €47,000 saved; at €1,000 a month that is February 2028, €2,000 ahead of the plan’s path." */
+            line: string
+          }
+        | {
+            /**
+             * @description A goal to pay off debt.
+             * @enum {string}
+             */
+            goal: 'pay_off_debt'
+            /** @description The goal, in the plan’s words. */
+            goalLabel: string
+            /** @description Owed now: the sum of the debt holdings, or the plan’s own debts when there are none. */
+            owedNowEur: number
+            /**
+             * @description Whether `owedNowEur` is from the holdings or, with none, from the plan.
+             * @enum {string}
+             */
+            owedFrom: 'holdings' | 'plan'
+            /** @description What the plan said was owed when it was made. */
+            planOwedEur: number
+            /** @description Owed now less what the plan said: negative is less owed, positive more. */
+            changeEur: number
+            /** @description Repaid each month: the sum of the debts’ repayments, else the plan’s; null when none is known. */
+            monthlyEur: number | null
+            /** @description Months to clear what is owed at that repayment, before interest; null without one. */
+            monthsLeft: number | null
+            /** @description YYYY-MM it is cleared at that repayment, before interest; null without one. */
+            clearedIn: string | null
+            /** @description The progress in one sentence, a fact: "€6,500 owed, €9,000 when the plan was made; at €400 a month that is 17 months, to April 2028, before interest." */
+            line: string
+          }
+        | unknown
+    }
+    /** @description One account or debt the customer holds, as they entered it. */
+    Holding: {
+      /**
+       * Format: uuid
+       * @description The holding.
+       */
+      id: string
+      /**
+       * @description What it is. Accounts: `current`, `savings`, `deposit` (a fixed-term deposit). Debts: `credit_card`, `personal_loan`, `car_finance`, `overdraft`, `mortgage`, `other_debt`.
+       * @enum {string}
+       */
+      kind:
+        | 'current'
+        | 'savings'
+        | 'deposit'
+        | 'credit_card'
+        | 'personal_loan'
+        | 'car_finance'
+        | 'overdraft'
+        | 'mortgage'
+        | 'other_debt'
+      /** @description In the customer’s words. */
+      label: string
+      /** @description Who it is with, when given. */
+      provider: string | null
+      /** @description A market product id, when it is one Saoi lists. */
+      productId: string | null
+      /** @description What is held in an account, or what is owed on a debt, in euro: always a positive amount. */
+      balance: number
+      /** @description AER for an account; APR or the mortgage rate for a debt. */
+      ratePct: number | null
+      /** @description Each month: saved in, for an account; the repayment, for a debt. */
+      monthlyAmountEur: number | null
+      /** @description When a fixed rate ends or a deposit matures, YYYY-MM-DD; null when none. */
+      fixedUntil: string | null
+      /** @description The day the balance was true, YYYY-MM-DD. */
+      notedOn: string
+      /**
+       * @description Where it came from: `plan` (seeded from the claimed plan), `customer` (entered in the app), `saoirse` (said in the conversation).
+       * @enum {string}
+       */
+      source: 'plan' | 'customer' | 'saoirse'
+      /**
+       * Format: uuid
+       * @description The reminder kept for `fixedUntil`, when there is one.
+       */
+      reminderId: string | null
+      /**
+       * Format: date-time
+       * @description When it was added.
+       */
+      createdAt: string
+      /**
+       * Format: date-time
+       * @description When it was last changed.
+       */
+      updatedAt: string
+    }
+    /** @description An account or a debt to add. */
+    CreateHolding: {
+      /**
+       * @description What it is. Accounts: `current`, `savings`, `deposit` (a fixed-term deposit). Debts: `credit_card`, `personal_loan`, `car_finance`, `overdraft`, `mortgage`, `other_debt`.
+       * @enum {string}
+       */
+      kind:
+        | 'current'
+        | 'savings'
+        | 'deposit'
+        | 'credit_card'
+        | 'personal_loan'
+        | 'car_finance'
+        | 'overdraft'
+        | 'mortgage'
+        | 'other_debt'
+      /** @description In the customer’s words, up to 80 characters: "BoI savings", "AIB mortgage". */
+      label: string
+      /** @description What is held in an account, or what is owed on a debt, in euro: always a positive amount. */
+      balance: number
+      /** @description AER for an account; APR, or the mortgage rate, for a debt. */
+      ratePct?: number
+      /** @description Each month: what goes in, for an account; the repayment, for a debt. In euro. */
+      monthlyAmountEur?: number
+      /** @description When a fixed rate ends or a deposit matures, YYYY-MM-DD. A reminder is kept for it. */
+      fixedUntil?: string
+      /** @description Who it is with: "Bank of Ireland", "AIB". */
+      provider?: string
+      /** @description A market product id (`savings.supersaver`), when it is a product Saoi lists. */
+      productId?: string
+      /** @description The day the balance was true, YYYY-MM-DD. Default: today (Europe/Dublin). */
+      notedOn?: string
+    }
+    /** @description What changed on a holding; fields left out stay as they are. */
+    UpdateHolding: {
+      /**
+       * @description What it is. Accounts: `current`, `savings`, `deposit` (a fixed-term deposit). Debts: `credit_card`, `personal_loan`, `car_finance`, `overdraft`, `mortgage`, `other_debt`.
+       * @enum {string}
+       */
+      kind?:
+        | 'current'
+        | 'savings'
+        | 'deposit'
+        | 'credit_card'
+        | 'personal_loan'
+        | 'car_finance'
+        | 'overdraft'
+        | 'mortgage'
+        | 'other_debt'
+      /** @description In the customer’s words, up to 80 characters: "BoI savings", "AIB mortgage". */
+      label?: string
+      /** @description What is held in an account, or what is owed on a debt, in euro: always a positive amount. */
+      balance?: number
+      /** @description The rate; null clears it. */
+      ratePct?: number | null
+      /** @description The monthly amount; null clears it. */
+      monthlyAmountEur?: number | null
+      /** @description The fixed-until date; null clears it and deletes its reminder. */
+      fixedUntil?: string | null
+      /** @description Who it is with; null clears it. */
+      provider?: string | null
+      /** @description The product id; null clears it. */
+      productId?: string | null
+      /** @description The day the balance was true. Default when the balance changes: today (Europe/Dublin). */
+      notedOn?: string
+    }
     CaseActionResult: {
       applications: {
         /** Format: uuid */
@@ -8437,6 +8947,8 @@ export interface components {
           kind: 'home'
           headline: string
           priceEur: number
+          neededAtKeysEur?: number
+          keysOn?: string | null
           /** @enum {string} */
           sortBy: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
           sortedBy: string
@@ -11889,6 +12401,8 @@ export interface components {
           kind: 'home'
           headline: string
           priceEur: number
+          neededAtKeysEur?: number
+          keysOn?: string | null
           /** @enum {string} */
           sortBy: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
           sortedBy: string
@@ -12768,6 +13282,8 @@ export interface components {
             kind: 'home'
             headline: string
             priceEur: number
+            neededAtKeysEur?: number
+            keysOn?: string | null
             /** @enum {string} */
             sortBy: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
             sortedBy: string
