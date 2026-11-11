@@ -54,6 +54,12 @@ export const REMINDERS_NOTICE_LINE =
 export const GOOGLE_NOTICE_LINE =
   'If you sign in with Google, Saoi receives the name and email address on that account and nothing else.'
 
+/**
+ * What the data notice and the privacy page say about holdings (2026-11-11).
+ */
+export const HOLDINGS_NOTICE_LINE =
+  'Balances and debts you enter are kept on your case until you delete them.'
+
 export const ACCEPT_LABEL = 'That’s fine, carry on'
 
 const FOLLOW_UPS = [
@@ -79,6 +85,22 @@ export const DEPOSIT_REMINDER = {
 } as const
 
 /**
+ * The holdings chips (2026-11-11). A tap puts the start of a sentence in the composer for the
+ * customer to finish; Saoirse records what they write with `record_holding`, so the chat needs
+ * no form of its own. The menu's "Your money" has one for those who would rather.
+ */
+export const ADD_SAVED = {
+  id: 'add-saved',
+  label: 'Add what I have saved',
+  draft: 'Here is what I have saved: ',
+} as const
+export const ADD_DEBT = {
+  id: 'add-debt',
+  label: 'Add a debt',
+  draft: 'Here is what I owe: ',
+} as const
+
+/**
  * Whether a saved comparison's products include a term deposit. The preview names its products
  * but not their category, so this reads the name: the market's term deposits are all called
  * "… Fixed Term Deposit" or "… Fixed Term Account".
@@ -89,16 +111,19 @@ export function hasDepositProduct(products: readonly { readonly name: string }[]
 
 /**
  * The quick replies under Saoirse's line once the comparison is open: the routes one only with
- * routes, the fixed-rate reminder always, the deposit reminder only with a deposit in the plan.
+ * routes, the fixed-rate reminder always, the deposit reminder only with a deposit in the plan,
+ * then the two holdings chips, which fill the composer rather than send.
  */
 export function arrivalFollowUps(
   routeCount: number,
   hasDeposit = false,
-): readonly { readonly id: string; readonly label: string }[] {
+): readonly { readonly id: string; readonly label: string; readonly draft?: string }[] {
   return [
     ...FOLLOW_UPS,
     ...(routeCount > 0 ? [ROUTES_FOLLOW_UP] : []),
     FIXED_RATE_REMINDER,
     ...(hasDeposit ? [DEPOSIT_REMINDER] : []),
+    ADD_SAVED,
+    ADD_DEBT,
   ]
 }

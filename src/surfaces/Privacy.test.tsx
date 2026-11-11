@@ -17,6 +17,17 @@ describe('the privacy page', () => {
     ).toBeInTheDocument()
   })
 
+  it('says how long balances and debts are kept', () => {
+    render(
+      <MemoryRouter>
+        <Privacy />
+      </MemoryRouter>,
+    )
+    expect(
+      screen.getByText('Balances and debts you enter are kept on your case until you delete them.'),
+    ).toBeInTheDocument()
+  })
+
   it('says what signing in with Google hands over', () => {
     render(
       <MemoryRouter>

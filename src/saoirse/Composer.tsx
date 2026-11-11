@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGhostPrompt } from '@/saoirse/useGhostPrompt'
@@ -24,6 +24,7 @@ export function Composer({
   placeholder,
   hint = true,
   onFocusChange,
+  draft,
   className,
 }: {
   onSend?: ((message: string) => void) | undefined
@@ -48,6 +49,11 @@ export function Composer({
   hint?: boolean | undefined
   /** The opening screen dims itself while somebody is typing into it (spec §4). */
   onFocusChange?: ((focused: boolean) => void) | undefined
+  /**
+   * A sentence for the customer to finish, put in the box with the caret at its end. A new
+   * `key` puts it in again.
+   */
+  draft?: { readonly text: string; readonly key: number } | undefined
   className?: string | undefined
 }): ReactNode {
   const box = useRef<HTMLDivElement>(null)
@@ -63,6 +69,22 @@ export function Composer({
   const ghost = useGhostPrompt(hint && length === 0 && placeholder === undefined)
 
   const read = (): string => (box.current?.textContent ?? '').trim()
+
+  // The element owns its text (see above), so a draft is written into it rather than rendered.
+  const draftKey = draft?.key
+  const draftText = draft?.text
+  useEffect(() => {
+    const element = box.current
+    if (draftKey === undefined || draftText === undefined || element === null) return
+    element.textContent = draftText
+    setLength(draftText.trim().length)
+    element.focus()
+    const selection = window.getSelection()
+    if (selection !== null) {
+      selection.selectAllChildren(element)
+      selection.collapseToEnd()
+    }
+  }, [draftKey, draftText])
 
   const clear = (): void => {
     if (box.current !== null) box.current.textContent = ''
