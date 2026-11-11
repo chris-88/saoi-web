@@ -11,8 +11,8 @@ import { claimPriorConversation, rememberPriorUser } from '@/lib/session'
  * applications and every fact carry over with nothing to move and nothing to reconcile.
  *
  * It was once believed that was the only path, and it is not. Attaching fails whenever the
- * address already belongs to a user — a second device, or anybody signing in twice — and the
- * fall-through signs them into that account instead. Different
+ * address or the Google account already belongs to a user — a second device, or anybody
+ * signing in twice — and the fall-through signs them into that account instead. Different
  * `auth.uid()`, no mapping, and a conversation that has disappeared at the precise moment it
  * was meant to be made safe. A live case was orphaned exactly this way.
  *
@@ -65,7 +65,7 @@ export async function currentIdentity(): Promise<Identity> {
 }
 
 /**
- * Where the link in the email comes back to.
+ * Where the link in the email, and Google, come back to.
  *
  * Deliberately the bare origin and base path, with no fragment. Supabase appends `?code=…` to
  * whatever this is, and appending a query to a URL that already has a `#/` on the end
@@ -221,6 +221,118 @@ async function noteSignedInAddress(): Promise<void> {
 }
 
 /**
+ * Whether there is anything to sign in with at all.
+ *
+ * No Supabase URL, no identity: the Google button is simply not drawn, like the rest of it.
+ */
+export function googleSignInAvailable(): boolean {
+  return supabase !== null
+}
+
+/**
+ * Set while a refused link has been turned into an ordinary Google sign-in, so it happens once.
+ *
+ * Without it, a Google account that cannot be linked would bounce between Google and here for
+ * as long as the browser let it. Session storage: it belongs to this tab and this attempt, and
+ * a fresh tap on the button clears it.
+ */
+const RETRIED_KEY = 'saoi.signInRetried'
+
+function alreadyRetried(): boolean {
+  try {
+    return window.sessionStorage.getItem(RETRIED_KEY) === '1'
+  } catch {
+    // Without storage the retry cannot be bounded, so it is not attempted at all.
+    return true
+  }
+}
+
+function markRetried(): void {
+  try {
+    window.sessionStorage.setItem(RETRIED_KEY, '1')
+  } catch {
+    // `alreadyRetried` already answers yes when storage is missing.
+  }
+}
+
+function clearRetried(): void {
+  try {
+    window.sessionStorage.removeItem(RETRIED_KEY)
+  } catch {
+    // Nothing to clear.
+  }
+}
+
+/**
+ * Whether GoTrue refused the link because that Google account already belongs to somebody.
+ *
+ * The ordinary second-device case: signed in with Google on a laptop, Saoi opened on a phone,
+ * the button tapped from a fresh anonymous visitor. The identity is taken, so linking is
+ * impossible, and signing in is the right answer because the account it finds is the one that
+ * holds their conversation.
+ *
+ * It cannot be caught where it is raised. `linkIdentity` does not fail locally; it redirects,
+ * and GoTrue rejects it in the callback, so the refusal comes back as `error_code` and
+ * `error_description` on the return URL rather than as a rejected promise. The code is the
+ * contract (`identity_already_exists`, "Identity is already linked to another user"); the
+ * wording is a fallback for a server that sends only the description.
+ */
+function identityTaken(code: string | null, reason: string | null): boolean {
+  if (code === 'identity_already_exists') return true
+  return (
+    reason !== null && /identity_already_exists|already linked|already been linked/i.test(reason)
+  )
+}
+
+async function signInWithGoogle(): Promise<{ ok: boolean; message?: string }> {
+  const client = requireSupabase()
+  const { error } = await client.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: returnTo() },
+  })
+  return error ? { ok: false, message: error.message } : { ok: true }
+}
+
+/**
+ * Continue with Google. Redirects away on success, so nothing after the redirect runs here.
+ *
+ * Same shape as the email path and for the same reason: an anonymous visitor is CONVERTED, not
+ * replaced. `linkIdentity` attaches the Google account to the user that already exists, so
+ * `auth.uid()` is unchanged and the conversation is simply still there on the way back, now
+ * with a name and an address on it. `signInWithOAuth` is for somebody who is not an anonymous
+ * visitor, and for the return leg of a refused link (`completeSignIn`), where the claim then
+ * carries the conversation across.
+ */
+export async function startGoogleSignIn(): Promise<{ ok: boolean; message?: string }> {
+  const client = requireSupabase()
+  rememberRoute()
+  // A fresh tap is a fresh attempt: the one bounded retry belongs to it.
+  clearRetried()
+
+  const { data: userData } = await client.auth.getUser()
+
+  // Noted before anything can change it: a refused link ends in a sign-in as somebody else.
+  if (userData.user) rememberPriorUser(userData.user.id)
+
+  if (userData.user?.is_anonymous === true) {
+    const linked = await client.auth.linkIdentity({
+      provider: 'google',
+      options: { redirectTo: returnTo() },
+    })
+    if (!linked.error) return { ok: true }
+
+    /*
+     * Refused before leaving, which is not the second-device case (that one comes back in the
+     * redirect). Usually manual linking switched off on the server. Signing in still works, and
+     * the prior user noted above lets the claim bring the conversation along.
+     */
+    console.warn('could not link Google, signing in instead:', linked.error.message)
+  }
+
+  return await signInWithGoogle()
+}
+
+/**
  * Why the last attempt failed, left for whatever is on screen next.
  *
  * A sign-in that fails on the way back from the inbox fails before React mounts, so there is
@@ -287,15 +399,30 @@ async function sessionFromFragment(): Promise<'none' | 'ok' | 'failed'> {
   return 'ok'
 }
 
+/**
+ * Everything a successful return owes the rest of the app, whichever way it came back.
+ *
+ * The address for next time, the conversation carried across if the account was somebody
+ * else's, and the moment, so the screen that loads next has Saoirse pick up as it does after
+ * the code is typed in place.
+ */
+async function signedIn(): Promise<void> {
+  clearRetried()
+  await noteSignedInAddress()
+  await claimPriorConversation()
+  noteSignedInMoment()
+}
+
 export async function completeSignIn(): Promise<{ signedIn: boolean; error?: string }> {
   if (!supabase) return { signedIn: false }
 
   /*
-   * A link from the inbox comes back one of two ways, and both are email.
+   * A sign-in comes back one of two ways.
    *
    * `updateUser` is not a PKCE flow, so its confirmation hands the session back in the
-   * fragment. `signInWithOtp` is, so its link comes back as `?code=`. Both have to work,
-   * because which one a person gets depends on whether the address was already known.
+   * fragment. `signInWithOtp`, `linkIdentity` and `signInWithOAuth` are, so the email link and
+   * Google both come back as `?code=`. Both have to work, because which one a person gets
+   * depends on how they signed in and whether the address was already known.
    *
    * Routed on either outcome. Somebody who followed a link from their inbox should end up in
    * the conversation whether or not the token in it was still good, because the alternative is
@@ -303,17 +430,15 @@ export async function completeSignIn(): Promise<{ signedIn: boolean; error?: str
    */
   const fromFragment = await sessionFromFragment()
   if (fromFragment !== 'none') {
-    if (fromFragment === 'ok') {
-      await noteSignedInAddress()
-      await claimPriorConversation()
-    }
+    if (fromFragment === 'ok') await signedIn()
     restoreRoute()
     return { signedIn: fromFragment === 'ok' }
   }
 
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
-  const refusal = params.get('error_description') ?? params.get('error')
+  const refusalCode = params.get('error_code')
+  const refusal = params.get('error_description') ?? params.get('error') ?? refusalCode
 
   if (code === null && refusal === null) return { signedIn: false }
 
@@ -321,14 +446,32 @@ export async function completeSignIn(): Promise<{ signedIn: boolean; error?: str
     params.delete('code')
     params.delete('error')
     params.delete('error_description')
+    params.delete('error_code')
     params.delete('state')
     const query = params.toString()
-    const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
+    // GoTrue repeats a refusal in the fragment; that is no route, so it goes with the query.
+    const hash = window.location.hash.includes('error=') ? '' : window.location.hash
+    const url = `${window.location.pathname}${query ? `?${query}` : ''}${hash}`
     window.history.replaceState(null, '', url)
   }
 
   if (code === null) {
     clean()
+
+    if (identityTaken(refusalCode, refusal) && !alreadyRetried()) {
+      /*
+       * The link was refused because that Google account is already somebody's: theirs, from
+       * another device. Straight back to Google as a plain sign-in, once, rather than back to a
+       * button that can only fail the same way. The route stays remembered for the return.
+       */
+      markRetried()
+      const retry = await signInWithGoogle()
+      if (retry.ok) return { signedIn: false }
+      rememberFailure(retry.message ?? 'Signing in with Google did not work.')
+      restoreRoute()
+      return { signedIn: false, ...(retry.message === undefined ? {} : { error: retry.message }) }
+    }
+
     console.error('sign-in refused:', refusal)
     if (refusal !== null) rememberFailure(refusal)
     restoreRoute()
@@ -338,10 +481,7 @@ export async function completeSignIn(): Promise<{ signedIn: boolean; error?: str
   const { error } = await supabase.auth.exchangeCodeForSession(code)
   clean()
   restoreRoute()
-  if (!error) {
-    await noteSignedInAddress()
-    await claimPriorConversation()
-  }
+  if (!error) await signedIn()
   if (error) {
     console.error('sign-in exchange failed:', error.message)
     rememberFailure(error.message)
