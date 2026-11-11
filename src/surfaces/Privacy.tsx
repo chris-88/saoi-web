@@ -3,7 +3,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { Link } from 'react-router-dom'
 import { SaoiWordmark } from '@/saoirse/SaoiWordmark'
 import { routes } from '@/app/routes'
-import { GOOGLE_NOTICE_LINE, REMINDERS_NOTICE_LINE } from '@/lib/planArrival'
+import { GOOGLE_NOTICE_LINE, HOLDINGS_NOTICE_LINE, REMINDERS_NOTICE_LINE } from '@/lib/planArrival'
 
 /**
  * What happens to what somebody types.
@@ -65,6 +65,7 @@ export function Privacy(): ReactNode {
             identifies you.
           </p>
           <p>{REMINDERS_NOTICE_LINE}</p>
+          <p>{HOLDINGS_NOTICE_LINE}</p>
         </Section>
 
         <Section title="Who sees it">

@@ -35,6 +35,7 @@ import type { CardActions } from '@/saoirse/cards/CardRenderer'
 import type { Product } from '@domain/journey.ts'
 import { isBackendConfigured, missingEnvVars } from '@/lib/env'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/queryKeys'
 
 /**
  * The conversation itself: joins a case, shows the turns, offers openers, takes input.
@@ -426,6 +427,22 @@ export function SaoirseChat({
   }
 
   const queryClient = useQueryClient()
+
+  /*
+   * Saoirse records accounts and debts from the conversation (`record_holding`), so after each
+   * turn the holdings, and the plan's progress built from them, are read again.
+   */
+  const wasStreaming = useRef(false)
+  useEffect(() => {
+    if (wasStreaming.current && !streaming && caseId !== null) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.case.holdings(caseId) })
+    }
+    wasStreaming.current = streaming
+  }, [streaming, caseId, queryClient])
+
+  /** A chip's half-written sentence, handed to the composer; `key` makes a second tap count. */
+  const [draft, setDraft] = useState<{ readonly text: string; readonly key: number }>()
+
   const signedInAt = useSignInSignal((signal) => signal.signedInAt)
   const acknowledge = useSignInSignal((signal) => signal.acknowledge)
 
@@ -808,6 +825,7 @@ export function SaoirseChat({
                       actions={actions}
                       disabled={streaming}
                       settled={entry.settled}
+                      caseId={caseId}
                     />
                   </Reveal>
                 ) : (
@@ -816,6 +834,7 @@ export function SaoirseChat({
                     actions={actions}
                     disabled={streaming}
                     settled={entry.settled}
+                    caseId={caseId}
                   />
                 )}
               </div>
@@ -909,6 +928,11 @@ export function SaoirseChat({
             suggestions={arrivalFollowUps}
             className="pt-1 pl-10"
             onSelect={(suggestion) => {
+              if (suggestion.draft !== undefined) {
+                const text = suggestion.draft
+                setDraft((previous) => ({ text, key: (previous?.key ?? 0) + 1 }))
+                return
+              }
               setArrivalUsed(true)
               void send(suggestion.label)
             }}
@@ -981,6 +1005,7 @@ export function SaoirseChat({
           disabled={!ready || streaming}
           onSend={sendFromComposer}
           onFocusChange={setComposerFocused}
+          draft={draft}
           {...(joining ? { placeholder: 'Connecting…' } : {})}
         />
       </div>

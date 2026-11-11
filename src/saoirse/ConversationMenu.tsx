@@ -36,6 +36,7 @@ import { queryKeys } from '@/lib/queryKeys'
 import { listCases, startNewCase, switchCase } from '@/lib/session'
 import { PUSH_PROMPT_LINE, pushPermission, subscribeToPush, type SubscribeResult } from '@/lib/push'
 import { RemindersSection } from '@/saoirse/RemindersSection'
+import { HoldingsSection } from '@/saoirse/HoldingsSection'
 import { ANONYMOUS, currentIdentity, lastKnownAddress, signOutIdentity } from '@/lib/identity'
 import { SignInForm } from '@/saoirse/SignInForm'
 import { FeedbackSheet } from '@/saoirse/FeedbackSheet'
@@ -309,6 +310,8 @@ export function ConversationMenu({
 
           {caseId !== null && (
             <>
+              <Separator />
+              <HoldingsSection caseId={caseId} enabled={open} />
               <Separator />
               <RemindersSection caseId={caseId} enabled={open} />
             </>

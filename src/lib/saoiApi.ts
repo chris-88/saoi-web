@@ -27,6 +27,14 @@ import {
   type CreateReminderBody,
   type Reminder,
 } from '@contracts/alerts.ts'
+import {
+  caseHoldingsResponseSchema,
+  holdingSchema,
+  type CaseHoldingsResponse,
+  type CreateHoldingBody,
+  type Holding,
+  type UpdateHoldingBody,
+} from '@contracts/holdings.ts'
 
 export { SaoiApiError }
 
@@ -102,6 +110,48 @@ export function createReminder(caseId: string, body: CreateReminderBody): Promis
 export async function deleteReminder(caseId: string, reminderId: string): Promise<void> {
   const { error, response } = await api.DELETE('/api/cases/{caseId}/reminders/{reminderId}', {
     params: { path: { caseId, reminderId } },
+  })
+  if (!response.ok) throw apiError(response.status, error)
+}
+
+/** The accounts and debts on the case, and progress against the claimed plan (null without one). */
+export function fetchCaseHoldings(caseId: string): Promise<CaseHoldingsResponse> {
+  return parsed(
+    api.GET('/api/cases/{caseId}/holdings', { params: { path: { caseId } } }),
+    caseHoldingsResponseSchema,
+  )
+}
+
+/** An account or a debt the customer entered. A `fixedUntil` keeps a reminder with it. */
+export function createHolding(caseId: string, body: CreateHoldingBody): Promise<Holding> {
+  return parsed(
+    api.POST('/api/cases/{caseId}/holdings', {
+      params: { path: { caseId } },
+      body: compact(body),
+    }),
+    holdingSchema,
+  )
+}
+
+/** What changed on a holding; a null clears that field. */
+export function updateHolding(
+  caseId: string,
+  holdingId: string,
+  body: UpdateHoldingBody,
+): Promise<Holding> {
+  return parsed(
+    api.PATCH('/api/cases/{caseId}/holdings/{holdingId}', {
+      params: { path: { caseId, holdingId } },
+      body: compact(body),
+    }),
+    holdingSchema,
+  )
+}
+
+/** Deletes a holding and the reminder kept with it. */
+export async function deleteHolding(caseId: string, holdingId: string): Promise<void> {
+  const { error, response } = await api.DELETE('/api/cases/{caseId}/holdings/{holdingId}', {
+    params: { path: { caseId, holdingId } },
   })
   if (!response.ok) throw apiError(response.status, error)
 }

@@ -23,6 +23,8 @@ export const queryKeys = {
     linkedAccounts: (caseId: string) => ['case', caseId, 'linked-accounts'] as const,
     /** Plan alerts and the open reminders, for the menu's "Reminders" section. */
     alerts: (caseId: string) => ['case', caseId, 'alerts'] as const,
+    /** Accounts and debts entered by hand, and progress on the plan ("Your money", the plan card). */
+    holdings: (caseId: string) => ['case', caseId, 'holdings'] as const,
   },
 
   plans: {

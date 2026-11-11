@@ -102,10 +102,13 @@ export function CardRenderer({
   actions = {},
   disabled,
   settled,
+  caseId = null,
 }: {
   card: Card
   actions?: CardActions
   disabled?: boolean
+  /** The conversation the card is in, for cards that read from the case (the plan's progress). */
+  caseId?: string | null
   /**
    * What became of this card, where the case knows.
    *
@@ -118,7 +121,12 @@ export function CardRenderer({
 }): ReactNode {
   return (
     <Settling settled={settled}>
-      <LiveCard card={card} actions={actions} {...(disabled === undefined ? {} : { disabled })} />
+      <LiveCard
+        card={card}
+        actions={actions}
+        caseId={caseId}
+        {...(disabled === undefined ? {} : { disabled })}
+      />
     </Settling>
   )
 }
@@ -128,10 +136,12 @@ function LiveCard({
   card,
   actions,
   disabled,
+  caseId,
 }: {
   card: Card
   actions: CardActions
   disabled?: boolean
+  caseId: string | null
 }): ReactNode {
   switch (card.type) {
     case 'plan_proposal':
@@ -215,7 +225,7 @@ function LiveCard({
       return <AccountOpenedCard card={card} />
 
     case 'saved_plan':
-      return <SavedPlanCard card={card} />
+      return <SavedPlanCard card={card} caseId={caseId} />
 
     case 'status':
       return (

@@ -66,3 +66,19 @@ describe('the reminder chips after a saved comparison opens', () => {
     expect(send).toHaveBeenCalledWith('Remind me when my deposit matures')
   })
 })
+
+describe('the holdings chips after a saved comparison opens', () => {
+  it.each([
+    ['Add what I have saved', 'Here is what I have saved: '],
+    ['Add a debt', 'Here is what I owe: '],
+  ])('“%s” starts the sentence in the composer and sends nothing', (label, draft) => {
+    chat(false)
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    const box = screen.getByRole('textbox', { name: 'Message Saoirse' })
+    expect(box.textContent).toBe(draft)
+    expect(box).toHaveFocus()
+    expect(send).not.toHaveBeenCalled()
+    // The chips stay until something is sent, so the other one can still be chosen.
+    expect(screen.getByRole('button', { name: 'Add a debt' })).toBeInTheDocument()
+  })
+})

@@ -3,6 +3,7 @@ import type { Card as CardPayload } from '@contracts/cards.ts'
 import { Card } from '@/components/ui/card'
 import { routesOf } from '@/lib/planRoutes'
 import { PlanRoutes } from '@/saoirse/cards/PlanRoutes'
+import { useCaseHoldings } from '@/api/holdings'
 
 type Payload = Extract<CardPayload, { type: 'saved_plan' }>
 
@@ -16,7 +17,26 @@ type Payload = Extract<CardPayload, { type: 'saved_plan' }>
  * line is the server's, built from the stored plan. A home plan's routes follow the card, three
  * then the rest on a tap (2026-11-10), when the card carries them.
  */
-export function SavedPlanCard({ card }: { card: Payload }): ReactNode {
+/**
+ * Where the plan stands now, from the case's holdings (2026-11-11): the server's one factual
+ * line, or nothing when the plan has no deposit or debt goal, or while it loads or fails (the
+ * card's own figures still stand). Mounted only with a case, so nothing is fetched without one.
+ */
+function PlanProgressLine({ caseId }: { caseId: string }): ReactNode {
+  const holdings = useCaseHoldings(caseId)
+  const line = holdings.data?.progress?.line
+  if (line === undefined) return null
+  return <p className="text-muted-foreground text-xs leading-snug">{line}</p>
+}
+
+export function SavedPlanCard({
+  card,
+  caseId = null,
+}: {
+  card: Payload
+  /** The conversation the card is in; with none, no progress is read. */
+  caseId?: string | null
+}): ReactNode {
   const comparison = card.comparison
   /** The sorted-by figure, named once above the rows so each row stays one short line. */
   const by =
@@ -55,6 +75,7 @@ export function SavedPlanCard({ card }: { card: Payload }): ReactNode {
               {card.figures}
             </p>
           )}
+          {caseId !== null && <PlanProgressLine caseId={caseId} />}
           {comparison !== undefined && by !== null && (
             <p className="text-muted-foreground text-xs">
               First {String(Math.min(3, comparison.total))} of {String(comparison.total)}, by {by}

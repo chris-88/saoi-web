@@ -6,6 +6,11 @@ export type Suggestion = {
   readonly id: string
   readonly label: string
   readonly icon?: ReactNode
+  /**
+   * Put this in the composer for the customer to finish, instead of sending the label
+   * ("Here is what I have saved: ").
+   */
+  readonly draft?: string
 }
 
 /**

@@ -120,6 +120,8 @@ describe('a saved comparison arriving in the chat', () => {
       'How was this worked out?',
       'Tell me about the other routes',
       'Remind me when my fixed rate ends',
+      'Add what I have saved',
+      'Add a debt',
     ])
     expect(prelude?.hasDeposit).toBe(false)
   })
@@ -146,6 +148,8 @@ describe('a saved comparison arriving in the chat', () => {
       'How was this worked out?',
       'Remind me when my fixed rate ends',
       'Remind me when my deposit matures',
+      'Add what I have saved',
+      'Add a debt',
     ])
   })
 
@@ -154,6 +158,15 @@ describe('a saved comparison arriving in the chat', () => {
     expect(
       await screen.findByText(
         'Reminders you set and alerts about your plan are kept on your case until you delete them or the case is deleted.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('the data notice says balances and debts are kept until deleted', async () => {
+    open()
+    expect(
+      await screen.findByText(
+        'Balances and debts you enter are kept on your case until you delete them.',
       ),
     ).toBeInTheDocument()
   })
