@@ -7552,6 +7552,36 @@ export interface components {
               }
             | {
                 /** @enum {string} */
+                type: 'market_products'
+                question: string
+                arrangement: {
+                  /** @enum {string} */
+                  kind: 'held_vs_market' | 'by_access' | 'fits_date' | 'mortgage_by_sort'
+                  title: string
+                  line: string
+                }
+                rows: {
+                  id: string
+                  lead: string
+                  kind: string
+                  value: string
+                  figure: string
+                  note: string | null
+                  held: boolean
+                  confirmed: boolean
+                }[]
+                more: number
+                basis: {
+                  figures: string[]
+                  objective: string
+                  assumptions: string[]
+                  coverage: string
+                  warnings: string[]
+                }
+                statement: string
+              }
+            | {
+                /** @enum {string} */
                 type: 'connect_accounts'
                 why: string
                 banks: {
@@ -8786,6 +8816,36 @@ export interface components {
                   }
                   createdAt: string
                   dataCheckedAt: string
+                }
+              | {
+                  /** @enum {string} */
+                  type: 'market_products'
+                  question: string
+                  arrangement: {
+                    /** @enum {string} */
+                    kind: 'held_vs_market' | 'by_access' | 'fits_date' | 'mortgage_by_sort'
+                    title: string
+                    line: string
+                  }
+                  rows: {
+                    id: string
+                    lead: string
+                    kind: string
+                    value: string
+                    figure: string
+                    note: string | null
+                    held: boolean
+                    confirmed: boolean
+                  }[]
+                  more: number
+                  basis: {
+                    figures: string[]
+                    objective: string
+                    assumptions: string[]
+                    coverage: string
+                    warnings: string[]
+                  }
+                  statement: string
                 }
               | {
                   /** @enum {string} */
