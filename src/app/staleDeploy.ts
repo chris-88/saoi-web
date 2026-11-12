@@ -1,3 +1,5 @@
+import { reloadWhenSafe } from '@/app/reloadGate'
+
 /**
  * Recovering from a deploy that landed while the app was open.
  *
@@ -68,21 +70,95 @@ export function recoverFromStaleDeploy(): boolean {
  * That is the signal that the assets underneath have changed, and a single guarded reload is
  * what turns it into the new build being on screen.
  *
+ * The reload waits for anything it would cost the customer (`reloadGate`): a half-written
+ * message, or a reply still streaming in.
+ *
  * Call it once, at start-up. The guard in `recoverFromStaleDeploy` is what stops a worker that
  * claims repeatedly from putting the page in a loop.
  */
-export function reloadWhenWorkerTakesOver(): void {
-  if (!('serviceWorker' in navigator)) return
+export function reloadWhenWorkerTakesOver(options: WorkerTakeover = {}): void {
+  const container = options.container ?? serviceWorkers()
+  if (container === undefined) return
+  const controlled = options.hadController ?? hadController
+  const reload = options.reload ?? recoverFromStaleDeploy
 
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
+  container.addEventListener('controllerchange', () => {
     /*
      * Only when there was already a worker. The first registration on a first visit also fires
      * this, and reloading somebody the instant they arrive is a worse bug than the one being
      * fixed: they asked for the page, they are looking at the page, nothing is stale.
      */
-    if (!hadController) return
-    recoverFromStaleDeploy()
+    if (!controlled) return
+    reloadWhenSafe(() => void reload(), options.doc)
   })
+}
+
+/** The browser, unless a test hands in its own. */
+export type WorkerTakeover = {
+  readonly container?: ServiceWorkerContainer | undefined
+  readonly doc?: Document | undefined
+  readonly reload?: (() => unknown) | undefined
+  readonly hadController?: boolean | undefined
+}
+
+/** How often an open page looks for a new build: an installed app can stay open for days. */
+const UPDATE_EVERY_MS = 60 * 60_000
+
+/** The least time between two looks, so flicking between apps does not fetch `sw.js` each time. */
+const UPDATE_GAP_MS = 60_000
+
+/** The browser, unless a test hands in its own. */
+export type UpdateChecks = {
+  readonly container?: ServiceWorkerContainer | undefined
+  readonly doc?: Document | undefined
+  readonly everyMs?: number | undefined
+  readonly gapMs?: number | undefined
+}
+
+/**
+ * Look for a new build whenever the page comes back into view, and every hour.
+ *
+ * The worker is registered on `load`, which is also the browser's update check. An installed app
+ * brought back from the background is not loaded again, so without this it would run the build
+ * it opened on until somebody closed it for good. `registration.update()` fetches `sw.js`; a new
+ * one installs, skips waiting, claims the page, and `reloadWhenWorkerTakesOver` reloads into it
+ * once that costs the customer nothing.
+ *
+ * Call it once, at start-up. Returns a function that stops it.
+ */
+export function checkForUpdates(options: UpdateChecks = {}): () => void {
+  const container = options.container ?? serviceWorkers()
+  if (container === undefined) return () => undefined
+  const doc = options.doc ?? document
+  const gapMs = options.gapMs ?? UPDATE_GAP_MS
+
+  // The `load`-time registration has just looked.
+  let last = Date.now()
+  const check = (): void => {
+    if (Date.now() - last < gapMs) return
+    last = Date.now()
+    // Offline, or the worker script unreachable: nothing to do until the next look.
+    container
+      .getRegistration()
+      .then((registration) => registration?.update())
+      .catch(() => undefined)
+  }
+  const onVisibility = (): void => {
+    if (doc.visibilityState === 'visible') check()
+  }
+
+  doc.addEventListener('visibilitychange', onVisibility)
+  const timer = window.setInterval(check, options.everyMs ?? UPDATE_EVERY_MS)
+  return () => {
+    doc.removeEventListener('visibilitychange', onVisibility)
+    window.clearInterval(timer)
+  }
+}
+
+function serviceWorkers(): ServiceWorkerContainer | undefined {
+  return typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+    ? navigator.serviceWorker
+    : undefined
 }
 
 /** The worker serving this page when it started (null: none), and so the build it runs. */
