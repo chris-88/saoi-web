@@ -10,7 +10,6 @@ import { TypingBubble } from '@/saoirse/TypingBubble'
 import { TurnFeedback } from '@/saoirse/TurnFeedback'
 import { Composer } from '@/saoirse/Composer'
 import { SuggestionList, type Suggestion } from '@/saoirse/SuggestionList'
-import type { ArrivalPrelude } from '@/lib/planArrival'
 import { ZeroState } from '@/saoirse/ZeroState'
 import { chatUiState, showsZeroState } from '@/saoirse/chatUiState'
 import { useMinimumDuration } from '@/saoirse/useMinimumDuration'
@@ -53,8 +52,6 @@ const SIGNED_IN_NOTE = [
 ].join(' ')
 
 export function SaoirseChat({
-  prelude = null,
-  arrivalFollowUps,
   openingMessage,
   onStarted,
   onCase,
@@ -65,13 +62,9 @@ export function SaoirseChat({
   className,
 }: {
   /**
-   * What Saoirse said before a saved comparison was opened (the welcome and the data notice)
-   * and the customer's reply, carried in from the arrival for this visit only (2026-11-10).
+   * A line typed elsewhere and carried in, sent automatically on arrival: `?say=`, or the first
+   * message written on a saved comparison's arrival, after the server's card and question load.
    */
-  prelude?: ArrivalPrelude | null
-  /** Quick replies offered once, under Saoirse's first line after a saved comparison opens. */
-  arrivalFollowUps?: readonly Suggestion[] | undefined
-  /** A line typed elsewhere and carried in, sent automatically on arrival. */
   openingMessage?: string | null
   /** Whether a conversation has started, so the chrome around this can settle with it (§8). */
   onStarted?: ((started: boolean) => void) | undefined
@@ -162,23 +155,7 @@ export function SaoirseChat({
    * the state alone would put the opening screen up and tear it down again — replaying an
    * animation that is only ever meant for a genuinely new conversation.
    */
-  const zeroState =
-    showsZeroState(uiState) &&
-    !loadingHistory &&
-    (openingMessage ?? null) === null &&
-    prelude === null
-
-  /*
-   * After a saved comparison opens: the card, Saoirse's one line, then the quick replies, once.
-   * Shown when the first reply of this visit has finished and nothing has been said since.
-   */
-  const [arrivalUsed, setArrivalUsed] = useState(false)
-  const arrivalChips =
-    arrivalFollowUps !== undefined &&
-    !arrivalUsed &&
-    !streaming &&
-    entries.some((entry) => entry.kind === 'message' && entry.author === 'assistant') &&
-    !entries.some((entry) => entry.kind === 'message' && entry.author === 'customer')
+  const zeroState = showsZeroState(uiState) && !loadingHistory && (openingMessage ?? null) === null
 
   /*
    * Four hundred milliseconds minimum. Turns come back in about a second and sometimes much
@@ -439,9 +416,6 @@ export function SaoirseChat({
     }
     wasStreaming.current = streaming
   }, [streaming, caseId, queryClient])
-
-  /** A chip's half-written sentence, handed to the composer; `key` makes a second tap count. */
-  const [draft, setDraft] = useState<{ readonly text: string; readonly key: number }>()
 
   const signedInAt = useSignInSignal((signal) => signal.signedInAt)
   const acknowledge = useSignInSignal((signal) => signal.acknowledge)
@@ -812,8 +786,6 @@ export function SaoirseChat({
 
         {zeroState && <ZeroState focused={composerFocused} />}
 
-        {prelude !== null && <ArrivalPreludeMessages prelude={prelude} />}
-
         {entries.map((entry, index) => {
           if (entry.kind === 'card') {
             return (
@@ -923,22 +895,6 @@ export function SaoirseChat({
           Only after a turn has finished. Offering a choice while Saoirse is still mid-sentence
           invites a tap that lands in the middle of the answer it is replying to.
         */}
-        {arrivalChips && (
-          <SuggestionList
-            suggestions={arrivalFollowUps}
-            className="pt-1 pl-10"
-            onSelect={(suggestion) => {
-              if (suggestion.draft !== undefined) {
-                const text = suggestion.draft
-                setDraft((previous) => ({ text, key: (previous?.key ?? 0) + 1 }))
-                return
-              }
-              setArrivalUsed(true)
-              void send(suggestion.label)
-            }}
-          />
-        )}
-
         {followUps.length > 0 && !streaming && (
           <SuggestionList
             suggestions={followUps}
@@ -1005,31 +961,9 @@ export function SaoirseChat({
           disabled={!ready || streaming}
           onSend={sendFromComposer}
           onFocusChange={setComposerFocused}
-          draft={draft}
           {...(joining ? { placeholder: 'Connecting…' } : {})}
         />
       </div>
     </div>
-  )
-}
-
-/** Saoirse's welcome and data notice from the arrival, and the customer's yes, as they read it. */
-function ArrivalPreludeMessages({ prelude }: { prelude: ArrivalPrelude }): ReactNode {
-  return (
-    <>
-      <ChatBubble author="assistant" showAvatar={false} first>
-        <p>{prelude.welcome}</p>
-      </ChatBubble>
-      <ChatBubble author="assistant">
-        <div className="space-y-2">
-          {prelude.notice.map((line) => (
-            <p key={line}>{line}</p>
-          ))}
-        </div>
-      </ChatBubble>
-      <ChatBubble author="customer">
-        <p>{prelude.accepted}</p>
-      </ChatBubble>
-    </>
   )
 }

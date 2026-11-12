@@ -3,7 +3,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { Link } from 'react-router-dom'
 import { SaoiWordmark } from '@/saoirse/SaoiWordmark'
 import { routes } from '@/app/routes'
-import { GOOGLE_NOTICE_LINE, HOLDINGS_NOTICE_LINE, REMINDERS_NOTICE_LINE } from '@/lib/planArrival'
+import { GOOGLE_NOTICE_LINE, HOLDINGS_NOTICE_LINE, REMINDERS_NOTICE_LINE } from '@/lib/dataNotice'
 
 /**
  * What happens to what somebody types.
@@ -13,8 +13,8 @@ import { GOOGLE_NOTICE_LINE, HOLDINGS_NOTICE_LINE, REMINDERS_NOTICE_LINE } from 
  * "synthetic data only", which was about the bank's side of the ledger and read as though it
  * covered theirs.
  *
- * Linked from the notice card that appears the first time Saoirse records anything, and from the
- * landing page. Deliberately not in the chat header: the header is the wordmark and nothing
+ * Linked from the notice card that appears the first time Saoirse records anything, from the
+ * grey notice box on a saved comparison's arrival, and from the landing page. Deliberately not in the chat header: the header is the wordmark and nothing
  * else, and a legal link up there would be the first thing a new customer reads.
  */
 export function Privacy(): ReactNode {
@@ -92,8 +92,9 @@ export function Privacy(): ReactNode {
         <Section title="A comparison you save from your AI assistant">
           <p>
             Saving a comparison in your AI assistant holds its figures and preferences with Saoi
-            behind a single-use link. Unopened, it is deleted after 24 hours. Opening it shows you
-            this before anything is stored against you, then puts the comparison into a chat with
+            behind a single-use link. Unopened, it is deleted after 24 hours. Opening it shows the
+            comparison, a link to this page and one question from Saoirse; nothing is stored against
+            you until you write your first message, which puts the comparison into a chat with
             Saoirse. How long an opened comparison is kept: [To confirm]. Who is responsible for
             your data: [To confirm]. You can ask for a copy of what Saoi holds about you, or for it
             to be deleted, at the address below.

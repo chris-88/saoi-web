@@ -3,7 +3,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { SaoirseChat } from '@/saoirse/SaoirseChat'
 import { PlanArrival } from '@/saoirse/PlanArrival'
-import { arrivalFollowUps, takeArrivalPrelude } from '@/lib/planArrival'
+import { takeFirstMessage } from '@/lib/planArrival'
 import { SaoirseWordmark } from '@/saoirse/SaoirseWordmark'
 import { ProfileButton } from '@/saoirse/ProfileButton'
 import { rememberPresenterKey } from '@/lib/session'
@@ -27,8 +27,11 @@ export function PlanArrivalScreen(): ReactNode {
 
 export function SaoirseScreen({ arrivalToken }: { arrivalToken?: string } = {}): ReactNode {
   useDocumentTitle('Saoirse')
-  /** What Saoirse said before a saved comparison was opened, carried into this chat once. */
-  const [prelude] = useState(() => (arrivalToken === undefined ? takeArrivalPrelude() : null))
+  /**
+   * What they wrote on a saved comparison's arrival, which claimed it: sent as this chat's first
+   * turn, once, after the server's conversation (the card and the question) has loaded.
+   */
+  const [firstMessage] = useState(() => (arrivalToken === undefined ? takeFirstMessage() : null))
   const [started, setStarted] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   useViewportHeight()
@@ -145,13 +148,9 @@ export function SaoirseScreen({ arrivalToken }: { arrivalToken?: string } = {}):
         />
       ) : (
         <SaoirseChat
-          prelude={prelude}
-          arrivalFollowUps={
-            prelude === null ? undefined : arrivalFollowUps(prelude.routeCount, prelude.hasDeposit)
-          }
           onStarted={setStarted}
           className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col"
-          openingMessage={searchParams.get('say')}
+          openingMessage={firstMessage ?? searchParams.get('say')}
           mode="new"
           source={source}
           /*

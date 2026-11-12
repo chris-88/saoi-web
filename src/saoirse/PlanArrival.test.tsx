@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SaoiApiError } from '@/api/client'
@@ -17,177 +17,236 @@ vi.mock('@/lib/session', () => ({
 }))
 
 const { PlanArrival } = await import('./PlanArrival')
-const { arrivalFollowUps, takeArrivalPrelude } = await import('@/lib/planArrival')
+const { ARRIVAL_FALLBACK_LINE, takeFirstMessage } = await import('@/lib/planArrival')
 const { problemOf } = await import('@/lib/planClaim')
+
+const HOOK =
+  'How much Income Tax and DIRT have you both paid over the last four years? It decides whether Help to Buy covers the €35,000.'
+
+const route = (id: string, line: string) => ({
+  id,
+  name: id,
+  mechanism: 'How the route works',
+  status: 'potential',
+  line,
+  reason: null,
+  missing: null,
+  keysOn: null,
+  conditions: [],
+  confirmed: true,
+  sources: [],
+})
+
+/** The spec's couple: €110,000, €32,000 saved, looking at €400,000, tax paid not given. */
+const ARRIVAL = {
+  keysOn: '2027-09',
+  readyLine: 'September 2027',
+  readyNote: null,
+  factParts: ['€40,000 deposit', '+ €4,000 stamp duty', '+ €3,000 legal and survey'],
+  progress: { savedEur: 32_000, neededEur: 47_000, monthlySavingEur: 1_500 },
+  tiles: [
+    { label: 'Savings', value: 'up to 3.25%', lines: ['€612 interest by Sep 2027', '7 accounts'] },
+    {
+      label: 'Mortgage',
+      value: '€360,000',
+      lines: ['from 3.45%, €1,607/mo', '41 options, 30 years'],
+    },
+    { label: 'Could afford', value: 'up to €488,000', lines: ['4× income, 90% loan', '30 years'] },
+  ],
+  assumptions: [
+    'Assumed: a new build, first-time buyers. Estimates only; rates and offers are not confirmed.',
+  ],
+  hookQuestion: { key: 'taxPaid', question: HOOK, why: 'Help to Buy €35,000 conditional' },
+}
 
 const PREVIEW = {
   title: 'Buying a home by November 2028',
-  figures: '€25k saved · €800/mo · €90k · €350k',
+  figures: '€32k saved · €1,500/mo · €110k · €400k',
   comparison: null,
   products: [],
-  expiresAt: '2026-11-11T12:00:00.000Z',
+  routes: [
+    route(
+      'new_build_help_to_buy',
+      'New build with Help to Buy: keys September 2027 if tax paid covers €35,000',
+    ),
+    route('second_hand', 'Second-hand: €47,000 needed at the keys, not reached at this pace'),
+    route('first_home_scheme', 'First Home Scheme: shared equity up to €80,000 on a new build'),
+    route('vacant_property_grant', 'Vacant property grant: up to €50,000 for works'),
+    route('local_authority_home_loan', 'Local Authority Home Loan: not at €110,000 joint income'),
+    route('affordable_purchase', 'Affordable purchase: not at €110,000 for a €400,000 home'),
+  ],
+  arrival: ARRIVAL,
+  opening: HOOK,
+  expiresAt: '2026-11-13T12:00:00.000Z',
 }
 
 function open(token = 'AAAAAAAAAAAAAAAAAAAAAA') {
-  render(
+  return render(
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter initialEntries={[`/plan/${token}`]}>
         <Routes>
           <Route path="/plan/:token" element={<PlanArrival token={token} />} />
           <Route path="/" element={<p>the conversation</p>} />
+          <Route path="/privacy" element={<p>the notice</p>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   )
 }
 
+/** Saoirse's bubbles: the muted ones on the left. */
+const saoirseLines = (container: HTMLElement): string[] =>
+  [...container.querySelectorAll('.rounded-bl-sm')].map((node) => node.textContent)
+
+/** Types into the composer and presses Enter, as a customer would. */
+function write(text: string) {
+  const box = screen.getByRole('textbox', { name: 'Message Saoirse' })
+  box.textContent = text
+  fireEvent.input(box)
+  fireEvent.keyDown(box, { key: 'Enter' })
+}
+
 beforeEach(() => {
   claimPlan.mockReset()
   previewPlan.mockReset()
   previewPlan.mockResolvedValue(PREVIEW)
-  takeArrivalPrelude()
+  takeFirstMessage()
 })
 
-describe('a saved comparison arriving in the chat', () => {
-  it('Saoirse welcomes, gives the notice, and nothing is claimed until they accept', async () => {
-    claimPlan.mockResolvedValue({})
-    open('BBBBBBBBBBBBBBBBBBBBBB')
+describe('a saved comparison arriving in the app', () => {
+  it('shows the host card’s figures: the month, what it is made of, the meter and three tiles', async () => {
+    open()
+    expect(await screen.findByText('September 2027')).toBeInTheDocument()
+    expect(screen.getByText('Ready to buy')).toBeInTheDocument()
+    expect(screen.getByText('€40,000 deposit')).toBeInTheDocument()
+    expect(screen.getByText('+ €3,000 legal and survey')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '32000')
+    expect(screen.getByText('€32,000 of €47,000')).toBeInTheDocument()
+    expect(screen.getByText('€15,000 to go')).toBeInTheDocument()
+
+    const tiles = within(screen.getByRole('list', { name: 'At a glance' })).getAllByRole('listitem')
+    expect(tiles.map((tile) => tile.textContent)).toEqual([
+      'Savingsup to 3.25%€612 interest by Sep 20277 accounts',
+      'Mortgage€360,000from 3.45%, €1,607/mo41 options, 30 years',
+      'Could affordup to €488,0004× income, 90% loan30 years',
+    ])
+    expect(screen.getByText(/^Assumed: a new build, first-time buyers/)).toBeInTheDocument()
+  })
+
+  it('lists two other supports, then every one on a tap', async () => {
+    open()
+    const supports = await screen.findByRole('list', { name: 'Other supports' })
     expect(
-      await screen.findByText(
-        'Hi, I’m Saoirse. I’ve got the comparison you were working on: buying a home by November 2028.',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/stored on Saoi’s own servers in Ireland/)).toBeInTheDocument()
-    expect(screen.getByText(/sent to Anthropic/)).toBeInTheDocument()
-    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
-    expect(screen.getByRole('textbox', { hidden: true })).toBeTruthy()
+      within(supports)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual([
+      'Second-hand: €47,000 needed at the keys, not reached at this pace',
+      'First Home Scheme: shared equity up to €80,000 on a new build',
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'See all 6 supports' }))
+    expect(within(supports).getAllByRole('listitem')).toHaveLength(6)
+  })
+
+  it('a small grey box links to the data protection notice, and the notice is not repeated here', async () => {
+    open()
+    const notice = await screen.findByRole('link', {
+      name: 'Click here for the data protection notice',
+    })
+    expect(notice).toHaveAttribute('href', '/privacy')
+    expect(notice).toHaveClass('bg-muted')
+    expect(screen.queryByText(/sent to Anthropic/)).not.toBeInTheDocument()
+    fireEvent.click(notice)
+    expect(await screen.findByText('the notice')).toBeInTheDocument()
+    expect(claimPlan).not.toHaveBeenCalled()
+  })
+
+  it('Saoirse says the hook question and nothing else: no welcome, no chips', async () => {
+    const { container } = open()
+    expect(await screen.findByText(HOOK)).toBeInTheDocument()
+    expect(saoirseLines(container)).toEqual([HOOK])
+    expect(screen.queryByText(/Hi, I’m Saoirse/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /carry on|talk me through/i })).toBeNull()
+  })
+
+  it('nothing is claimed until they write; their first message claims, then goes to the chat', async () => {
+    let finish: (value: unknown) => void = () => undefined
+    claimPlan.mockReturnValue(new Promise((resolve) => (finish = resolve)))
+    open('BBBBBBBBBBBBBBBBBBBBBB')
+    await screen.findByText(HOOK)
     expect(claimPlan).not.toHaveBeenCalled()
 
-    const more = screen.getByRole('button', { name: /read the full notice/i })
-    fireEvent.click(more)
-    expect(more).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText(/24 hours after it was saved/)).toBeVisible()
-
-    fireEvent.click(screen.getByRole('button', { name: /that’s fine, carry on/i }))
-    expect(await screen.findByText('the conversation')).toBeInTheDocument()
-    expect(claimPlan).toHaveBeenCalledWith('BBBBBBBBBBBBBBBBBBBBBB')
-    // The welcome and the notice are handed to the chat once.
-    expect(takeArrivalPrelude()?.welcome).toMatch(/^Hi, I’m Saoirse/)
-    expect(takeArrivalPrelude()).toBeNull()
-  })
-
-  it('gives the anonymous calculator record in the notice, word for word', async () => {
-    open()
-    expect(
-      await screen.findByText(
-        'Each run of the home calculator keeps one anonymous record: the day, an income band, how many months to the keys (banded), whether the date is met, and the county, rent band, kind of home and first-time buyer if given. No figures, no names, nothing that identifies you.',
-      ),
-    ).toBeInTheDocument()
-  })
-
-  it('a home plan with routes: the welcome counts them once and the routes chip is offered', async () => {
-    const route = {
-      id: 'second_hand',
-      name: 'Second-hand',
-      mechanism: 'The usual route: a deposit, stamp duty and fees',
-      status: 'potential',
-      line: 'Second-hand: saved by July 2028',
-      reason: null,
-      missing: null,
-      keysOn: '2028-07',
-      conditions: [],
-      confirmed: true,
-      sources: [],
-    }
-    previewPlan.mockResolvedValue({
-      ...PREVIEW,
-      routes: [route, { ...route, id: 'first_home_scheme' }],
+    write('About €40,000 between us')
+    await waitFor(() => {
+      expect(claimPlan).toHaveBeenCalledWith('BBBBBBBBBBBBBBBBBBBBBB')
     })
-    claimPlan.mockResolvedValue({})
-    open()
-    expect(
-      await screen.findByText(
-        'Hi, I’m Saoirse. I’ve got the comparison you were working on: buying a home by November 2028, and 2 routes to a home.',
-      ),
-    ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /that’s fine, carry on/i }))
+    expect(screen.getByText('About €40,000 between us')).toBeInTheDocument()
+
+    finish({})
     expect(await screen.findByText('the conversation')).toBeInTheDocument()
-    const prelude = takeArrivalPrelude()
-    expect(prelude?.routeCount).toBe(2)
-    expect(arrivalFollowUps(prelude?.routeCount ?? 0).map((chip) => chip.label)).toEqual([
-      'Talk me through these',
-      'Change a figure',
-      'How was this worked out?',
-      'Tell me about the other routes',
-      'Remind me when my fixed rate ends',
-      'Add what I have saved',
-      'Add a debt',
-    ])
-    expect(prelude?.hasDeposit).toBe(false)
+    // The chat sends it as the first turn, once.
+    expect(takeFirstMessage()).toBe('About €40,000 between us')
+    expect(takeFirstMessage()).toBeNull()
   })
 
-  it('a comparison with a term deposit offers the deposit reminder too', async () => {
-    previewPlan.mockResolvedValue({
-      ...PREVIEW,
-      products: [
-        { name: '12 Month Fixed Term Deposit', provider: 'AIB', line: '€20,000' },
-        { name: 'Online Regular Saver', provider: 'PTSB', line: '€500 a month' },
-      ],
+  it('a busy server keeps what they wrote and claims again on Try again', async () => {
+    claimPlan.mockRejectedValueOnce(new SaoiApiError(429, 'busy'))
+    claimPlan.mockResolvedValueOnce({})
+    open()
+    await screen.findByText(HOOK)
+    write('About €40,000')
+    expect(await screen.findByText(/Saoi is busy right now/)).toBeInTheDocument()
+    expect(screen.getByText('About €40,000')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('the conversation')).toBeInTheDocument()
+    expect(claimPlan).toHaveBeenCalledTimes(2)
+    expect(takeFirstMessage()).toBe('About €40,000')
+  })
+})
+
+describe('an older plan, or one without a home goal', () => {
+  const OLD = {
+    ...PREVIEW,
+    routes: [],
+    arrival: null,
+    opening: undefined,
+    products: [
+      { name: 'Online Regular Saver', provider: 'PTSB', line: '€500 a month' },
+      { name: '12 Month Fixed Term Deposit', provider: 'AIB', line: '€20,000' },
+    ],
+  }
+
+  it('falls back to the compact card, the notice box and one line to carry on', async () => {
+    previewPlan.mockResolvedValue(OLD)
+    const { container } = open()
+    expect(await screen.findByText('Buying a home by November 2028')).toBeInTheDocument()
+    expect(screen.getByText('PTSB · Online Regular Saver')).toBeInTheDocument()
+    expect(screen.queryByText('Ready to buy')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Click here for the data protection notice' }),
+    ).toBeInTheDocument()
+    expect(saoirseLines(container)).toEqual([ARRIVAL_FALLBACK_LINE])
+  })
+
+  it('says the server’s line when it sends one', async () => {
+    previewPlan.mockResolvedValue({ ...OLD, opening: 'Your comparison is here.' })
+    const { container } = open()
+    await waitFor(() => {
+      expect(saoirseLines(container)).toEqual(['Your comparison is here.'])
     })
-    claimPlan.mockResolvedValue({})
-    open()
-    fireEvent.click(await screen.findByRole('button', { name: /that’s fine, carry on/i }))
-    expect(await screen.findByText('the conversation')).toBeInTheDocument()
-    const prelude = takeArrivalPrelude()
-    expect(prelude?.hasDeposit).toBe(true)
-    expect(
-      arrivalFollowUps(prelude?.routeCount ?? 0, prelude?.hasDeposit).map((chip) => chip.label),
-    ).toEqual([
-      'Talk me through these',
-      'Change a figure',
-      'How was this worked out?',
-      'Remind me when my fixed rate ends',
-      'Remind me when my deposit matures',
-      'Add what I have saved',
-      'Add a debt',
-    ])
   })
 
-  it('the data notice says how long reminders and alerts are kept', async () => {
-    open()
-    expect(
-      await screen.findByText(
-        'Reminders you set and alerts about your plan are kept on your case until you delete them or the case is deleted.',
-      ),
-    ).toBeInTheDocument()
+  it('the fallback line holds the comparison line: no instruction, no advice', () => {
+    expect(ARRIVAL_FALLBACK_LINE).not.toMatch(/\b(best|recommend|should|clear|switch|set up)\b/i)
   })
+})
 
-  it('the data notice says balances and debts are kept until deleted', async () => {
-    open()
-    expect(
-      await screen.findByText(
-        'Balances and debts you enter are kept on your case until you delete them.',
-      ),
-    ).toBeInTheDocument()
-  })
-
-  it('no routes: no count in the welcome and no routes chip', async () => {
-    claimPlan.mockResolvedValue({})
-    open()
-    expect(await screen.findByText(/buying a home by November 2028\.$/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /that’s fine, carry on/i }))
-    expect(await screen.findByText('the conversation')).toBeInTheDocument()
-    const prelude = takeArrivalPrelude()
-    expect(prelude?.routeCount).toBe(0)
-    expect(arrivalFollowUps(0).map((chip) => chip.label)).not.toContain(
-      'Tell me about the other routes',
-    )
-  })
-
+describe('a link that cannot be opened', () => {
   it('says an expired link has expired, in the chat, with a chip to start again', async () => {
     previewPlan.mockRejectedValue(new SaoiApiError(410, 'expired'))
     open()
     expect(await screen.findByText(/That link has expired/)).toBeInTheDocument()
+    expect(screen.queryByText('Ready to buy')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Start again' }))
     expect(await screen.findByText('the conversation')).toBeInTheDocument()
   })
@@ -197,6 +256,13 @@ describe('a saved comparison arriving in the chat', () => {
     open()
     expect(await screen.findByText(/already been opened/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
+  it('shows Saoirse typing while the preview loads, and holds the send', () => {
+    previewPlan.mockReturnValue(new Promise(() => undefined))
+    open()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 })
 
