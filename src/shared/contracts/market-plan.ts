@@ -279,8 +279,11 @@ export type PlanRoute = z.infer<typeof planRouteSchema>
  * - `factParts`: what the money needed at the keys is made of, one term each, in order.
  * - `progress`: saved now against the money needed at the keys, and the monthly saving; the app
  *   words the meter. Null when the money needed is not known.
- * - `tiles`: Savings, Mortgage and Could afford, in that order, each a label, one value and up
- *   to two small lines. A rate and a count, never a lender or a product.
+ * - `tiles`: Savings, Mortgage and Could afford, in that order. Each a label; `qualifier`, the
+ *   small word above the value ("up to") or null; `value`, the headline alone ("3.11%",
+ *   "€1,751/mo", "€666,000"); `sub`, up to two secondary lines under it; `quiet`, at most one
+ *   small count ("28 accounts"); `detail`, up to four lines the expanded tile shows. A rate and a
+ *   count, never a lender or a product.
  * - `assumptions`: the chip texts, what was taken as given and can be changed.
  * - `hookQuestion`: the one question whose answer moves their figures most (`nextQuestion`),
  *   and one sentence on what it moves; null when no question moves a figure.
@@ -304,8 +307,11 @@ export const planArrivalViewSchema = z.object({
     .array(
       z.object({
         label: text(40),
+        qualifier: text(40).nullable(),
         value: text(60),
-        lines: z.array(text(120)).max(3),
+        sub: z.array(text(120)).max(2),
+        quiet: z.array(text(120)).max(1),
+        detail: z.array(text(200)).max(4),
       }),
     )
     .max(3),

@@ -7534,8 +7534,11 @@ export interface components {
                   } | null
                   tiles: {
                     label: string
+                    qualifier: string | null
                     value: string
-                    lines: string[]
+                    sub: string[]
+                    quiet: string[]
+                    detail: string[]
                   }[]
                   assumptions: string[]
                   hookQuestion: {
@@ -8768,8 +8771,11 @@ export interface components {
                     } | null
                     tiles: {
                       label: string
+                      qualifier: string | null
                       value: string
-                      lines: string[]
+                      sub: string[]
+                      quiet: string[]
+                      detail: string[]
                     }[]
                     assumptions: string[]
                     hookQuestion: {
@@ -9052,8 +9058,11 @@ export interface components {
           } | null
           tiles: {
             label: string
+            qualifier: string | null
             value: string
-            lines: string[]
+            sub: string[]
+            quiet: string[]
+            detail: string[]
           }[]
           assumptions: string[]
           hookQuestion: {
@@ -9132,8 +9141,11 @@ export interface components {
         } | null
         tiles: {
           label: string
+          qualifier: string | null
           value: string
-          lines: string[]
+          sub: string[]
+          quiet: string[]
+          detail: string[]
         }[]
         assumptions: string[]
         hookQuestion: {
@@ -12579,8 +12591,11 @@ export interface components {
           } | null
           tiles: {
             label: string
+            qualifier: string | null
             value: string
-            lines: string[]
+            sub: string[]
+            quiet: string[]
+            detail: string[]
           }[]
           assumptions: string[]
           hookQuestion: {
@@ -13486,8 +13501,11 @@ export interface components {
             } | null
             tiles: {
               label: string
+              qualifier: string | null
               value: string
-              lines: string[]
+              sub: string[]
+              quiet: string[]
+              detail: string[]
             }[]
             assumptions: string[]
             hookQuestion: {
