@@ -75,7 +75,13 @@ If you can't satisfy an item, say so explicitly rather than quietly skipping it.
                    page each for your money, reminders, notifications, linked accounts and the
                    conversation switcher; feedback and the privacy notice are rows there too
 /#/join/:token     partner experience
-/#/plan/:token     opens a plan made in the customer's own AI (one-time link), then the chat
+/#/plan/:token     a plan made in the customer's own AI (one-time link; `?plan=<token>` moves here
+                   and leaves the address at once). From the public preview, nothing stored: the
+                   app's own card with what the host's card showed (`arrival`, else the compact
+                   card), a grey box linking to /#/privacy, and Saoirse's one line (the hook
+                   question, `opening`). The customer's first message claims it (token spent
+                   then) and is sent as the chat's first turn; the chat shows the server's
+                   history (card and question, their answer, the reply)
 /#/admin/*         redirect to https://admin.saoi.ie/#/<rest> (the console's own site)
 /#/app/*, /#/try   redirect to /#/ (old links and printed QR codes)
 /#/baz             redirect to /#/ (the chat's old address; query string kept)

@@ -179,3 +179,96 @@ describe('the saved comparison card', () => {
     })
   })
 })
+
+describe('a home plan carrying what the host card showed', () => {
+  const arrival = {
+    keysOn: '2027-09',
+    readyLine: 'September 2027',
+    readyNote: 'Before interest',
+    factParts: [
+      '€40,000 deposit',
+      '+ €4,000 stamp duty',
+      '+ €3,000 legal and survey',
+      '− €35,000 Help to Buy',
+    ],
+    progress: { savedEur: 50_000, neededEur: 47_000, monthlySavingEur: 1_500 },
+    tiles: [
+      {
+        label: 'Savings',
+        value: 'up to 3.25%',
+        lines: ['€612 interest by Sep 2027', '7 accounts'],
+      },
+      {
+        label: 'Mortgage',
+        value: '€360,000',
+        lines: ['from 3.45%, €1,607/mo', '41 options, 30 years'],
+      },
+      { label: 'Could afford', value: 'up to €488,000', lines: ['4× income, 90% loan'] },
+    ],
+    assumptions: [
+      'Assumed: first-time buyers. Estimates only; rates and offers are not confirmed.',
+    ],
+    hookQuestion: null,
+  }
+  const homeCard: Extract<Card, { type: 'saved_plan' }> = {
+    ...card,
+    arrival,
+    comparison: {
+      headline: 'At these figures, the money at the keys is in place around September 2027.',
+      sortedBy: '41 options that fit, sorted by cost over the first 5 years.',
+      sortBy: 'five_year_cost',
+      filters: [],
+      total: 41,
+      options: [
+        {
+          lender: 'Bank of Ireland',
+          kind: '4-year fixed',
+          rate: '3.45%',
+          monthly: '€1,607/mo',
+          fiveYear: '€51,000 over 5 years',
+          keys: 'September 2027',
+          confirmed: true,
+        },
+      ],
+    },
+  }
+
+  it('is drawn as the arrival card, the same as on arrival, and names no lender or product', () => {
+    render(<SavedPlanCard card={homeCard} />)
+    expect(screen.getByText('September 2027')).toBeInTheDocument()
+    expect(screen.getByText('Before interest')).toBeInTheDocument()
+    expect(screen.getByText('− €35,000 Help to Buy')).toBeInTheDocument()
+    expect(screen.getByText('Covered')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('list', { name: 'At a glance' })).getAllByRole('listitem'),
+    ).toHaveLength(3)
+    expect(document.body.textContent).not.toMatch(/(?<!Central )Bank of Ireland|AIB|SuperSaver/)
+    expect(screen.queryByRole('list', { name: 'The first three options' })).not.toBeInTheDocument()
+    expect(screen.getByText(/not regulated by the Central Bank of Ireland/)).toBeInTheDocument()
+  })
+
+  it('keeps the progress line from the case’s holdings', async () => {
+    const LINE = '€6,500 owed, €9,000 when the plan was made.'
+    fetchCaseHoldings.mockResolvedValue({
+      holdings: [],
+      progress: {
+        goal: 'pay_off_debt',
+        goalLabel: 'Clear the car loan',
+        owedNowEur: 6500,
+        owedFrom: 'plan',
+        planOwedEur: 9000,
+        changeEur: -2500,
+        monthlyEur: 400,
+        monthsLeft: 17,
+        clearedIn: '2028-04',
+        line: LINE,
+      },
+    })
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SavedPlanCard card={homeCard} caseId="22222222-2222-4222-8222-222222222222" />
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText(LINE)).toBeInTheDocument()
+  })
+})

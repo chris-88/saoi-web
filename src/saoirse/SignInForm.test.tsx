@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { GOOGLE_NOTICE_LINE } from '@/lib/planArrival'
-import { NOTICE } from '@/lib/planClaim'
+import { MemoryRouter } from 'react-router-dom'
+import { GOOGLE_NOTICE_LINE } from '@/lib/dataNotice'
+import { Privacy } from '@/surfaces/Privacy'
 import type * as IdentityModule from '@/lib/identity'
 
 const identity = vi.hoisted(() => ({
@@ -76,6 +77,11 @@ describe('the data notice', () => {
     expect(GOOGLE_NOTICE_LINE).toBe(
       'If you sign in with Google, Saoi receives the name and email address on that account and nothing else.',
     )
-    expect(NOTICE.lines).toContain(GOOGLE_NOTICE_LINE)
+    render(
+      <MemoryRouter>
+        <Privacy />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText(GOOGLE_NOTICE_LINE)).toBeInTheDocument()
   })
 })

@@ -1,28 +1,31 @@
-import { useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ChevronDown } from 'lucide-react'
+import type { PreviewPlanResponse } from '@contracts/session.ts'
 import { ChatBubble } from '@/saoirse/ChatBubble'
 import { Composer } from '@/saoirse/Composer'
 import { SuggestionList } from '@/saoirse/SuggestionList'
 import { TypingBubble } from '@/saoirse/TypingBubble'
-import { NOTICE, PROBLEM_LINES, problemOf, type ClaimProblem } from '@/lib/planClaim'
-import { ACCEPT_LABEL, handArrivalToChat, hasDepositProduct, welcomeLine } from '@/lib/planArrival'
+import { PlanArrivalCard } from '@/saoirse/cards/PlanArrivalCard'
+import { CompactPlanCard, type CompactPlan } from '@/saoirse/cards/SavedPlanCard'
+import { PROBLEM_LINES, problemOf, type ClaimProblem } from '@/lib/planClaim'
+import { handFirstMessage } from '@/lib/planArrival'
 import { routesOf } from '@/lib/planRoutes'
 import { claimPlan, previewPlan } from '@/lib/session'
 import { isBackendConfigured } from '@/lib/env'
 import { queryKeys } from '@/lib/queryKeys'
 import { routes } from '@/app/routes'
-import { cn } from '@/lib/utils'
 
 /**
- * A saved comparison arriving in the chat (Chris, 2026-11-10: "the conversation just carries
- * on"). Saoirse's first two messages, the welcome and the data notice, are shown here, in the
- * chat's own layout, before anything is stored: the comparison is read by the public preview,
- * no session is started and the composer waits. Accepting claims it (the token is spent only
- * then, Invariant 8) and hands over to the chat, which carries these messages on and shows
- * the card and Saoirse's next line. A link that cannot be opened is a message too, with a
- * chip to start again.
+ * A saved comparison arriving in the app (2026-11-12, build 1 of the first-home experience).
+ *
+ * The app's own card, built from the public preview and showing what the host's card showed;
+ * under it one small grey box linking to the data protection notice; then Saoirse's one line,
+ * the question whose answer would change the plan most. Nothing else competes with it: no
+ * welcome, no chips, no second question. Nothing is stored before the customer writes: their
+ * first message claims the plan (the token is spent only then, Invariant 8), and the chat then
+ * opens on the server's conversation (the card and the question, their message, the reply).
+ * A link that cannot be opened is a message too, with a chip to start again.
  */
 export function PlanArrival({
   token,
@@ -32,7 +35,8 @@ export function PlanArrival({
   className?: string | undefined
 }): ReactNode {
   const navigate = useNavigate()
-  const [openNotice, setOpenNotice] = useState(false)
+  /** What they wrote, shown as theirs while the claim runs and kept for a retry. */
+  const [sent, setSent] = useState<string | null>(null)
 
   const preview = useQuery({
     queryKey: queryKeys.plans.preview(token),
@@ -44,17 +48,9 @@ export function PlanArrival({
   })
 
   const claim = useMutation({
-    mutationFn: () => claimPlan(token),
-    onSuccess: () => {
-      if (preview.data === undefined) return
-      const routeCount = routesOf(preview.data).length
-      handArrivalToChat({
-        welcome: welcomeLine(preview.data.title, routeCount),
-        notice: NOTICE.lines,
-        accepted: ACCEPT_LABEL,
-        routeCount,
-        hasDeposit: hasDepositProduct(preview.data.products),
-      })
+    mutationFn: (_message: string) => claimPlan(token),
+    onSuccess: (_claimed, message) => {
+      handFirstMessage(message)
       void navigate(routes.saoirse, { replace: true })
     },
   })
@@ -68,17 +64,73 @@ export function PlanArrival({
         : claim.isError
           ? problemOf(claim.error)
           : null
-  const accepting = claim.isPending || claim.isSuccess
+  const claiming = claim.isPending || claim.isSuccess
   const startAgain = (): void => {
     void navigate(routes.saoirse, { replace: true })
   }
+  const send = (message: string): void => {
+    setSent(message)
+    claim.mutate(message)
+  }
+
+  /*
+   * The card is taller than a phone, so the question would sit below the fold. The screen opens
+   * on the top of the card, the same view as the host's, then follows the conversation down to
+   * Saoirse's question after a beat, as a chat lands on its newest message; and to whatever comes
+   * after it (their message, a refusal) at once.
+   */
+  const end = useRef<HTMLDivElement>(null)
+  const landed = useRef(false)
+  const settled = preview.data !== undefined || problem !== null
+  useEffect(() => {
+    const element = end.current
+    if (!settled || element === null || typeof element.scrollIntoView !== 'function') return
+    const still =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const follow = (): void => {
+      landed.current = true
+      element.scrollIntoView({ block: 'end', behavior: still ? 'auto' : 'smooth' })
+    }
+    if (landed.current) {
+      follow()
+      return
+    }
+    const timer = window.setTimeout(follow, 700)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [settled, sent, problem, claiming])
 
   return (
     <div className={className}>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4">
+        {preview.data !== undefined && !preview.isError && (
+          <>
+            <div className="pl-10">
+              <ArrivalCard preview={preview.data} />
+            </div>
+            <div className="pl-10">
+              <Link
+                to={routes.privacy}
+                className="bg-muted text-muted-foreground hover:text-foreground focus-visible:ring-ring flex min-h-11 items-center rounded-md px-3 py-2 text-xs underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+              >
+                Click here for the data protection notice
+              </Link>
+            </div>
+            <ChatBubble author="assistant" first>
+              <p>{preview.data.opening}</p>
+            </ChatBubble>
+            {sent !== null && (
+              <ChatBubble author="customer">
+                <p>{sent}</p>
+              </ChatBubble>
+            )}
+          </>
+        )}
         {problem !== null ? (
           <>
-            <ChatBubble author="assistant">
+            <ChatBubble author="assistant" first={preview.data === undefined}>
               <p>{PROBLEM_LINES[problem]}</p>
             </ChatBubble>
             <SuggestionList
@@ -94,76 +146,49 @@ export function PlanArrival({
               onSelect={(suggestion) => {
                 if (suggestion.id === 'again') startAgain()
                 else if (preview.isError) void preview.refetch()
+                else if (sent !== null) claim.mutate(sent)
                 else claim.reset()
               }}
             />
           </>
-        ) : preview.data === undefined ? (
-          <TypingBubble first />
-        ) : (
-          <>
-            <ChatBubble author="assistant" showAvatar={false} first>
-              <p>{welcomeLine(preview.data.title, routesOf(preview.data).length)}</p>
-            </ChatBubble>
-            <ChatBubble author="assistant">
-              <div className="space-y-2">
-                {NOTICE.lines.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-                <button
-                  type="button"
-                  className="text-primary inline-flex min-h-11 items-center gap-1 font-medium underline-offset-4 hover:underline"
-                  aria-expanded={openNotice}
-                  aria-controls="full-notice"
-                  onClick={() => {
-                    setOpenNotice((value) => !value)
-                  }}
-                >
-                  Read the full notice
-                  <ChevronDown
-                    aria-hidden
-                    className={cn('size-4 transition-transform', openNotice && 'rotate-180')}
-                  />
-                </button>
-                <div id="full-notice" hidden={!openNotice} className="space-y-2 border-t pt-2">
-                  {NOTICE.full.map((item) => (
-                    <p key={item.label}>
-                      <span className="font-medium">{item.label}. </span>
-                      <span className="text-muted-foreground">{item.text}</span>
-                    </p>
-                  ))}
-                </div>
-              </div>
-            </ChatBubble>
-            {accepting ? (
-              <>
-                <ChatBubble author="customer">
-                  <p>{ACCEPT_LABEL}</p>
-                </ChatBubble>
-                <TypingBubble />
-              </>
-            ) : (
-              <SuggestionList
-                className="pl-10"
-                suggestions={[{ id: 'accept', label: ACCEPT_LABEL }]}
-                onSelect={() => {
-                  claim.mutate()
-                }}
-              />
-            )}
-          </>
-        )}
+        ) : preview.data === undefined || claiming ? (
+          <TypingBubble first={preview.data === undefined} />
+        ) : null}
+        <div ref={end} aria-hidden />
       </div>
       <div className="bg-background/95 supports-[backdrop-filter]:bg-background/80 shrink-0 border-t px-4 pt-2.5 pb-[max(0.625rem,var(--safe-bottom))] backdrop-blur">
         <Composer
           hint={false}
-          disabled
-          onSend={() => undefined}
-          placeholder={
-            problem === null ? 'Tap “That’s fine, carry on” to start' : 'Start again to chat'
-          }
+          disabled={preview.data === undefined || problem !== null || claiming}
+          onSend={send}
+          {...(problem === null ? {} : { placeholder: 'Start again to chat' })}
         />
       </div>
     </div>
   )
+}
+
+/** The arrival card when the preview carries one, else the compact card, as in the chat. */
+function ArrivalCard({ preview }: { preview: PreviewPlanResponse }): ReactNode {
+  const planRoutes = routesOf(preview)
+  if (preview.arrival !== null) {
+    return <PlanArrivalCard arrival={preview.arrival} routes={planRoutes} />
+  }
+  return <CompactPlanCard plan={compactOf(preview, planRoutes)} />
+}
+
+/** A preview in the compact card's terms, so an older plan looks as it will in the chat. */
+function compactOf(preview: PreviewPlanResponse, planRoutes: CompactPlan['routes']): CompactPlan {
+  return {
+    title: preview.title,
+    figures: preview.figures,
+    ...(preview.comparison === null ? {} : { comparison: preview.comparison }),
+    products: preview.products.map((product) => ({
+      name: product.name,
+      providerName: product.provider,
+      amounts: product.line === '' ? [] : [product.line],
+      rate: null,
+    })),
+    routes: planRoutes,
+  }
 }

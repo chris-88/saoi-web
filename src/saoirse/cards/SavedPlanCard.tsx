@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import type { Card as CardPayload } from '@contracts/cards.ts'
 import { Card } from '@/components/ui/card'
-import { routesOf } from '@/lib/planRoutes'
+import { routesOf, type PlanRoute } from '@/lib/planRoutes'
+import { PlanArrivalCard } from '@/saoirse/cards/PlanArrivalCard'
 import { PlanRoutes } from '@/saoirse/cards/PlanRoutes'
 import { useCaseHoldings } from '@/api/holdings'
 
@@ -10,13 +11,35 @@ type Payload = Extract<CardPayload, { type: 'saved_plan' }>
 /**
  * A comparison the customer saved in their own AI, opened here.
  *
- * Compact on purpose (Chris, 2026-11-10: the full card overwhelmed): the goal and date, their
- * figures in one line, and the first three options as one line each, in the order they chose.
- * Everything else (the rest of the options, conditions, the savings split, how it was worked
- * out) comes up in the conversation when they ask; Saoirse's context holds all of it. Every
- * line is the server's, built from the stored plan. A home plan's routes follow the card, three
- * then the rest on a tap (2026-11-10), when the card carries them.
+ * A home plan saved from 2026-11-12 carries `arrival`, what the host's card showed, and is drawn
+ * as that card (`PlanArrivalCard`), the same on the arrival screen and in the conversation.
+ * Anything older, or without a home goal, is the compact card (Chris, 2026-11-10: the full
+ * card overwhelmed): the goal and date, their figures in one line, and the first three options
+ * as one line each, in the order they chose. Everything else comes up in the conversation when
+ * they ask; Saoirse's context holds all of it. Every line is the server's, built from the stored
+ * plan.
  */
+export function SavedPlanCard({
+  card,
+  caseId = null,
+}: {
+  card: Payload
+  /** The conversation the card is in; with none, no progress is read. */
+  caseId?: string | null
+}): ReactNode {
+  const progress = caseId === null ? null : <PlanProgressLine caseId={caseId} />
+  if (card.arrival !== undefined) {
+    return (
+      <PlanArrivalCard
+        arrival={card.arrival}
+        routes={routesOf(card)}
+        progressLine={progress === null ? undefined : <div className="px-4 pb-3">{progress}</div>}
+      />
+    )
+  }
+  return <CompactPlanCard plan={card} progressLine={progress} />
+}
+
 /**
  * Where the plan stands now, from the case's holdings (2026-11-11): the server's one factual
  * line, or nothing when the plan has no deposit or debt goal, or while it loads or fails (the
@@ -29,15 +52,29 @@ function PlanProgressLine({ caseId }: { caseId: string }): ReactNode {
   return <p className="text-muted-foreground text-xs leading-snug">{line}</p>
 }
 
-export function SavedPlanCard({
-  card,
-  caseId = null,
+/** What the compact card reads: the saved-plan card, or a plan preview shaped like one. */
+export type CompactPlan = {
+  readonly title: string
+  readonly figures?: string | undefined
+  readonly comparison?: Payload['comparison'] | undefined
+  readonly products: readonly {
+    readonly name: string
+    readonly providerName: string
+    readonly amounts: readonly string[]
+    readonly rate: string | null
+  }[]
+  readonly routes: readonly PlanRoute[]
+}
+
+/** The goal, their figures in one line, and the first three options, one line each. */
+export function CompactPlanCard({
+  plan,
+  progressLine = null,
 }: {
-  card: Payload
-  /** The conversation the card is in; with none, no progress is read. */
-  caseId?: string | null
+  plan: CompactPlan
+  progressLine?: ReactNode
 }): ReactNode {
-  const comparison = card.comparison
+  const comparison = plan.comparison
   /** The sorted-by figure, named once above the rows so each row stays one short line. */
   const by =
     comparison === undefined
@@ -56,26 +93,25 @@ export function SavedPlanCard({
           right: (option.lead ?? option.fiveYear).replace(/ \/ 5 yrs$| over 5 years$/, ''),
           unconfirmed: !option.confirmed,
         }))
-      : card.products.slice(0, 3).map((product, index) => ({
+      : plan.products.slice(0, 3).map((product, index) => ({
           key: String(index),
           left: `${product.providerName} · ${product.name}`,
           right: product.amounts[0] ?? product.rate ?? '',
           unconfirmed: false,
         }))
   const anyUnconfirmed = rows.some((row) => row.unconfirmed)
-  const routes = routesOf(card)
 
   return (
     <div className="space-y-2">
       <Card className="gap-0 overflow-hidden p-0">
         <div className="space-y-1 px-4 pt-3.5 pb-3">
-          <h3 className="text-sm font-semibold text-balance">{card.title}</h3>
-          {card.figures !== undefined && card.figures !== '' && (
+          <h3 className="text-sm font-semibold text-balance">{plan.title}</h3>
+          {plan.figures !== undefined && plan.figures !== '' && (
             <p className="text-muted-foreground text-xs whitespace-nowrap tabular-nums">
-              {card.figures}
+              {plan.figures}
             </p>
           )}
-          {caseId !== null && <PlanProgressLine caseId={caseId} />}
+          {progressLine}
           {comparison !== undefined && by !== null && (
             <p className="text-muted-foreground text-xs">
               First {String(Math.min(3, comparison.total))} of {String(comparison.total)}, by {by}
@@ -109,7 +145,7 @@ export function SavedPlanCard({
           <p>Information, not advice. Saoi is not regulated by the Central Bank of Ireland.</p>
         </div>
       </Card>
-      <PlanRoutes routes={routes} />
+      <PlanRoutes routes={plan.routes} />
     </div>
   )
 }
