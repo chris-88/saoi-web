@@ -11,6 +11,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -165,7 +166,7 @@ const HOME_ONLY: ReadonlySet<PlanField> = new Set([
 ])
 
 const FIELD_LABELS = {
-  targetDate: 'Keys by',
+  targetDate: 'Date you gave',
   homePrice: 'Price of the home',
   monthlySaving: 'Saved each month',
   propertyKind: 'Kind of home',
@@ -173,9 +174,12 @@ const FIELD_LABELS = {
   buyingTogether: 'Buying together',
 } as const satisfies Record<PlanField, string>
 
-/** The goal month is the keys month only on a home plan. */
+/** The date the customer gave; "Goal month" when the plan is not for a home. */
 const labelOf = (field: PlanField, home: boolean): string =>
   field === 'targetDate' && !home ? 'Goal month' : FIELD_LABELS[field]
+
+const DATE_HINT =
+  'The month you are aiming for. The keys month above is when the money is there at this pace.'
 
 const NOT_SET = 'Not set'
 const yesNo = (value: boolean | null): string => (value === null ? NOT_SET : value ? 'Yes' : 'No')
@@ -270,6 +274,7 @@ function EditableRows({ caseId, plan }: { readonly caseId: string; readonly plan
           <MonthEditor
             {...common}
             initial={editable.targetDate}
+            hint={home ? DATE_HINT : null}
             onSave={(value) => save({ targetDate: value })}
           />
         )
@@ -390,7 +395,13 @@ const monthSchema = z.object({
     .refine((value) => value >= currentMonth(), 'Choose this month or a later one.'),
 })
 
-function MonthEditor({ label, initial, onSave, ...actions }: EditorProps<string>): ReactNode {
+function MonthEditor({
+  label,
+  initial,
+  hint,
+  onSave,
+  ...actions
+}: EditorProps<string> & { readonly hint: string | null }): ReactNode {
   const form = useForm({
     resolver: zodResolver(monthSchema),
     defaultValues: { value: initial ?? '' },
@@ -413,6 +424,7 @@ function MonthEditor({ label, initial, onSave, ...actions }: EditorProps<string>
               <FormControl>
                 <Input type="month" min={currentMonth()} placeholder="YYYY-MM" {...field} />
               </FormControl>
+              {hint !== null && <FormDescription>{hint}</FormDescription>}
               <FormMessage />
             </FormItem>
           )}

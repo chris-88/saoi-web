@@ -384,8 +384,11 @@ describe('Your plan', () => {
     fetchCasePlan.mockResolvedValue(PLAN)
     renderAt('/you/plan')
 
-    fireEvent.click(await screen.findByRole('button', { name: /keys by/i }))
-    fireEvent.change(screen.getByLabelText('Keys by'), { target: { value: '2020-01' } })
+    fireEvent.click(await screen.findByRole('button', { name: /date you gave/i }))
+    expect(
+      screen.getByText(/The keys month above is when the money is there at this pace/),
+    ).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Date you gave'), { target: { value: '2020-01' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Choose this month or a later one.')).toBeInTheDocument()
 
@@ -450,6 +453,9 @@ describe('Your plan', () => {
     expect(await screen.findByText('By September 2027')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /goal month: september 2027/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /saved each month/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /goal month/i }))
+    expect(screen.queryByText(/keys month above/i)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     for (const name of [/price of the home/i, /kind of home/i, /first-time/i, /buying together/i]) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
     }
