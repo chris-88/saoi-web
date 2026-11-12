@@ -85,8 +85,132 @@ export function reloadWhenWorkerTakesOver(): void {
   })
 }
 
+/** The worker serving this page when it started (null: none), and so the build it runs. */
+const controllerAtLoad: ServiceWorker | null =
+  typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+    ? navigator.serviceWorker.controller
+    : null
+
 /** Whether this page was being served by a worker when it started. */
-const hadController =
-  typeof navigator !== 'undefined' &&
-  'serviceWorker' in navigator &&
-  navigator.serviceWorker.controller !== null
+const hadController = controllerAtLoad !== null
+
+const BUILD_ATTEMPTED = 'saoi:contract-reload'
+
+/**
+ * One reload per five minutes for a response the page cannot read. Long enough to cover a slow
+ * phone's reload and its first call, so a server that genuinely changed shape is met with one
+ * reload and then a message, never a page that keeps reloading.
+ */
+const BUILD_WINDOW_MS = 5 * 60_000
+
+/** How long to wait for a newer worker to finish installing before saying so instead. */
+const INSTALL_WAIT_MS = 15_000
+
+/** The browser, unless a test hands in its own. */
+export type BuildRecovery = {
+  readonly container?: ServiceWorkerContainer | undefined
+  readonly storage?: Storage | undefined
+  readonly reload?: (() => void) | undefined
+  readonly controllerAtLoad?: ServiceWorker | null | undefined
+  readonly waitMs?: number | undefined
+}
+
+/** Reload the page: the "Reload" chip, and the recovery below. */
+export function reloadPage(): void {
+  window.location.reload()
+}
+
+/**
+ * A response this build cannot read: reload into the newer build, if there is one.
+ *
+ * The worker serves the build it precached, so a page opened after a deploy runs the old bundle
+ * until the new worker has downloaded the new shell and taken over (`reloadWhenWorkerTakesOver`
+ * then reloads). When the server's contract moved in the same release, the old bundle's Zod parse
+ * rejects a good response in the meantime, and the customer sees a failure that is really an
+ * old page. A reload fixes that only when a newer worker exists, so this asks for one
+ * (`registration.update()`), lets it take over (`SKIP_WAITING`, for a worker left waiting) and
+ * reloads once it is active.
+ *
+ * Resolves `true` when a reload has started, so the caller can hold its loading state while the
+ * page goes away; `false` when there is no newer build or the guard refused, so the caller says
+ * the page needs a reload instead. Never rejects.
+ */
+export async function reloadIntoNewerBuild(options: BuildRecovery = {}): Promise<boolean> {
+  const container =
+    options.container ??
+    (typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+      ? navigator.serviceWorker
+      : undefined)
+  if (container === undefined) return false
+  const reload = options.reload ?? reloadPage
+  const atLoad =
+    options.controllerAtLoad === undefined ? controllerAtLoad : options.controllerAtLoad
+
+  let storage: Storage
+  try {
+    storage = options.storage ?? sessionStorage
+    const last = Number(storage.getItem(BUILD_ATTEMPTED) ?? '0')
+    if (Date.now() - last < BUILD_WINDOW_MS) return false
+  } catch {
+    // Nowhere to record the attempt means nothing to stop a loop: say so instead.
+    return false
+  }
+
+  const go = (): true => {
+    try {
+      storage.setItem(BUILD_ATTEMPTED, String(Date.now()))
+    } catch {
+      // Readable a moment ago; and if not, refusing would leave them on the old build.
+    }
+    reload()
+    return true
+  }
+
+  try {
+    // A newer worker has already taken this page over: everything under it is newer than us.
+    if (atLoad !== null && container.controller !== null && container.controller !== atLoad) {
+      return go()
+    }
+
+    const registration = await container.getRegistration()
+    if (registration === undefined) return false
+
+    let next = registration.waiting ?? registration.installing
+    if (next === null) {
+      await registration.update()
+      next = registration.waiting ?? registration.installing
+    }
+    if (next === null) return false
+
+    return (await activated(next, options.waitMs ?? INSTALL_WAIT_MS)) ? go() : false
+  } catch {
+    // An update check that fails (offline, the worker script unreachable) finds no newer build.
+    return false
+  }
+}
+
+/**
+ * Resolves `true` once the worker is active, `false` if it fails to install or takes too long.
+ *
+ * This app's worker skips waiting by itself (`registerType: 'autoUpdate'`); the message is the
+ * Workbox convention for one that does not, so a worker found waiting is never left there.
+ */
+function activated(worker: ServiceWorker, waitMs: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const settle = (result: boolean): void => {
+      window.clearTimeout(timer)
+      worker.removeEventListener('statechange', check)
+      resolve(result)
+    }
+    const check = (): void => {
+      if (worker.state === 'activated') settle(true)
+      else if (worker.state === 'redundant') settle(false)
+      else if (worker.state === 'installed') worker.postMessage({ type: 'SKIP_WAITING' })
+    }
+    const timer = window.setTimeout(() => {
+      settle(false)
+    }, waitMs)
+    worker.addEventListener('statechange', check)
+    check()
+  })
+}
