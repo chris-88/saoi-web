@@ -35,6 +35,13 @@ import {
   type Holding,
   type UpdateHoldingBody,
 } from '@contracts/holdings.ts'
+import {
+  casePlanSchema,
+  planEditResponseSchema,
+  type CasePlan,
+  type PlanEditBody,
+  type PlanEditResponse,
+} from '@/lib/plan'
 
 export { SaoiApiError }
 
@@ -154,6 +161,33 @@ export async function deleteHolding(caseId: string, holdingId: string): Promise<
     params: { path: { caseId, holdingId } },
   })
   if (!response.ok) throw apiError(response.status, error)
+}
+
+/**
+ * The plan claimed on the case, as the profile shows it, or null when there is none (the
+ * server's 404). Any other failure is thrown.
+ */
+export async function fetchCasePlan(caseId: string): Promise<CasePlan | null> {
+  const { data, error, response } = await api.GET('/api/cases/{caseId}/plan', {
+    params: { path: { caseId } },
+  })
+  if (response.status === 404) return null
+  if (!response.ok) throw apiError(response.status, error)
+  return casePlanSchema.parse(data)
+}
+
+/**
+ * Changes the plan's own figures (only the fields given). The server recomputes the plan,
+ * writes a `plan_edited` event and returns the plan with one sentence of what the edit changed.
+ */
+export function updateCasePlan(caseId: string, body: PlanEditBody): Promise<PlanEditResponse> {
+  return parsed(
+    api.PATCH('/api/cases/{caseId}/plan', {
+      params: { path: { caseId } },
+      body: compact(body),
+    }),
+    planEditResponseSchema,
+  )
 }
 
 const registeredSchema = z.object({ registered: z.literal(true) })

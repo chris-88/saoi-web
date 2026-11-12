@@ -1439,6 +1439,114 @@ export interface paths {
     }
     trace?: never
   }
+  /**
+   * HAND-TYPED STAND-IN (saoi-web feat/your-plan, 2026-11-12): the plan routes agreed with the
+   * backend's `feat/plan-edit`, typed here so the client compiles before the API deploys.
+   * `npm run api:generate` replaces this entry with the real one.
+   */
+  '/api/cases/{caseId}/plan': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** The plan claimed on the case, as the profile shows it */
+    get: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          caseId: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['CasePlan']
+          }
+        }
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No such case for this caller, or no plan claimed on it. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Change the plan's own figures; writes a `plan_edited` event */
+    patch: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          caseId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['UpdateCasePlan']
+        }
+      }
+      responses: {
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['CasePlanEdited']
+          }
+        }
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    trace?: never
+  }
   '/api/cases/{caseId}/products/select': {
     parameters: {
       query?: never
@@ -7706,6 +7814,41 @@ export interface components {
       /** @default false */
       hasUpdates: boolean
     }
+    /** HAND-TYPED STAND-IN until `npm run api:generate` (see the plan path). */
+    CasePlanEditable: {
+      targetDate: string | null
+      homePrice: number | null
+      monthlySaving: number | null
+      /** @enum {string|null} */
+      propertyKind: 'new_build' | 'second_hand' | 'self_build' | null
+      firstTimeBuyer: boolean | null
+      buyingTogether: boolean | null
+    }
+    /** HAND-TYPED STAND-IN until `npm run api:generate` (see the plan path). */
+    CasePlan: {
+      planId: string
+      title: string
+      editable: components['schemas']['CasePlanEditable']
+      summary: {
+        keysOn: string | null
+        neededAtKeysEur: number | null
+        savedEur: number | null
+        progressLine: string | null
+      }
+      watched: {
+        lead: string
+        kind: string
+        value: string
+        figure: string
+      }[]
+      updatedAt: string
+    }
+    /** HAND-TYPED STAND-IN until `npm run api:generate` (see the plan path). */
+    CasePlanEdited: components['schemas']['CasePlan'] & {
+      reading: string
+    }
+    /** HAND-TYPED STAND-IN until `npm run api:generate` (see the plan path). */
+    UpdateCasePlan: Partial<components['schemas']['CasePlanEditable']>
     ErrorResponse: {
       /** @enum {boolean} */
       ok: false

@@ -28,6 +28,8 @@ export const queryKeys = {
     alerts: (caseId: string) => ['case', caseId, 'alerts'] as const,
     /** Accounts and debts entered by hand, and progress on the plan ("Your money", the plan card). */
     holdings: (caseId: string) => ['case', caseId, 'holdings'] as const,
+    /** The claimed plan as the profile shows and edits it ("Your plan" under You). */
+    plan: (caseId: string) => ['case', caseId, 'plan'] as const,
   },
 
   plans: {
