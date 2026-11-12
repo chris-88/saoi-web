@@ -276,6 +276,7 @@ export function settledState(card: Card, state: CaseState): Settled | undefined 
     case 'partner_invite':
     case 'quote':
     case 'status':
+    case 'market_products':
       return undefined
   }
 }

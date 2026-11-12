@@ -663,6 +663,69 @@ export const transferCardSchema = z.object({
   why: z.string(),
 })
 
+/**
+ * The product card that follows the question asked (first-home experience, section 4).
+ *
+ * HAND-TYPED STAND-IN (saoi-web, 2026-11-12): the backend adds this card on `saoi` branch
+ * `feat/question-led-card`, emitted by the `show_products` tool. Replace with `npm run
+ * shared:sync` once that branch is deployed.
+ *
+ * Arranged by what the question implies rather than by a fixed default, and the card names its
+ * arrangement and how to change it. Every row, figure and line is the server's; the card adds no
+ * arithmetic. Something to read, not something to decide: nothing on it is a pick, so it is not
+ * in `AWAITING_CARDS`.
+ */
+export const MARKET_ARRANGEMENT_KINDS = [
+  'held_vs_market',
+  'by_access',
+  'fits_date',
+  'mortgage_by_sort',
+] as const
+
+export const marketProductsCardSchema = z.object({
+  type: z.literal('market_products'),
+  /** The customer's question as understood, one line. */
+  question: z.string(),
+  arrangement: z.object({
+    kind: z.enum(MARKET_ARRANGEMENT_KINDS),
+    /** "Your account against the market". */
+    title: z.string(),
+    /** How it is arranged, and how to ask for it another way. */
+    line: z.string(),
+  }),
+  rows: z
+    .array(
+      z.object({
+        id: z.string(),
+        /** The provider and product, or the lender. */
+        lead: z.string(),
+        /** "Instant access", "6-month fixed term", "3-year fixed". */
+        kind: z.string(),
+        /** The headline figure: "3.00% AER", "€1,612 a month". */
+        value: z.string(),
+        /** The supporting figure: "€612 after DIRT by July 2028". */
+        figure: z.string(),
+        note: z.string().nullable(),
+        /** The customer's own account. */
+        held: z.boolean(),
+        /** False when the figures are not confirmed on the provider's own site. */
+        confirmed: z.boolean(),
+      }),
+    )
+    .max(8),
+  /** How many more matched than are shown. */
+  more: z.number().int().nonnegative(),
+  /** The basis statement (duty-of-care standard 2.4). */
+  basis: z.object({
+    figures: z.array(z.string()),
+    objective: z.string(),
+    assumptions: z.array(z.string()),
+    coverage: z.string(),
+    warnings: z.array(z.string()),
+  }),
+  statement: z.string(),
+})
+
 export const cardSchema = z.discriminatedUnion('type', [
   quoteCardSchema,
   planProposalCardSchema,
@@ -687,6 +750,7 @@ export const cardSchema = z.discriminatedUnion('type', [
   connectAccountsCardSchema,
   accountsOverviewCardSchema,
   transferCardSchema,
+  marketProductsCardSchema,
 ])
 
 export type Card = z.infer<typeof cardSchema>
@@ -716,6 +780,7 @@ export const CARD_TYPES = [
   'connect_accounts',
   'accounts_overview',
   'transfer',
+  'market_products',
 ] as const satisfies readonly CardType[]
 
 /**
