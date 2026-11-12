@@ -5,7 +5,11 @@ import { Providers } from '@/app/providers'
 import { router } from '@/app/router'
 import { initSentry } from '@/lib/sentry'
 import { completeSignIn } from '@/lib/identity'
-import { recoverFromStaleDeploy, reloadWhenWorkerTakesOver } from '@/app/staleDeploy'
+import {
+  checkForUpdates,
+  recoverFromStaleDeploy,
+  reloadWhenWorkerTakesOver,
+} from '@/app/staleDeploy'
 import '@/styles/fonts.css'
 import '@/index.css'
 
@@ -38,6 +42,12 @@ window.addEventListener('vite:preloadError', (event) => {
  * somebody saw. When the new worker claims the page, reload into it.
  */
 reloadWhenWorkerTakesOver()
+
+/*
+ * An installed app can stay open for days without loading again, so it never repeats the check
+ * the `load`-time registration makes. Look again whenever it comes back into view, and hourly.
+ */
+checkForUpdates()
 
 const rootElement = document.getElementById('root')
 if (!rootElement) throw new Error('Root element #root is missing from index.html')

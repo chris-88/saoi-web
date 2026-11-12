@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ChatBubble } from '@/saoirse/ChatBubble'
 import { TypingBubble } from '@/saoirse/TypingBubble'
 import { TurnFeedback } from '@/saoirse/TurnFeedback'
+import { useReloadHold } from '@/app/reloadGate'
 import { Composer } from '@/saoirse/Composer'
 import { SuggestionList, type Suggestion } from '@/saoirse/SuggestionList'
 import { ZeroState } from '@/saoirse/ZeroState'
@@ -101,6 +102,8 @@ export function SaoirseChat({
   const [joining, setJoining] = useState(isBackendConfigured)
   const [joinError, setJoinError] = useState<string | null>(null)
   const { entries, streaming, error, send, loadFrom, resettle, reset } = useConversation(caseId)
+  // A new build never cuts a reply off mid-stream (`reloadGate`).
+  useReloadHold('streaming', streaming)
 
   /**
    * The fork offered after a quote option has been talked through.

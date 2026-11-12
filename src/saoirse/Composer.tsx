@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGhostPrompt } from '@/saoirse/useGhostPrompt'
+import { useReloadHold } from '@/app/reloadGate'
 
 /**
  * The message composer.
@@ -58,6 +59,8 @@ export function Composer({
    * whether there is anything to send.
    */
   const [length, setLength] = useState(0)
+  // A new build waits for the half-written message (`reloadGate`).
+  useReloadHold('draft', length > 0)
 
   const canSend = length > 0 && disabled !== true
   const ghost = useGhostPrompt(hint && length === 0 && placeholder === undefined)

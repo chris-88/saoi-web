@@ -135,6 +135,11 @@ from model text; nothing sensitive in URLs; nothing secret in `VITE_*`.
   an open install on its next open instead of waiting for a new worker to finish installing; the
   precache is the offline fallback only. No `navigateFallback`, `directoryIndex: null`;
   `scripts/check-service-worker.ts` (in `check:bundle`) fails the build if `dist/sw.js` drifts.
+- An open page looks for a new worker whenever it comes back into view and hourly
+  (`checkForUpdates`), so an installed app updates without being reinstalled. The new worker's
+  takeover reloads the page (`reloadWhenWorkerTakesOver`), but never mid-reply and never over a
+  half-written message while the page is visible (`src/app/reloadGate.ts`: surfaces report
+  `useReloadHold('draft' | 'streaming', active)`).
 - The entry chunk and the up-front download have budgets (`scripts/check-bundle-size.ts`);
   anything a first visit does not need goes behind `lazy()`. `scripts/check-bundle-secrets.ts`
   fails the build if a credential shape reaches `dist/`.
