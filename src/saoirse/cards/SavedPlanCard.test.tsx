@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Card } from '@contracts/cards.ts'
 import type { CaseHoldingsResponse } from '@contracts/holdings.ts'
@@ -195,15 +195,28 @@ describe('a home plan carrying what the host card showed', () => {
     tiles: [
       {
         label: 'Savings',
-        value: 'up to 3.25%',
-        lines: ['€612 interest by Sep 2027', '7 accounts'],
+        qualifier: 'up to',
+        value: '3.11%',
+        sub: ['€815 interest', 'by Jul 2028'],
+        quiet: ['28 accounts'],
+        detail: ['The best rate among 28 accounts open to you, after DIRT.', 'Variable rates.'],
       },
       {
         label: 'Mortgage',
-        value: '€360,000',
-        lines: ['from 3.45%, €1,607/mo', '41 options, 30 years'],
+        qualifier: 'from',
+        value: '€1,751/mo',
+        sub: ['€405,000 loan', 'from 3.20%'],
+        quiet: ['49 options'],
+        detail: ['Over 30 years at the lowest rate of 49 options.'],
       },
-      { label: 'Could afford', value: 'up to €488,000', lines: ['4× income, 90% loan'] },
+      {
+        label: 'Could afford',
+        qualifier: 'up to',
+        value: '€666,000',
+        sub: ['4× income', '90% loan'],
+        quiet: [],
+        detail: [],
+      },
     ],
     assumptions: [
       'Assumed: first-time buyers. Estimates only; rates and offers are not confirmed.',
@@ -245,6 +258,85 @@ describe('a home plan carrying what the host card showed', () => {
     expect(document.body.textContent).not.toMatch(/(?<!Central )Bank of Ireland|AIB|SuperSaver/)
     expect(screen.queryByRole('list', { name: 'The first three options' })).not.toBeInTheDocument()
     expect(screen.getByText(/not regulated by the Central Bank of Ireland/)).toBeInTheDocument()
+  })
+
+  it('lays out each tile: the qualifier above the value, the sub lines, the quiet count', () => {
+    render(<SavedPlanCard card={homeCard} />)
+    const [savings, mortgage, afford] = within(
+      screen.getByRole('list', { name: 'At a glance' }),
+    ).getAllByRole('listitem')
+    const parts = (tile: HTMLElement | undefined): string[] =>
+      [...(tile?.querySelectorAll(':scope > * > span') ?? [])].map((part) => part.textContent)
+    // Label row, qualifier row, value, each sub string, the quiet count.
+    expect(parts(savings)).toEqual([
+      'Savings',
+      'up to',
+      '3.11%',
+      '€815 interest',
+      'by Jul 2028',
+      '28 accounts',
+    ])
+    expect(parts(mortgage)).toEqual([
+      'Mortgage',
+      'from',
+      '€1,751/mo',
+      '€405,000 loan',
+      'from 3.20%',
+      '49 options',
+    ])
+    expect(parts(afford)).toEqual(['Could afford', 'up to', '€666,000', '4× income', '90% loan'])
+  })
+
+  it('keeps an empty qualifier row when a tile has none, so the values line up', () => {
+    const [first, ...rest] = homeCard.arrival?.tiles ?? []
+    if (first === undefined || homeCard.arrival === undefined) throw new Error('fixture')
+    render(
+      <SavedPlanCard
+        card={{
+          ...homeCard,
+          arrival: { ...homeCard.arrival, tiles: [{ ...first, qualifier: null }, ...rest] },
+        }}
+      />,
+    )
+    const savings = within(screen.getByRole('list', { name: 'At a glance' })).getAllByRole(
+      'listitem',
+    )[0]
+    const rows = [...(savings?.querySelectorAll(':scope > * > span') ?? [])]
+    expect(rows.map((row) => row.textContent).slice(0, 3)).toEqual(['Savings', '', '3.11%'])
+  })
+
+  it('opens a tile’s detail on a tap, one at a time; a tile without detail is not a button', () => {
+    render(<SavedPlanCard card={homeCard} />)
+    const savings = screen.getByRole('button', { name: /^Savings/ })
+    const mortgage = screen.getByRole('button', { name: /^Mortgage/ })
+    expect(screen.queryByRole('button', { name: /^Could afford/ })).not.toBeInTheDocument()
+    expect(savings).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByText('Variable rates.')).not.toBeVisible()
+
+    fireEvent.click(savings)
+    expect(savings).toHaveAttribute('aria-expanded', 'true')
+    const detail = screen.getByRole('region', { name: 'Savings' })
+    expect(savings).toHaveAttribute('aria-controls', detail.id)
+    expect(within(detail).getByText('Variable rates.')).toBeVisible()
+
+    fireEvent.click(mortgage)
+    expect(savings).toHaveAttribute('aria-expanded', 'false')
+    expect(mortgage).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Over 30 years at the lowest rate of 49 options.')).toBeVisible()
+    expect(screen.getByText('Variable rates.')).not.toBeVisible()
+
+    fireEvent.click(mortgage)
+    expect(mortgage).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('makes each expandable tile a native button in the tab order', () => {
+    render(<SavedPlanCard card={homeCard} />)
+    const savings = screen.getByRole('button', { name: /^Savings/ })
+    // A real <button type="button">: Enter and Space work without a key handler of our own.
+    expect(savings.tagName).toBe('BUTTON')
+    expect(savings).toHaveAttribute('type', 'button')
+    savings.focus()
+    expect(savings).toHaveFocus()
   })
 
   it('keeps the progress line from the case’s holdings', async () => {

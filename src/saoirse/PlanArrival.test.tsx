@@ -45,13 +45,30 @@ const ARRIVAL = {
   factParts: ['€40,000 deposit', '+ €4,000 stamp duty', '+ €3,000 legal and survey'],
   progress: { savedEur: 32_000, neededEur: 47_000, monthlySavingEur: 1_500 },
   tiles: [
-    { label: 'Savings', value: 'up to 3.25%', lines: ['€612 interest by Sep 2027', '7 accounts'] },
+    {
+      label: 'Savings',
+      qualifier: 'up to',
+      value: '3.11%',
+      sub: ['€815 interest', 'by Jul 2028'],
+      quiet: ['28 accounts'],
+      detail: ['The best rate among 28 accounts open to you, after DIRT.'],
+    },
     {
       label: 'Mortgage',
-      value: '€360,000',
-      lines: ['from 3.45%, €1,607/mo', '41 options, 30 years'],
+      qualifier: 'from',
+      value: '€1,751/mo',
+      sub: ['€405,000 loan', 'from 3.20%'],
+      quiet: ['49 options'],
+      detail: ['Over 30 years at the lowest rate of 49 options.'],
     },
-    { label: 'Could afford', value: 'up to €488,000', lines: ['4× income, 90% loan', '30 years'] },
+    {
+      label: 'Could afford',
+      qualifier: 'up to',
+      value: '€666,000',
+      sub: ['4× income', '90% loan'],
+      quiet: [],
+      detail: ['4 times €148,000 income, plus the deposit.'],
+    },
   ],
   assumptions: [
     'Assumed: a new build, first-time buyers. Estimates only; rates and offers are not confirmed.',
@@ -126,9 +143,9 @@ describe('a saved comparison arriving in the app', () => {
 
     const tiles = within(screen.getByRole('list', { name: 'At a glance' })).getAllByRole('listitem')
     expect(tiles.map((tile) => tile.textContent)).toEqual([
-      'Savingsup to 3.25%€612 interest by Sep 20277 accounts',
-      'Mortgage€360,000from 3.45%, €1,607/mo41 options, 30 years',
-      'Could affordup to €488,0004× income, 90% loan30 years',
+      'Savingsup to3.11%€815 interestby Jul 202828 accounts',
+      'Mortgagefrom€1,751/mo€405,000 loanfrom 3.20%49 options',
+      'Could affordup to€666,0004× income90% loan',
     ])
     expect(screen.getByText(/^Assumed: a new build, first-time buyers/)).toBeInTheDocument()
   })

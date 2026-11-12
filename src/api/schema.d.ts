@@ -7534,8 +7534,11 @@ export interface components {
                   } | null
                   tiles: {
                     label: string
+                    qualifier: string | null
                     value: string
-                    lines: string[]
+                    sub: string[]
+                    quiet: string[]
+                    detail: string[]
                   }[]
                   assumptions: string[]
                   hookQuestion: {
@@ -8768,8 +8771,11 @@ export interface components {
                     } | null
                     tiles: {
                       label: string
+                      qualifier: string | null
                       value: string
-                      lines: string[]
+                      sub: string[]
+                      quiet: string[]
+                      detail: string[]
                     }[]
                     assumptions: string[]
                     hookQuestion: {
@@ -9052,8 +9058,11 @@ export interface components {
           } | null
           tiles: {
             label: string
+            qualifier: string | null
             value: string
-            lines: string[]
+            sub: string[]
+            quiet: string[]
+            detail: string[]
           }[]
           assumptions: string[]
           hookQuestion: {
@@ -9132,8 +9141,11 @@ export interface components {
         } | null
         tiles: {
           label: string
+          qualifier: string | null
           value: string
-          lines: string[]
+          sub: string[]
+          quiet: string[]
+          detail: string[]
         }[]
         assumptions: string[]
         hookQuestion: {
@@ -11372,8 +11384,13 @@ export interface components {
           accounts: number
           /** @description Interest after DIRT (none taken on a DIRT-free product) on the deposit saved plus the monthly saving until `by`, in the account paying `topRatePct`, from the engine’s month-by-month projection. Money that account cannot take, and months after its rate stops being known, are not counted (`basis` says so). */
           interestToTargetEur: number
-          /** @description YYYY-MM the interest runs to: the date given, else the month the money at the keys is saved, else 12 months on. */
+          /** @description YYYY-MM the interest runs to: the keys month (the month the money at the keys is saved) when it is at least a month away, else the date given, else 12 months on (2026-11-12). */
           by: string
+          /**
+           * @description Which month `by` is: the keys month, the date given, or 12 months on as no date is known.
+           * @enum {string}
+           */
+          runsTo: 'keys_month' | 'date_given' | 'no_date'
           /** @description How the top rate and the interest are worked out, in one sentence. */
           basis: string
         } | null
@@ -11481,7 +11498,7 @@ export interface components {
           askNow: boolean
         }[]
       }
-      /** @description How to see the options: the card’s "Show my options" button, or saoi_build_plan with these inputs. */
+      /** @description How to see the options: the card’s "Compare all product options and supports" button, or saoi_build_plan with these inputs. */
       next: string
       /** @description Present to the customer. When `gate.ready`, in this order: the headline figures, then three route lines and "More routes: N", then what is assumed and still to know. When not, only the `askNow` questions, each with what it moves, and the statement: no figures. No route is picked. */
       presentation: string[]
@@ -12059,6 +12076,7 @@ export interface components {
           | 'current_account_bank'
           | 'goal'
           | 'tax_paid'
+          | 'first_time_buyer'
         /** @description For the host to ask, in its own words. */
         question: string
         /** @description What the answer changes, with the figures from the runs. */
@@ -12087,6 +12105,7 @@ export interface components {
           | 'current_account_bank'
           | 'goal'
           | 'tax_paid'
+          | 'first_time_buyer'
         /** @description For the host to ask, in its own words. */
         question: string
         /** @description What the answer changes, with the figures from the runs. */
@@ -12579,8 +12598,11 @@ export interface components {
           } | null
           tiles: {
             label: string
+            qualifier: string | null
             value: string
-            lines: string[]
+            sub: string[]
+            quiet: string[]
+            detail: string[]
           }[]
           assumptions: string[]
           hookQuestion: {
@@ -12966,6 +12988,7 @@ export interface components {
             | 'current_account_bank'
             | 'goal'
             | 'tax_paid'
+            | 'first_time_buyer'
           /** @description For the host to ask, in its own words. */
           question: string
           /** @description What the answer changes, with the figures from the runs. */
@@ -12994,6 +13017,7 @@ export interface components {
             | 'current_account_bank'
             | 'goal'
             | 'tax_paid'
+            | 'first_time_buyer'
           /** @description For the host to ask, in its own words. */
           question: string
           /** @description What the answer changes, with the figures from the runs. */
@@ -13486,8 +13510,11 @@ export interface components {
             } | null
             tiles: {
               label: string
+              qualifier: string | null
               value: string
-              lines: string[]
+              sub: string[]
+              quiet: string[]
+              detail: string[]
             }[]
             assumptions: string[]
             hookQuestion: {
