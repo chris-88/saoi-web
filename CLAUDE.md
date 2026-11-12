@@ -130,7 +130,11 @@ from model text; nothing sensitive in URLs; nothing secret in `VITE_*`.
 - shadcn components are added with the CLI; the look comes from tokens in `src/index.css`.
   Mobile first at 390px.
 - Sentry never receives message content or fact values.
-- The PWA precaches the shell and never caches API responses.
+- The PWA precaches the shell and never caches API responses. Navigations are network-first
+  (`NetworkOnly`, the precached `index.html` only when the network fails), so a deploy reaches
+  an open install on its next open instead of waiting for a new worker to finish installing; the
+  precache is the offline fallback only. No `navigateFallback`, `directoryIndex: null`;
+  `scripts/check-service-worker.ts` (in `check:bundle`) fails the build if `dist/sw.js` drifts.
 - The entry chunk and the up-front download have budgets (`scripts/check-bundle-size.ts`);
   anything a first visit does not need goes behind `lazy()`. `scripts/check-bundle-secrets.ts`
   fails the build if a credential shape reaches `dist/`.

@@ -3,7 +3,7 @@
  *
  * A separate file imported through `workbox.importScripts` rather than a hand-written service
  * worker, because the generated one already does work that is easy to break and expensive to
- * discover broken: precaching the shell, the navigation fallback, never caching the API, and
+ * discover broken: precaching the shell, sending navigations to the network, never caching the API, and
  * the cleanup that stops a deploy stranding an open page. Swapping it for a bespoke one to add
  * two event listeners would put all of that at risk for no gain.
  *
