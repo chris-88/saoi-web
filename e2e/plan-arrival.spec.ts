@@ -8,6 +8,9 @@ import { expect, test, type Page, type Route } from '@playwright/test'
  * fresh `npm run plan:sample` link by hand instead.
  */
 
+/** What the overflow checks read off an element (the e2e project has no DOM lib). */
+type Overflowing = { scrollWidth: number; clientWidth: number }
+
 const TOKEN = 'AbCdEfGhIjKlMnOpQrStUv'
 const HOOK =
   'How much Income Tax and DIRT have you both paid over the last four years? It decides whether Help to Buy covers the €35,000.'
@@ -69,21 +72,34 @@ const PREVIEW = {
     readyNote: null,
     factParts: ['€40,000 deposit', '+ €4,000 stamp duty', '+ €3,000 legal and survey'],
     progress: { savedEur: 32_000, neededEur: 47_000, monthlySavingEur: 1_500 },
+    // Chris's figures from the phone (2026-11-12), the widest the tiles carry.
     tiles: [
       {
         label: 'Savings',
-        value: 'up to 3.25%',
-        lines: ['€612 interest by Sep 2027', '7 accounts'],
+        qualifier: 'up to',
+        value: '3.11%',
+        sub: ['€1,014 interest by Jul 2028'],
+        quiet: ['28 accounts'],
+        detail: [
+          'The best rate among 28 accounts open to you, after DIRT.',
+          'Variable rates; they can change.',
+        ],
       },
       {
         label: 'Mortgage',
-        value: '€360,000',
-        lines: ['from 3.45%, €1,607/mo', '41 options, 30 years'],
+        qualifier: null,
+        value: '€1,751/mo',
+        sub: ['€405,000 loan', 'from 3.20%'],
+        quiet: ['49 options'],
+        detail: ['Over 30 years at the lowest rate of 49 options.'],
       },
       {
         label: 'Could afford',
-        value: 'up to €488,000',
-        lines: ['4× income, 90% loan', '30 years'],
+        qualifier: 'up to',
+        value: '€666,000',
+        sub: ['4× income, 90% loan'],
+        quiet: [],
+        detail: ['4 times €148,000 income, plus the deposit.'],
       },
     ],
     assumptions: [
@@ -150,7 +166,7 @@ test('a ?plan= link opens on the card, the notice box and one question; writing 
   await expect(page.getByText('September 2027')).toBeVisible()
   // The token left the address straight away (Invariant 8), and there is no separate page.
   expect(page.url()).not.toContain('?plan=')
-  await expect(page.getByText('up to €488,000')).toBeVisible()
+  await expect(page.getByText('€666,000', { exact: true })).toBeVisible()
   await expect(
     page.getByRole('link', { name: 'Click here for the data protection notice' }),
   ).toBeVisible()
@@ -178,6 +194,60 @@ test('a ?plan= link opens on the card, the notice box and one question; writing 
   await expect(page.getByText(/already been opened/)).toBeInViewport()
   await expect(page.getByText('About €40,000 between us')).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('arrival-390-refused.png') })
+})
+
+test('the three tiles sit in one row at 390px, values on one line and level, and open their detail', async ({
+  page,
+}) => {
+  await stub(page, { status: 200, body: PREVIEW })
+  await page.goto(`/?plan=${TOKEN}`)
+  const glance = page.getByRole('list', { name: 'At a glance' })
+  await expect(glance).toBeVisible()
+
+  // One row of three, every value on a single line and not clipped, all three starting level.
+  const values = ['3.11%', '€1,751/mo', '€666,000'].map((value) =>
+    glance.getByText(value, { exact: true }),
+  )
+  const boxes = await Promise.all(values.map((value) => value.boundingBox()))
+  const tops = boxes.map((box) => box?.y ?? Number.NaN)
+  const heights = boxes.map((box) => box?.height ?? Number.NaN)
+  for (const top of tops) expect(Math.abs(top - (tops[0] ?? 0))).toBeLessThan(1)
+  for (const height of heights) expect(height).toBeLessThanOrEqual(21)
+  for (const value of values) {
+    const clipped = await value.evaluate((node: Overflowing) => node.scrollWidth > node.clientWidth)
+    expect(clipped).toBe(false)
+  }
+  // The qualifier sits above the value, never on its line.
+  const qualifier = await glance.getByText('up to', { exact: true }).first().boundingBox()
+  expect((qualifier?.y ?? 0) + (qualifier?.height ?? 0)).toBeLessThanOrEqual((tops[0] ?? 0) + 0.5)
+  // The labels are whole, not cut short by the icon beside them.
+  for (const label of ['Savings', 'Mortgage', 'Could afford']) {
+    const cut = await glance
+      .getByText(label, { exact: true })
+      .evaluate((node: Overflowing) => node.scrollWidth > node.clientWidth)
+    expect(cut, label).toBe(false)
+  }
+  await glance.screenshot({ path: test.info().outputPath('tiles-390.png') })
+
+  // A tile is a button: Enter opens its detail, Space on another moves the one open panel.
+  const savings = page.getByRole('button', { name: /^Savings/ })
+  const mortgage = page.getByRole('button', { name: /^Mortgage/ })
+  await savings.focus()
+  await page.keyboard.press('Enter')
+  await expect(savings).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByText('Variable rates; they can change.')).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath('tiles-390-open.png') })
+  await mortgage.focus()
+  await page.keyboard.press('Space')
+  await expect(mortgage).toHaveAttribute('aria-expanded', 'true')
+  await expect(savings).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByText('Variable rates; they can change.')).toBeHidden()
+  await expect(page.getByText('Over 30 years at the lowest rate of 49 options.')).toBeVisible()
+
+  const overflow = await page.evaluate<number>(
+    'document.documentElement.scrollWidth - document.documentElement.clientWidth',
+  )
+  expect(overflow).toBeLessThanOrEqual(0)
 })
 
 test('an expired link is a message in the chat, with a chip to start again', async ({ page }) => {
