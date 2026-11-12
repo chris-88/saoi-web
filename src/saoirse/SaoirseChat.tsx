@@ -35,6 +35,7 @@ import type { Product } from '@domain/journey.ts'
 import { isBackendConfigured, missingEnvVars } from '@/lib/env'
 import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/queryKeys'
+import { withSaoirseLine } from '@/lib/planArrival'
 
 /**
  * The conversation itself: joins a case, shows the turns, offers openers, takes input.
@@ -53,6 +54,7 @@ const SIGNED_IN_NOTE = [
 
 export function SaoirseChat({
   openingMessage,
+  saoirseLine = null,
   onStarted,
   onCase,
   mode = 'new',
@@ -66,6 +68,12 @@ export function SaoirseChat({
    * message written on a saved comparison's arrival, after the server's card and question load.
    */
   openingMessage?: string | null
+  /**
+   * Saoirse's line carried in from a plan edit (`reading`, build 4): shown at once as hers, kept
+   * under the history when it lands, and followed by the return turn, which reads the
+   * `plan_edited` event the edit wrote. Never sent: it is not something the customer said.
+   */
+  saoirseLine?: string | null
   /** Whether a conversation has started, so the chrome around this can settle with it (§8). */
   onStarted?: ((started: boolean) => void) | undefined
   /**
@@ -155,7 +163,11 @@ export function SaoirseChat({
    * the state alone would put the opening screen up and tear it down again — replaying an
    * animation that is only ever meant for a genuinely new conversation.
    */
-  const zeroState = showsZeroState(uiState) && !loadingHistory && (openingMessage ?? null) === null
+  const zeroState =
+    showsZeroState(uiState) &&
+    !loadingHistory &&
+    (openingMessage ?? null) === null &&
+    saoirseLine === null
 
   /*
    * Four hundred milliseconds minimum. Turns come back in about a second and sometimes much
@@ -280,7 +292,7 @@ export function SaoirseChat({
           const history = await loadHistory(session.caseId)
           if (!cancelled) {
             setLiveFrom(history.length)
-            loadFrom(history)
+            loadFrom(withSaoirseLine(history, saoirseLine))
           }
         } finally {
           if (!cancelled) setLoadingHistory(false)
@@ -299,9 +311,9 @@ export function SaoirseChat({
     return () => {
       cancelled = true
     }
-    // loadFrom is stable; listed to satisfy the exhaustive-deps rule honestly. `source` is
-    // read once by the screen and never changes, so it does not re-run this either.
-  }, [loadFrom, mode, source])
+    // loadFrom is stable; listed to satisfy the exhaustive-deps rule honestly. `source` and
+    // `saoirseLine` are read once by the screen and never change, so they do not re-run it.
+  }, [loadFrom, mode, source, saoirseLine])
 
   useEffect(() => {
     onCase?.(caseId)
@@ -316,13 +328,17 @@ export function SaoirseChat({
   /**
    * §36 — the customer did not ask anything, they came back. The turn runs itself so the first
    * thing they see is what changed, not an empty composer.
+   *
+   * A plan edit is a return too: the edit wrote a `plan_edited` event a moment ago, so the turn
+   * runs after Saoirse's carried line whether or not the session counted it as news yet.
    */
   useEffect(() => {
-    if (caseId === null || loadingHistory || !hasUpdates || returnSent.current) return
+    if (caseId === null || loadingHistory || returnSent.current) return
+    if (!hasUpdates && saoirseLine === null) return
     if (openingMessage) return
     returnSent.current = true
     void send('', 'return')
-  }, [caseId, loadingHistory, hasUpdates, openingMessage, send])
+  }, [caseId, loadingHistory, hasUpdates, saoirseLine, openingMessage, send])
 
   /**
    * Keep this device registered for notifications, without ever asking again.
@@ -785,6 +801,13 @@ export function SaoirseChat({
         )}
 
         {zeroState && <ZeroState focused={composerFocused} />}
+
+        {/* A plan edit's reading, on screen before the history behind it has loaded. */}
+        {loadingHistory && saoirseLine !== null && (
+          <ChatBubble author="assistant" first>
+            <MessageText text={saoirseLine} />
+          </ChatBubble>
+        )}
 
         {entries.map((entry, index) => {
           if (entry.kind === 'card') {

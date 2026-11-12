@@ -1,11 +1,11 @@
-import { useState, type ComponentProps, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   Bell,
   CalendarClock,
-  ChevronRight,
+  House,
   Landmark,
   LogIn,
   LogOut,
@@ -19,7 +19,6 @@ import {
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { IconTile } from '@/components/IconTile'
 import { NotFound } from '@/components/NotFound'
 import { SaoirseWordmark } from '@/saoirse/SaoirseWordmark'
 import { SignInForm } from '@/saoirse/SignInForm'
@@ -33,6 +32,10 @@ import { currentCaseId, useCases } from '@/api/cases'
 import { useLinkedAccounts, useNotifications } from '@/api/snapshot'
 import { initialsOf, useIdentity } from '@/saoirse/useIdentity'
 import { useCaseHoldings } from '@/api/holdings'
+import { useCasePlan } from '@/api/plan'
+import { planStateLine } from '@/lib/plan'
+import { ButtonRow, Group, GroupLabel, LinkRow } from '@/surfaces/YouRows'
+import { PlanSection } from '@/surfaces/YourPlan'
 import { isAssetKind, type Holding } from '@contracts/holdings.ts'
 import { lastKnownAddress, signOutIdentity } from '@/lib/identity'
 import { startNewCase } from '@/lib/session'
@@ -98,82 +101,6 @@ function Shell({
   )
 }
 
-/** The uppercase label over a group of rows, the same voice as a section label in the chat. */
-function GroupLabel({ children }: { readonly children: ReactNode }): ReactNode {
-  return (
-    <h2 className="text-muted-foreground mb-2 px-1 text-xs font-semibold tracking-wide uppercase">
-      {children}
-    </h2>
-  )
-}
-
-/** Rows sit on one card, divided, so a group reads as one thing. */
-function Group({ children }: { readonly children: ReactNode }): ReactNode {
-  return (
-    <div className="bg-card divide-y overflow-hidden rounded-xl border shadow-xs">{children}</div>
-  )
-}
-
-type RowProps = {
-  readonly icon: ReactNode
-  readonly label: string
-  /** One line under the label: what is there, or what the page is for. */
-  readonly detail?: string | undefined
-  /** A figure or a count on the right, when one is worth the space. */
-  readonly value?: string | undefined
-}
-
-const rowClass =
-  'hover:bg-accent/60 focus-visible:ring-ring flex w-full items-center gap-3 px-3 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset disabled:cursor-default disabled:opacity-60'
-
-function RowBody({ icon, label, detail, value }: RowProps): ReactNode {
-  return (
-    <>
-      <IconTile tone="neutral" size="sm">
-        {icon}
-      </IconTile>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium">{label}</span>
-        {detail !== undefined && (
-          <span className="text-muted-foreground block truncate text-xs">{detail}</span>
-        )}
-      </span>
-      {value !== undefined && (
-        <span className="text-muted-foreground shrink-0 text-sm tabular-nums">{value}</span>
-      )}
-      <ChevronRight className="text-muted-foreground/60 size-4 shrink-0" aria-hidden />
-    </>
-  )
-}
-
-/** A row that goes somewhere. */
-function LinkRow({ to, ...row }: RowProps & { readonly to: string }): ReactNode {
-  return (
-    <Link to={to} className={rowClass}>
-      <RowBody {...row} />
-    </Link>
-  )
-}
-
-/**
- * A row that does something. Spreads what it is given so a Radix trigger can make it the
- * thing that opens a sheet.
- */
-function ButtonRow({
-  icon,
-  label,
-  detail,
-  value,
-  className,
-  ...props
-}: RowProps & ComponentProps<'button'>): ReactNode {
-  return (
-    <button type="button" className={cn(rowClass, className)} {...props}>
-      <RowBody icon={icon} label={label} detail={detail} value={value} />
-    </button>
-  )
-}
-
 const euro = new Intl.NumberFormat('en-IE', {
   style: 'currency',
   currency: 'EUR',
@@ -208,6 +135,7 @@ function Overview(): ReactNode {
    * at, not when the page that lists them is passed through.
    */
   const holdings = useCaseHoldings(caseId)
+  const plan = useCasePlan(caseId)
   const notifications = useNotifications(caseId)
   const linked = useLinkedAccounts(caseId)
 
@@ -314,6 +242,26 @@ function Overview(): ReactNode {
       <div className="mt-6">
         <GroupLabel>This conversation</GroupLabel>
         <Group>
+          {/*
+            Only with a plan claimed on the case: hidden, not greyed, without one. While it is
+            being looked up nothing is shown, so the row does not flash in and out.
+          */}
+          {plan.data !== undefined && plan.data !== null && (
+            <LinkRow
+              to={routes.youSection('plan')}
+              icon={<House />}
+              label="Your plan"
+              detail={planStateLine(plan.data) ?? plan.data.title}
+            />
+          )}
+          {plan.isError && (
+            <LinkRow
+              to={routes.youSection('plan')}
+              icon={<House />}
+              label="Your plan"
+              detail="Could not be looked up just now"
+            />
+          )}
           <LinkRow
             to={routes.youSection('money')}
             icon={<Wallet />}
@@ -418,6 +366,10 @@ const SECTION: Readonly<
     { readonly title: string; readonly lead: string | ((presenter: boolean) => string) }
   >
 > = {
+  plan: {
+    title: 'Your plan',
+    lead: 'The plan you saved, as it stands. Change a figure and Saoirse says what it does.',
+  },
   money: {
     title: 'Your money',
     lead: 'What you have saved and what you owe, as Saoirse knows it. Facts only; nothing here tells you what to do.',
@@ -475,6 +427,7 @@ function SectionBody({
       return <NotificationsSection caseId={caseId} />
     case 'linked':
       return <LinkedAccountsSection caseId={caseId} />
+    case 'plan':
     case 'money':
     case 'reminders': {
       if (caseId === null) {
@@ -484,6 +437,7 @@ function SectionBody({
           <NoConversationYet />
         )
       }
+      if (section === 'plan') return <PlanSection caseId={caseId} />
       return section === 'money' ? (
         <HoldingsSection caseId={caseId} enabled heading={false} />
       ) : (

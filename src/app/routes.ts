@@ -10,6 +10,7 @@
  */
 /** The pages under You, in the order they are listed there. */
 export const YOU_SECTIONS = [
+  'plan',
   'money',
   'reminders',
   'notifications',
@@ -34,7 +35,7 @@ export const routes = {
 
   /**
    * You: who is signed in, and everything about the conversation that is not the conversation
-   * (your money, reminders, notifications, linked accounts, the switcher, feedback). Behind
+   * (your plan, your money, reminders, notifications, linked accounts, the switcher, feedback). Behind
    * the avatar in the chat header; each part is a page of its own.
    */
   you: '/you',

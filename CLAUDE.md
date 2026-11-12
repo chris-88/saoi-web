@@ -72,8 +72,17 @@ If you can't satisfy an item, say so explicitly rather than quietly skipping it.
 /#/privacy         what happens to what you type
 /#/you, /#/you/:section
                    behind the avatar in the chat header (2026-11-12): who is signed in, then one
-                   page each for your money, reminders, notifications, linked accounts and the
-                   conversation switcher; feedback and the privacy notice are rows there too
+                   page each for your plan, your money, reminders, notifications, linked accounts
+                   and the conversation switcher; feedback and the privacy notice are rows there too
+/#/you/plan        the claimed plan (`GET /api/cases/{id}/plan`; the row on You is hidden without
+                   one): goal and keys month, saved of needed, the plan's figures edited in place
+                   one row at a time, the watched options, a link to Your money for balances, and
+                   greyed "Coming" rows. A save (`PATCH`, only the changed field) opens the chat
+                   with the server's `reading` as Saoirse's line (carried in memory by
+                   `src/lib/planArrival.ts`, never sent), then the return turn reads the
+                   `plan_edited` event. A "Nothing changed" answer (same `updatedAt`) closes
+                   the row instead. Contract: `@contracts/case-plan.ts`; a plan that is not for
+                   a home (`homePrice` null) has no price, kind or buyer rows
 /#/join/:token     partner experience
 /#/plan/:token     a plan made in the customer's own AI (one-time link; `?plan=<token>` moves here
                    and leaves the address at once). From the public preview, nothing stored: the

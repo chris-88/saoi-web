@@ -17,8 +17,10 @@ import {
   callPartnerApi,
   callSessionApi,
   fetchCaseHistory,
+  fetchCasePlan,
   fetchCaseSnapshot,
   followCaseFeed,
+  updateCasePlan,
   uploadDocumentApi,
 } from '@/lib/saoiApi'
 
@@ -100,6 +102,59 @@ describe('saoiApi', () => {
     )
     const history = await fetchCaseHistory(CASE)
     expect(history.entries[0]).toMatchObject({ kind: 'message', text: 'hello' })
+  })
+
+  describe('the plan on the case', () => {
+    const plan = {
+      planId: 'p1',
+      title: 'A first home',
+      editable: {
+        targetDate: '2028-03',
+        homePrice: 400000,
+        monthlySaving: 1500,
+        propertyKind: 'second_hand',
+        firstTimeBuyer: true,
+        buyingTogether: false,
+      },
+      summary: { keysOn: '2028-03', neededAtKeysEur: 48000, savedEur: 12000, progressLine: null },
+      watched: [],
+      updatedAt: '2026-11-12T10:00:00.000Z',
+    }
+
+    it('reads the plan, and a 404 as no plan rather than an error', async () => {
+      fetchMock.mockResolvedValueOnce(json(plan))
+      expect(await fetchCasePlan(CASE)).toMatchObject({ planId: 'p1' })
+      expect(fetchMock.mock.calls[0]?.[0]).toBe(
+        `https://api.example.test/saoi/api/cases/${CASE}/plan`,
+      )
+
+      fetchMock.mockResolvedValueOnce(
+        json({ ok: false, error: { code: 'not_found', message: 'No plan.' } }, 404),
+      )
+      expect(await fetchCasePlan(CASE)).toBeNull()
+
+      fetchMock.mockResolvedValueOnce(
+        json({ ok: false, error: { code: 'internal', message: 'Down.' } }, 500),
+      )
+      await expect(fetchCasePlan(CASE)).rejects.toMatchObject({ status: 500 })
+    })
+
+    it('patches only what it is given and returns the reading', async () => {
+      fetchMock.mockResolvedValueOnce(json({ ...plan, reading: 'Moving the keys changes it.' }))
+      const edited = await updateCasePlan(CASE, { monthlySaving: 1200 })
+
+      expect(edited.reading).toBe('Moving the keys changes it.')
+      const [, init] = fetchMock.mock.calls[0] ?? []
+      expect(init?.method).toBe('PATCH')
+      expect(typeof init?.body === 'string' ? JSON.parse(init.body) : undefined).toEqual({
+        monthlySaving: 1200,
+      })
+    })
+
+    it('refuses an edit reply without its reading', async () => {
+      fetchMock.mockResolvedValueOnce(json(plan))
+      await expect(updateCasePlan(CASE, { homePrice: 1 })).rejects.toThrow()
+    })
   })
 
   describe('followCaseFeed', () => {
