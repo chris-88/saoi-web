@@ -25,7 +25,9 @@ import { ConnectAccountsCard } from '@/saoirse/cards/ConnectAccountsCard'
 import { AccountsOverviewCard } from '@/saoirse/cards/AccountsOverviewCard'
 import { TransferCard } from '@/saoirse/cards/TransferCard'
 import type { CONSENT_SCOPE, LINKABLE_BANKS } from '@contracts/cards.ts'
+import { MarketProductsCard } from '@/saoirse/cards/MarketProductsCard'
 import { Settling } from '@/saoirse/cards/Settling'
+import { assertNever } from '@/lib/assertNever'
 
 /**
  * The card registry.
@@ -313,5 +315,11 @@ function LiveCard({
           {...(disabled === undefined ? {} : { disabled })}
         />
       )
+
+    case 'market_products':
+      return <MarketProductsCard card={card} />
+
+    default:
+      return assertNever(card, 'card')
   }
 }
