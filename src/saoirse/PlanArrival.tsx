@@ -107,17 +107,15 @@ export function PlanArrival({
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4">
         {preview.data !== undefined && !preview.isError && (
           <>
-            <div className="pl-10">
-              <ArrivalCard preview={preview.data} />
-            </div>
-            <div className="pl-10">
-              <Link
-                to={routes.privacy}
-                className="bg-muted text-muted-foreground hover:text-foreground focus-visible:ring-ring flex min-h-11 items-center rounded-md px-3 py-2 text-xs underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
-              >
-                Click here for the data protection notice
-              </Link>
-            </div>
+            {/* Not a bubble: the card and the notice take the full column (2026-11-12), so the
+                tiles have room at 390px; only Saoirse's line below keeps the avatar indent. */}
+            <ArrivalCard preview={preview.data} />
+            <Link
+              to={routes.privacy}
+              className="bg-muted text-muted-foreground hover:text-foreground focus-visible:ring-ring flex min-h-11 items-center rounded-md px-3 py-2 text-xs underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+            >
+              Click here for the data protection notice
+            </Link>
             <ChatBubble author="assistant" first>
               <p>{preview.data.opening}</p>
             </ChatBubble>
