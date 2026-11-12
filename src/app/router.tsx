@@ -6,6 +6,7 @@ import {
   LazyPartnerJoin,
   LazyPlanClaim,
   LazyPrivacy,
+  LazyYou,
 } from '@/app/lazySurfaces'
 import {
   AdminRedirect,
@@ -24,6 +25,9 @@ const routeObjects: RouteObject[] = [
   { path: '/baz', element: <LegacyChatRedirect /> },
 
   { path: '/privacy', element: <LazyPrivacy /> },
+  // You, and its pages. The avatar in the chat header opens the first; the rows open the rest.
+  { path: '/you', element: <LazyYou /> },
+  { path: '/you/:section', element: <LazyYou /> },
   { path: '/how-it-works', element: <HowItWorksRedirect /> },
   { path: '/how-it-works/:section', element: <HowItWorksRedirect /> },
   { path: '/showcase', element: <ShowcaseRedirect /> },

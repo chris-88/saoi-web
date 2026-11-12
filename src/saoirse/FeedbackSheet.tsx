@@ -52,7 +52,14 @@ type Values = z.infer<typeof schema>
 
 const STARS = [1, 2, 3, 4, 5] as const
 
-export function FeedbackSheet({ caseId }: { readonly caseId: string | null }): ReactNode {
+export function FeedbackSheet({
+  caseId,
+  trigger,
+}: {
+  readonly caseId: string | null
+  /** What opens it, when the page has its own idea; the default is a plain button. */
+  readonly trigger?: ReactNode
+}): ReactNode {
   const [open, setOpen] = useState(false)
   const [thanked, setThanked] = useState(false)
 
@@ -93,10 +100,12 @@ export function FeedbackSheet({ caseId }: { readonly caseId: string | null }): R
   return (
     <Sheet open={open} onOpenChange={change}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full" disabled={caseId === null}>
-          <MessageSquareHeartIcon className="size-4" />
-          Tell us what you think
-        </Button>
+        {trigger ?? (
+          <Button variant="outline" size="sm" className="w-full" disabled={caseId === null}>
+            <MessageSquareHeartIcon className="size-4" />
+            Tell us what you think
+          </Button>
+        )}
       </SheetTrigger>
 
       <SheetContent

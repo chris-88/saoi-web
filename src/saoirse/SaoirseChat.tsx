@@ -451,7 +451,7 @@ export function SaoirseChat({
 
     let cancelled = false
     void (async () => {
-      await queryClient.invalidateQueries({ queryKey: ['identity'] })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.identity() })
       const session = await startSession(mode)
       if (cancelled) return
 

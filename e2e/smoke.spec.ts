@@ -25,6 +25,9 @@ const surfaces = [
     expect: /not a banking service/i,
     discloses: true,
   },
+  // Behind the avatar in the chat header: the account, and every page about the conversation.
+  { route: '/#/you', name: 'you', expect: /start a new conversation/i, discloses: false },
+  { route: '/#/you/money', name: 'your money', expect: /what you have saved/i, discloses: false },
   {
     route: '/#/ask',
     name: 'questions and collaboration',

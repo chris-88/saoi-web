@@ -70,6 +70,10 @@ If you can't satisfy an item, say so explicitly rather than quietly skipping it.
 /#/                Saoirse itself - the same screen in a tab and in the installed PWA
 /#/ask             questions and offers to collaborate, from a phone
 /#/privacy         what happens to what you type
+/#/you, /#/you/:section
+                   behind the avatar in the chat header (2026-11-12): who is signed in, then one
+                   page each for your money, reminders, notifications, linked accounts and the
+                   conversation switcher; feedback and the privacy notice are rows there too
 /#/join/:token     partner experience
 /#/plan/:token     opens a plan made in the customer's own AI (one-time link), then the chat
 /#/admin/*         redirect to https://admin.saoi.ie/#/<rest> (the console's own site)

@@ -5,8 +5,7 @@ import { SaoirseChat } from '@/saoirse/SaoirseChat'
 import { PlanArrival } from '@/saoirse/PlanArrival'
 import { arrivalFollowUps, takeArrivalPrelude } from '@/lib/planArrival'
 import { SaoirseWordmark } from '@/saoirse/SaoirseWordmark'
-import { ConversationMenu } from '@/saoirse/ConversationMenu'
-import { IdentityBadge } from '@/saoirse/IdentityBadge'
+import { ProfileButton } from '@/saoirse/ProfileButton'
 import { rememberPresenterKey } from '@/lib/session'
 import { readArrivalSource, stripArrivalSourceFromPath } from '@/lib/arrival'
 import { routes } from '@/app/routes'
@@ -31,7 +30,6 @@ export function SaoirseScreen({ arrivalToken }: { arrivalToken?: string } = {}):
   /** What Saoirse said before a saved comparison was opened, carried into this chat once. */
   const [prelude] = useState(() => (arrivalToken === undefined ? takeArrivalPrelude() : null))
   const [started, setStarted] = useState(false)
-  const [caseId, setCaseId] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   useViewportHeight()
 
@@ -117,7 +115,8 @@ export function SaoirseScreen({ arrivalToken }: { arrivalToken?: string } = {}):
         )}
       >
         <div className="mx-auto grid w-full max-w-md grid-cols-[2.25rem_1fr_2.25rem] items-center px-2 py-2">
-          <ConversationMenu caseId={caseId} />
+          {/* An empty column, so the wordmark stays centred under the one control on the right. */}
+          <span aria-hidden />
           {/*
             A plain link rather than a ghost Button. The Button sets
             `[&_svg:not([class*='size-'])]:size-4` on everything inside it, which silently
@@ -132,10 +131,10 @@ export function SaoirseScreen({ arrivalToken }: { arrivalToken?: string } = {}):
             <SaoirseWordmark className="h-6" transitionName="saoi-wordmark" />
           </Link>
           {/*
-            The avatar, once there is one. It renders nothing while anonymous, which is also
-            what keeps the wordmark centred: the column is reserved either way.
+            You: the avatar, and behind it everything about the conversation that is not the
+            conversation. The hamburger it replaced sat on the left (2026-11-12).
           */}
-          <IdentityBadge className="justify-self-end" />
+          <ProfileButton className="justify-self-end" />
         </div>
       </header>
 
@@ -151,7 +150,6 @@ export function SaoirseScreen({ arrivalToken }: { arrivalToken?: string } = {}):
             prelude === null ? undefined : arrivalFollowUps(prelude.routeCount, prelude.hasDeposit)
           }
           onStarted={setStarted}
-          onCase={setCaseId}
           className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col"
           openingMessage={searchParams.get('say')}
           mode="new"

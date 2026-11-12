@@ -39,22 +39,30 @@ function raisedOn(iso: string): string {
 export function RemindersSection({
   caseId,
   enabled,
+  heading = true,
 }: {
   caseId: string
   enabled: boolean
+  /** Off when the page around it already says "Reminders". */
+  heading?: boolean
 }): ReactNode {
   const alerts = useCaseAlerts(caseId, { enabled })
   const remove = useDeleteReminder(caseId)
 
   return (
-    <section className="p-4" aria-labelledby="reminders-heading">
-      <h3
-        id="reminders-heading"
-        className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase"
-      >
-        <CalendarClock className="size-3.5" />
-        Reminders
-      </h3>
+    <section
+      className={heading ? 'p-4' : undefined}
+      {...(heading ? { 'aria-labelledby': 'reminders-heading' } : { 'aria-label': 'Reminders' })}
+    >
+      {heading && (
+        <h3
+          id="reminders-heading"
+          className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase"
+        >
+          <CalendarClock className="size-3.5" />
+          Reminders
+        </h3>
+      )}
 
       {alerts.isPending ? (
         <p className="text-muted-foreground text-xs">Looking them up…</p>
