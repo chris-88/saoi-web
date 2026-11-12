@@ -8,6 +8,20 @@
  * authenticated app behind a simulated login, which was a lot of scaffolding around the only
  * thing worth showing — a conversation that understands what someone is trying to do.
  */
+/** The pages under You, in the order they are listed there. */
+export const YOU_SECTIONS = [
+  'money',
+  'reminders',
+  'notifications',
+  'linked',
+  'conversations',
+] as const
+export type YouSection = (typeof YOU_SECTIONS)[number]
+
+export function isYouSection(value: string): value is YouSection {
+  return (YOU_SECTIONS as readonly string[]).includes(value)
+}
+
 export const routes = {
   /**
    * Saoirse itself, and the front door: the app opens straight on the chat. The marketing landing
@@ -17,6 +31,14 @@ export const routes = {
 
   /** What happens to what somebody types. Linked from the notice card and the landing page. */
   privacy: '/privacy',
+
+  /**
+   * You: who is signed in, and everything about the conversation that is not the conversation
+   * (your money, reminders, notifications, linked accounts, the switcher, feedback). Behind
+   * the avatar in the chat header; each part is a page of its own.
+   */
+  you: '/you',
+  youSection: (section: YouSection | ':section' = ':section') => `/you/${section}`,
 
   /** Questions and offers to work on this, from a phone. */
   ask: '/ask',

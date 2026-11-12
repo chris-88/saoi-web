@@ -3,6 +3,9 @@
  * invalidate by these keys; they never write to the cache.
  */
 export const queryKeys = {
+  /** Who is signed in, as far as the browser knows. */
+  identity: () => ['identity'] as const,
+
   session: {
     current: () => ['session', 'current'] as const,
     /** The conversation switcher's list. Invalidated whenever a conversation is switched. */
@@ -19,9 +22,9 @@ export const queryKeys = {
     participants: (caseId: string) => ['case', caseId, 'participants'] as const,
     productInterests: (caseId: string) => ['case', caseId, 'product-interests'] as const,
     metrics: (caseId: string) => ['case', caseId, 'metrics'] as const,
-    /** Accounts linked through Nexus, for the menu's "Linked accounts" section. */
+    /** Accounts linked through Nexus, for the "Linked accounts" page under You. */
     linkedAccounts: (caseId: string) => ['case', caseId, 'linked-accounts'] as const,
-    /** Plan alerts and the open reminders, for the menu's "Reminders" section. */
+    /** Plan alerts and the open reminders, for the "Reminders" page under You. */
     alerts: (caseId: string) => ['case', caseId, 'alerts'] as const,
     /** Accounts and debts entered by hand, and progress on the plan ("Your money", the plan card). */
     holdings: (caseId: string) => ['case', caseId, 'holdings'] as const,

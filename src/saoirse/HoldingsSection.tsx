@@ -357,9 +357,12 @@ function HoldingRow({
 export function HoldingsSection({
   caseId,
   enabled,
+  heading = true,
 }: {
   caseId: string
   enabled: boolean
+  /** Off when the page around it already says "Your money". */
+  heading?: boolean
 }): ReactNode {
   const holdings = useCaseHoldings(caseId, { enabled })
   const create = useCreateHolding(caseId)
@@ -416,15 +419,22 @@ export function HoldingsSection({
     )
 
   return (
-    <section className="p-4" aria-labelledby="holdings-heading">
+    <section
+      className={heading ? 'p-4' : undefined}
+      {...(heading ? { 'aria-labelledby': 'holdings-heading' } : { 'aria-label': 'Your money' })}
+    >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h3
-          id="holdings-heading"
-          className="text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-wide uppercase"
-        >
-          <Wallet className="size-3.5" />
-          Your money
-        </h3>
+        {heading ? (
+          <h3
+            id="holdings-heading"
+            className="text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-wide uppercase"
+          >
+            <Wallet className="size-3.5" />
+            Your money
+          </h3>
+        ) : (
+          <span />
+        )}
         {holdings.isSuccess && editing !== 'new' && (
           <Button
             variant="ghost"

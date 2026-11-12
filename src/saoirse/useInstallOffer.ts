@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ANONYMOUS, currentIdentity } from '@/lib/identity'
+import { queryKeys } from '@/lib/queryKeys'
 import { platform, useInstallPrompt, useInstalled } from '@/lib/installed'
 
 /**
@@ -31,7 +32,7 @@ export function useInstallOffer(): {
   const installed = useInstalled()
   const prompt = useInstallPrompt()
   const identity = useQuery({
-    queryKey: ['identity'],
+    queryKey: queryKeys.identity(),
     queryFn: () => currentIdentity(),
     initialData: ANONYMOUS,
   })

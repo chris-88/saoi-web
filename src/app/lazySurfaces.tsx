@@ -19,6 +19,7 @@ const AskForm = lazy(async () => ({ default: (await import('@/surfaces/Ask')).As
 const PrivacyNotice = lazy(async () => ({
   default: (await import('@/surfaces/Privacy')).Privacy,
 }))
+const YouPage = lazy(async () => ({ default: (await import('@/surfaces/You')).You }))
 const Plan = lazy(async () => ({
   default: (await import('@/surfaces/SaoirseScreen')).PlanArrivalScreen,
 }))
@@ -64,6 +65,14 @@ export function LazyPlanClaim(): ReactNode {
   return (
     <Suspense fallback={<Pending />}>
       <Plan />
+    </Suspense>
+  )
+}
+
+export function LazyYou(): ReactNode {
+  return (
+    <Suspense fallback={<Pending />}>
+      <YouPage />
     </Suspense>
   )
 }

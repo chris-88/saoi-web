@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ANONYMOUS, currentIdentity, lastKnownAddress, maskedAddress } from '@/lib/identity'
+import { queryKeys } from '@/lib/queryKeys'
 import { SignInForm } from '@/saoirse/SignInForm'
 import { Reveal } from '@/components/Primitives'
 import { isInstalled } from '@/lib/installed'
@@ -27,7 +28,7 @@ export function ReturningPrompt(): ReactNode {
   const [open, setOpen] = useState(false)
 
   const identity = useQuery({
-    queryKey: ['identity'],
+    queryKey: queryKeys.identity(),
     queryFn: () => currentIdentity(),
     initialData: ANONYMOUS,
   })
