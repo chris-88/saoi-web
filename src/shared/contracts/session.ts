@@ -206,15 +206,15 @@ export const previewPlanResponseSchema = z.object({
   /** For a home: every route to a home the comparison carried, in its order; empty otherwise. */
   routes: z.array(planRouteSchema).max(6),
   /**
-   * For a home plan built after 2026-11-12: what the host's card showed, for the app's own card
-   * on arrival. Null for older plans and plans without a home goal.
+   * For a home: the host card's figures and the question Saoirse opens with (2026-11-12), so the
+   * app shows the card the customer just saw. Null for other plans and plans saved before then.
    */
-  arrival: planArrivalViewSchema.nullable().default(null),
+  arrival: planArrivalViewSchema.nullable(),
   /**
-   * Saoirse's first line in the app, verbatim: the hook question, or a line inviting them to
-   * carry on. The claim writes the same line as her first message.
+   * Saoirse's first line, verbatim: the hook question and what it moves, or a short line that
+   * invites them to carry on. The claim writes exactly this as the conversation's first message.
    */
-  opening: z.string().optional(),
+  opening: z.string(),
   expiresAt: z.string(),
 })
 export type PreviewPlanResponse = z.infer<typeof previewPlanResponseSchema>

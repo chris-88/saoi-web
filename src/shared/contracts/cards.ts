@@ -585,7 +585,11 @@ export const savedPlanCardSchema = z.object({
    * shows three, then "More routes (N)". Empty for other plans and for plans saved before then.
    */
   routes: z.array(planRouteSchema).max(6).default([]),
-  /** What the host's card showed (2026-11-12); absent on older plans and non-home plans. */
+  /**
+   * For a home: the host card's figures (the keys month, what the money at the keys is made of,
+   * progress, the three tiles, the assumptions) and the hook question, as the app's arrival shows
+   * them (2026-11-12). Optional: other plans, and plans saved before then, have none.
+   */
   arrival: planArrivalViewSchema.optional(),
   createdAt: z.string(),
   dataCheckedAt: z.string(),
