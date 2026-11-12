@@ -5,11 +5,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ListCasesResponse } from '@contracts/session.ts'
 import type { CaseHoldingsResponse, Holding } from '@contracts/holdings.ts'
 import type { Identity } from '@/lib/identity'
+import type { CasePlan, PlanEditBody, PlanEditResponse } from '@/lib/plan'
 import type * as IdentityModule from '@/lib/identity'
 
 const listCases = vi.fn<() => Promise<ListCasesResponse>>()
 const fetchCaseHoldings = vi.fn<(caseId: string) => Promise<CaseHoldingsResponse>>()
 const currentIdentity = vi.fn<() => Promise<Identity>>()
+const fetchCasePlan = vi.fn<(caseId: string) => Promise<CasePlan | null>>()
+const updateCasePlan = vi.fn<(caseId: string, body: PlanEditBody) => Promise<PlanEditResponse>>()
 
 vi.mock('@/lib/session', () => ({
   listCases: () => listCases(),
@@ -22,6 +25,8 @@ vi.mock('@/lib/saoiApi', () => ({
   createHolding: vi.fn(),
   updateHolding: vi.fn(),
   deleteHolding: vi.fn(),
+  fetchCasePlan: (caseId: string) => fetchCasePlan(caseId),
+  updateCasePlan: (caseId: string, body: PlanEditBody) => updateCasePlan(caseId, body),
 }))
 vi.mock('@/lib/identity', async (importOriginal) => ({
   ...(await importOriginal<typeof IdentityModule>()),
@@ -30,6 +35,7 @@ vi.mock('@/lib/identity', async (importOriginal) => ({
 }))
 
 const { You } = await import('./You')
+const { takeSaoirseLine } = await import('@/lib/planArrival')
 
 const CASE = '22222222-2222-4222-8222-222222222222'
 const OTHER = '33333333-3333-4333-8333-333333333333'
@@ -67,6 +73,35 @@ const cases = (presenter = false): ListCasesResponse => ({
     },
   ],
 })
+
+const PLAN: CasePlan = {
+  planId: '44444444-4444-4444-8444-444444444444',
+  title: 'A first home in Dublin',
+  editable: {
+    targetDate: '2028-03',
+    homePrice: 400000,
+    monthlySaving: 1500,
+    propertyKind: 'second_hand',
+    firstTimeBuyer: true,
+    buyingTogether: false,
+  },
+  summary: {
+    keysOn: '2028-03',
+    neededAtKeysEur: 48000,
+    savedEur: 12000,
+    progressLine: 'At €1,500 a month the deposit is there by January 2028.',
+  },
+  watched: [
+    {
+      lead: 'Bank of Ireland',
+      kind: 'instant access',
+      value: '2.50%',
+      figure: '€1,140 interest by March 2028',
+    },
+    { lead: 'AIB', kind: 'six-month deposit', value: '2.75%', figure: '€1,210 by March 2028' },
+  ],
+  updatedAt: '2026-11-12T10:00:00.000Z',
+}
 
 const holding = (kind: Holding['kind'], balance: number): Holding => ({
   id: `55555555-5555-4555-8555-${String(balance).padStart(12, '0')}`,
@@ -109,6 +144,7 @@ function renderAt(path: string): void {
         <Routes>
           <Route path="/you" element={<You />} />
           <Route path="/you/:section" element={<You />} />
+          <Route path="/" element={<p>The chat</p>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -119,6 +155,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   listCases.mockResolvedValue(cases())
   currentIdentity.mockResolvedValue(ANON)
+  fetchCasePlan.mockResolvedValue(null)
   fetchCaseHoldings.mockResolvedValue({
     holdings: [holding('savings', 33000), holding('car_finance', 6500)],
     progress: null,
@@ -214,5 +251,161 @@ describe('You', () => {
   it('has no page for a section that does not exist', () => {
     renderAt('/you/settings')
     expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument()
+  })
+})
+
+describe('Your plan', () => {
+  it('has no row on You when the conversation has no plan', async () => {
+    renderAt('/you')
+    await waitFor(() => expect(fetchCasePlan).toHaveBeenCalledWith(CASE))
+    await screen.findByText('€33,000 saved · €6,500 owed')
+    expect(screen.queryByRole('link', { name: /^your plan/i })).not.toBeInTheDocument()
+  })
+
+  it('has a row above Your money with the keys month and saved of needed', async () => {
+    fetchCasePlan.mockResolvedValue(PLAN)
+    renderAt('/you')
+    const row = await screen.findByRole('link', { name: /^your plan/i })
+    expect(row).toHaveAttribute('href', '/you/plan')
+    expect(row).toHaveTextContent('Keys March 2028 · €12,000 of €48,000 saved')
+    const links = screen.getAllByRole('link').map((link) => link.getAttribute('href'))
+    expect(links.indexOf('/you/plan')).toBe(links.indexOf('/you/money') - 1)
+  })
+
+  it('shows the goal and keys month, saved of needed, what is watched, and what is coming', async () => {
+    fetchCasePlan.mockResolvedValue(PLAN)
+    renderAt('/you/plan')
+    expect(screen.getByRole('heading', { level: 1, name: 'Your plan' })).toBeInTheDocument()
+    expect(await screen.findByText('A first home in Dublin')).toBeInTheDocument()
+    expect(screen.getByText('Keys March 2028')).toBeInTheDocument()
+    expect(
+      screen.getByRole('progressbar', { name: /saved towards the money needed/i }),
+    ).toHaveAttribute('aria-valuenow', '12000')
+    expect(screen.getByText(/the deposit is there by January 2028/)).toBeInTheDocument()
+
+    expect(screen.getByRole('button', { name: /price of the home: €400,000/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /kind of home: second-hand/i })).toBeInTheDocument()
+
+    const watched = screen.getByRole('list', { name: 'Options you are watching' })
+    expect(within(watched).getAllByRole('listitem')).toHaveLength(2)
+    expect(within(watched).getByText('€1,140 interest by March 2028')).toBeInTheDocument()
+
+    expect(screen.getByRole('link', { name: /balances and debts/i })).toHaveAttribute(
+      'href',
+      '/you/money',
+    )
+
+    const coming = screen.getByRole('list', { name: 'Coming' })
+    const placeholders = within(coming).getAllByRole('listitem')
+    expect(placeholders.map((item) => item.textContent)).toEqual([
+      'StatementsNot yet',
+      'ID and proof of addressNot yet',
+      'Application packNot yet',
+    ])
+    for (const item of placeholders) expect(item).toHaveAttribute('aria-disabled', 'true')
+    expect(within(coming).queryByRole('link')).not.toBeInTheDocument()
+    expect(within(coming).queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('says so when there is no plan', async () => {
+    renderAt('/you/plan')
+    expect(await screen.findByText(/no saved plan in this conversation/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Go to Saoirse' })).toHaveAttribute('href', '/')
+  })
+
+  it('shows the error with a way to try again', async () => {
+    fetchCasePlan.mockRejectedValueOnce(new Error('offline')).mockResolvedValue(PLAN)
+    renderAt('/you/plan')
+    expect(await screen.findByText(/would not load/i)).toHaveTextContent('offline')
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('A first home in Dublin')).toBeInTheDocument()
+  })
+
+  it('sends only the changed field, then opens the chat on Saoirse’s reading', async () => {
+    fetchCasePlan.mockResolvedValue(PLAN)
+    const reading =
+      'Saving €1,200 a month means €9,000 less saved by March 2028; the six-month deposits no longer fit.'
+    updateCasePlan.mockResolvedValue({ ...PLAN, reading })
+    renderAt('/you/plan')
+
+    fireEvent.click(await screen.findByRole('button', { name: /saved each month/i }))
+    const input = screen.getByLabelText('Saved each month (€)')
+    await waitFor(() => expect(input).toHaveFocus())
+    fireEvent.change(input, { target: { value: '1,200' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText('The chat')).toBeInTheDocument()
+    expect(updateCasePlan).toHaveBeenCalledWith(CASE, { monthlySaving: 1200 })
+    expect(takeSaoirseLine()).toBe(reading)
+  })
+
+  it('changes the kind of home with the segmented control', async () => {
+    fetchCasePlan.mockResolvedValue(PLAN)
+    updateCasePlan.mockResolvedValue({ ...PLAN, reading: 'A new build changes it.' })
+    renderAt('/you/plan')
+
+    fireEvent.click(await screen.findByRole('button', { name: /kind of home/i }))
+    fireEvent.click(screen.getByRole('radio', { name: 'New build' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(updateCasePlan).toHaveBeenCalledWith(CASE, { propertyKind: 'new_build' }),
+    )
+    expect(await screen.findByText('The chat')).toBeInTheDocument()
+    expect(takeSaoirseLine()).toBe('A new build changes it.')
+  })
+
+  it('opens one row at a time, and closes without a request when nothing changed', async () => {
+    fetchCasePlan.mockResolvedValue(PLAN)
+    renderAt('/you/plan')
+
+    fireEvent.click(await screen.findByRole('button', { name: /first-time buyer/i }))
+    expect(screen.getByRole('switch', { name: 'First-time buyer' })).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: /buying together/i }))
+    expect(screen.queryByRole('switch', { name: 'First-time buyer' })).not.toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Buying together' })).not.toBeChecked()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('switch', { name: 'Buying together' })).not.toBeInTheDocument(),
+    )
+    expect(updateCasePlan).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /buying together/i })).toHaveFocus()
+  })
+
+  it('refuses a month in the past and a price of nothing, with a message', async () => {
+    fetchCasePlan.mockResolvedValue(PLAN)
+    renderAt('/you/plan')
+
+    fireEvent.click(await screen.findByRole('button', { name: /keys by/i }))
+    fireEvent.change(screen.getByLabelText('Keys by'), { target: { value: '2020-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Choose this month or a later one.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: /price of the home/i }))
+    fireEvent.change(screen.getByLabelText('Price of the home (€)'), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Enter a price above €0.')).toBeInTheDocument()
+
+    expect(updateCasePlan).not.toHaveBeenCalled()
+  })
+
+  it('keeps the row open with the reason when the save fails', async () => {
+    fetchCasePlan.mockResolvedValue(PLAN)
+    updateCasePlan.mockRejectedValue(new Error('Saoirse is unavailable right now.'))
+    renderAt('/you/plan')
+
+    fireEvent.click(await screen.findByRole('button', { name: /price of the home/i }))
+    fireEvent.change(screen.getByLabelText('Price of the home (€)'), {
+      target: { value: '420000' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'That was not saved. Saoirse is unavailable right now.',
+    )
+    expect(screen.queryByText('The chat')).not.toBeInTheDocument()
+    expect(takeSaoirseLine()).toBeNull()
   })
 })
