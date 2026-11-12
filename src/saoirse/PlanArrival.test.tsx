@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SaoiApiError } from '@/api/client'
+import { previewPlanResponseSchema } from '@contracts/session.ts'
 
 const claimPlan = vi.fn<(token: string) => Promise<unknown>>()
 const previewPlan = vi.fn<(token: string) => Promise<unknown>>()
@@ -14,6 +15,14 @@ vi.mock('@/lib/env', async (importOriginal) => ({
 vi.mock('@/lib/session', () => ({
   claimPlan: (token: string) => claimPlan(token),
   previewPlan: (token: string) => previewPlan(token),
+}))
+const reloadIntoNewerBuild = vi.fn<() => Promise<boolean>>()
+const reloadPage = vi.fn<() => void>()
+vi.mock('@/app/staleDeploy', () => ({
+  reloadIntoNewerBuild: () => reloadIntoNewerBuild(),
+  reloadPage: () => {
+    reloadPage()
+  },
 }))
 
 const { PlanArrival } = await import('./PlanArrival')
@@ -127,6 +136,9 @@ beforeEach(() => {
   claimPlan.mockReset()
   previewPlan.mockReset()
   previewPlan.mockResolvedValue(PREVIEW)
+  reloadIntoNewerBuild.mockReset()
+  reloadIntoNewerBuild.mockResolvedValue(false)
+  reloadPage.mockReset()
   takeFirstMessage()
 })
 
@@ -274,11 +286,67 @@ describe('a link that cannot be opened', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   })
 
+  it('a network failure offers Try again, and never reaches for a newer build', async () => {
+    previewPlan.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    open()
+    expect(await screen.findByText(/couldn’t open your comparison just now/)).toBeInTheDocument()
+    expect(reloadIntoNewerBuild).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText(HOOK)).toBeInTheDocument()
+  })
+
   it('shows Saoirse typing while the preview loads, and holds the send', () => {
     previewPlan.mockReturnValue(new Promise(() => undefined))
     open()
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * The preview as the server sent it before the tiles changed shape (saoi PR #72): what an old
+ * page met at 14:40 on 2026-11-12, the other way round. Either way, this build's contract cannot
+ * read it.
+ */
+const DRIFTED = {
+  ...PREVIEW,
+  arrival: {
+    ...ARRIVAL,
+    tiles: [{ label: 'Savings', value: '3.11%', lines: ['€815 interest'] }],
+  },
+}
+
+/** The preview through this build's own contract, as `previewPlan` parses it. */
+const parsedPreview = (body: unknown) =>
+  Promise.resolve(body).then((data) => previewPlanResponseSchema.parse(data))
+
+describe('a page older than the server', () => {
+  it('reloads into the newer build when there is one, typing until the page goes', async () => {
+    previewPlan.mockImplementation(() => parsedPreview(DRIFTED))
+    reloadIntoNewerBuild.mockResolvedValue(true)
+    const { container } = open()
+    await waitFor(() => {
+      expect(reloadIntoNewerBuild).toHaveBeenCalledTimes(1)
+    })
+    expect(screen.queryByText(/couldn’t open your comparison/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/older version of Saoi/)).not.toBeInTheDocument()
+    // Only the typing bubble, which has no words.
+    expect(saoirseLines(container)).toEqual([''])
+    expect(screen.queryByRole('button', { name: 'Reload' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+  })
+
+  it('says the page needs a reload, with a Reload chip, when there is no newer build yet', async () => {
+    previewPlan.mockImplementation(() => parsedPreview(DRIFTED))
+    open()
+    expect(await screen.findByText(/older version of Saoi/)).toBeInTheDocument()
+    expect(screen.queryByText(/couldn’t open your comparison just now/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Start again' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
+    expect(reloadPage).toHaveBeenCalledTimes(1)
+    expect(previewPlan).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -289,5 +357,11 @@ describe('what a refusal means', () => {
     expect(problemOf(new SaoiApiError(410, ''))).toBe('expired')
     expect(problemOf(new SaoiApiError(429, ''))).toBe('busy')
     expect(problemOf(new Error('offline'))).toBe('failed')
+  })
+
+  it('a response this build cannot parse is a stale page, not a failed network', async () => {
+    const error: unknown = await parsedPreview(DRIFTED).catch((reason: unknown) => reason)
+    expect(problemOf(error)).toBe('stale')
+    expect(problemOf(new TypeError('Failed to fetch'))).toBe('failed')
   })
 })

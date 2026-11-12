@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import type { PreviewPlanResponse } from '@contracts/session.ts'
 import { ChatBubble } from '@/saoirse/ChatBubble'
 import { Composer } from '@/saoirse/Composer'
-import { SuggestionList } from '@/saoirse/SuggestionList'
+import { SuggestionList, type Suggestion } from '@/saoirse/SuggestionList'
 import { TypingBubble } from '@/saoirse/TypingBubble'
 import { PlanArrivalCard } from '@/saoirse/cards/PlanArrivalCard'
 import { CompactPlanCard, type CompactPlan } from '@/saoirse/cards/SavedPlanCard'
@@ -15,6 +15,10 @@ import { claimPlan, previewPlan } from '@/lib/session'
 import { isBackendConfigured } from '@/lib/env'
 import { queryKeys } from '@/lib/queryKeys'
 import { routes } from '@/app/routes'
+import { reloadIntoNewerBuild, reloadPage } from '@/app/staleDeploy'
+
+/** A preview that never arrives: the page is reloading, and the typing bubble holds until then. */
+const reloading = (): Promise<never> => new Promise<never>(() => undefined)
 
 /**
  * A saved comparison arriving in the app (2026-11-12, build 1 of the first-home experience).
@@ -40,7 +44,16 @@ export function PlanArrival({
 
   const preview = useQuery({
     queryKey: queryKeys.plans.preview(token),
-    queryFn: () => previewPlan(token),
+    /*
+     * A preview this build cannot read is an old page after a release (the service worker served
+     * yesterday's bundle). When a newer build is there, reload into it and stay on the typing
+     * bubble while the page goes; otherwise the error stands and the arrival says to reload.
+     */
+    queryFn: () =>
+      previewPlan(token).catch(async (error: unknown) => {
+        if (problemOf(error) === 'stale' && (await reloadIntoNewerBuild())) return reloading()
+        throw error
+      }),
     enabled: isBackendConfigured && token !== '',
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
@@ -133,16 +146,10 @@ export function PlanArrival({
             </ChatBubble>
             <SuggestionList
               className="pl-10"
-              suggestions={
-                problem === 'busy' || problem === 'failed'
-                  ? [
-                      { id: 'retry', label: 'Try again' },
-                      { id: 'again', label: 'Start again' },
-                    ]
-                  : [{ id: 'again', label: 'Start again' }]
-              }
+              suggestions={chipsFor(problem)}
               onSelect={(suggestion) => {
                 if (suggestion.id === 'again') startAgain()
+                else if (suggestion.id === 'reload') reloadPage()
                 else if (preview.isError) void preview.refetch()
                 else if (sent !== null) claim.mutate(sent)
                 else claim.reset()
@@ -159,11 +166,33 @@ export function PlanArrival({
           hint={false}
           disabled={preview.data === undefined || problem !== null || claiming}
           onSend={send}
-          {...(problem === null ? {} : { placeholder: 'Start again to chat' })}
+          {...(problem === null
+            ? {}
+            : { placeholder: problem === 'stale' ? 'Reload to chat' : 'Start again to chat' })}
         />
       </div>
     </div>
   )
+}
+
+const START_AGAIN = { id: 'again', label: 'Start again' } as const
+
+/**
+ * What can help, for each problem. Trying again helps only when the server may answer
+ * differently in a moment; an old page reads every answer the same way, so it gets a reload.
+ */
+function chipsFor(problem: ClaimProblem): Suggestion[] {
+  switch (problem) {
+    case 'busy':
+    case 'failed':
+      return [{ id: 'retry', label: 'Try again' }, START_AGAIN]
+    case 'stale':
+      return [{ id: 'reload', label: 'Reload' }, START_AGAIN]
+    case 'unknown':
+    case 'used':
+    case 'expired':
+      return [START_AGAIN]
+  }
 }
 
 /** The arrival card when the preview carries one, else the compact card, as in the chat. */

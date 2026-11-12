@@ -1,9 +1,17 @@
+import { z } from 'zod'
 import { SaoiApiError } from '@/lib/saoiApi'
 
-/** Why a link did not open, as the server answered it. */
-export type ClaimProblem = 'unknown' | 'used' | 'expired' | 'busy' | 'failed'
+/**
+ * Why a link did not open, as the server answered it.
+ *
+ * `stale` is the one the server did not cause: it answered, and this page's build could not read
+ * the answer (a Zod contract that no longer matches). That is an old page after a release, not a
+ * network failure, and "try again" on the same page cannot fix it; a reload can.
+ */
+export type ClaimProblem = 'unknown' | 'used' | 'expired' | 'busy' | 'failed' | 'stale'
 
 export function problemOf(error: unknown): ClaimProblem {
+  if (error instanceof z.ZodError) return 'stale'
   if (!(error instanceof SaoiApiError)) return 'failed'
   switch (error.status) {
     case 400:
@@ -29,4 +37,6 @@ export const PROBLEM_LINES: Record<ClaimProblem, string> = {
     'That link has expired: a saved comparison is kept for 24 hours, then deleted unless it’s opened. Ask your AI assistant to save it again, or we can start again here.',
   busy: 'Saoi is busy right now, and your link hasn’t been used up. Try it again in a few minutes.',
   failed: 'I couldn’t open your comparison just now. Try the link again in a moment.',
+  stale:
+    'This page is an older version of Saoi and can’t open your comparison. Reload to get the latest version.',
 }
