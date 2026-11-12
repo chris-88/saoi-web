@@ -80,8 +80,9 @@ If you can't satisfy an item, say so explicitly rather than quietly skipping it.
                    greyed "Coming" rows. A save (`PATCH`, only the changed field) opens the chat
                    with the server's `reading` as Saoirse's line (carried in memory by
                    `src/lib/planArrival.ts`, never sent), then the return turn reads the
-                   `plan_edited` event. The contract is hand-typed in `src/lib/plan.ts` and
-                   `schema.d.ts` until the API deploys and `api:generate` replaces it
+                   `plan_edited` event. A "Nothing changed" answer (same `updatedAt`) closes
+                   the row instead. Contract: `@contracts/case-plan.ts`; a plan that is not for
+                   a home (`homePrice` null) has no price, kind or buyer rows
 /#/join/:token     partner experience
 /#/plan/:token     a plan made in the customer's own AI (one-time link; `?plan=<token>` moves here
                    and leaves the address at once). From the public preview, nothing stored: the

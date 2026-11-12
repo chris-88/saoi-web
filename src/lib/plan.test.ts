@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { currentMonth, monthLabel, planStateLine, type CasePlan } from './plan'
+import type { CasePlan } from '@contracts/case-plan.ts'
+import { currentMonth, monthLabel, planStateLine } from './plan'
 
 const plan = (summary: Partial<CasePlan['summary']> = {}): CasePlan => ({
   planId: 'p1',

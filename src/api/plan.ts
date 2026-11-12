@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { PlanEditBody } from '@/lib/plan'
+import type { CasePlanEdit } from '@contracts/case-plan.ts'
+import { SaoiApiError } from '@/api/client'
 import { fetchCasePlan, updateCasePlan } from '@/lib/saoiApi'
 import { queryKeys } from '@/lib/queryKeys'
 
@@ -28,11 +29,16 @@ export function useCasePlan(caseId: string | null, { enabled = true }: { enabled
 export function useUpdateCasePlan(caseId: string | null) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (body: PlanEditBody) => {
+    mutationFn: (body: CasePlanEdit) => {
       if (caseId === null) throw new Error('There is no conversation yet.')
       return updateCasePlan(caseId, body)
     },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: queryKeys.case.detail(caseId ?? 'none') }),
+    // The plan has gone (a 404): read it again, so the page says there is none.
+    onError: (error) =>
+      error instanceof SaoiApiError && error.status === 404
+        ? queryClient.invalidateQueries({ queryKey: queryKeys.case.plan(caseId ?? 'none') })
+        : undefined,
   })
 }

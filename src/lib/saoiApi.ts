@@ -36,12 +36,12 @@ import {
   type UpdateHoldingBody,
 } from '@contracts/holdings.ts'
 import {
+  casePlanEditedSchema,
   casePlanSchema,
-  planEditResponseSchema,
   type CasePlan,
-  type PlanEditBody,
-  type PlanEditResponse,
-} from '@/lib/plan'
+  type CasePlanEdit,
+  type CasePlanEdited,
+} from '@contracts/case-plan.ts'
 
 export { SaoiApiError }
 
@@ -180,13 +180,13 @@ export async function fetchCasePlan(caseId: string): Promise<CasePlan | null> {
  * Changes the plan's own figures (only the fields given). The server recomputes the plan,
  * writes a `plan_edited` event and returns the plan with one sentence of what the edit changed.
  */
-export function updateCasePlan(caseId: string, body: PlanEditBody): Promise<PlanEditResponse> {
+export function updateCasePlan(caseId: string, body: CasePlanEdit): Promise<CasePlanEdited> {
   return parsed(
     api.PATCH('/api/cases/{caseId}/plan', {
       params: { path: { caseId } },
       body: compact(body),
     }),
-    planEditResponseSchema,
+    casePlanEditedSchema,
   )
 }
 

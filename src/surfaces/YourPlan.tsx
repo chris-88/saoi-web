@@ -25,12 +25,11 @@ import {
   eur,
   keysMonth,
   monthLabel,
-  type CasePlan,
-  type PlanEditBody,
-  type PlanEditable,
+  isHomePlan,
   type PlanField,
   type PropertyKind,
 } from '@/lib/plan'
+import type { CasePlan, CasePlanEdit, PlanEditable } from '@contracts/case-plan.ts'
 import { handSaoirseLine } from '@/lib/planArrival'
 import { routes } from '@/app/routes'
 import { Group, GroupLabel, LinkRow, rowClass } from '@/surfaces/YouRows'
@@ -101,12 +100,17 @@ function PlanBody({ caseId, plan }: { readonly caseId: string; readonly plan: Ca
 /** The goal and the keys month, large; saved against needed, with the plan's own line. */
 function Summary({ plan }: { readonly plan: CasePlan }): ReactNode {
   const keys = keysMonth(plan)
+  const home = isHomePlan(plan)
   const { savedEur, neededAtKeysEur, progressLine } = plan.summary
   return (
     <section aria-label="Where the plan stands" className="bg-card rounded-xl border p-4 shadow-xs">
       <p className="text-muted-foreground text-sm font-medium">{plan.title}</p>
       <p className="mt-1 text-2xl font-semibold tracking-tight">
-        {keys === null ? 'No keys month yet' : `Keys ${monthLabel(keys)}`}
+        {keys === null
+          ? home
+            ? 'No keys month yet'
+            : 'No month set yet'
+          : `${home ? 'Keys' : 'By'} ${monthLabel(keys)}`}
       </p>
       {savedEur !== null && neededAtKeysEur !== null && (
         <Meter saved={savedEur} needed={neededAtKeysEur} />
@@ -152,6 +156,14 @@ const FIELDS = [
   'buyingTogether',
 ] as const satisfies readonly PlanField[]
 
+/** A plan that is not for a home has no price or kind (the server refuses them) and no buyers. */
+const HOME_ONLY: ReadonlySet<PlanField> = new Set([
+  'homePrice',
+  'propertyKind',
+  'firstTimeBuyer',
+  'buyingTogether',
+])
+
 const FIELD_LABELS = {
   targetDate: 'Keys by',
   homePrice: 'Price of the home',
@@ -160,6 +172,10 @@ const FIELD_LABELS = {
   firstTimeBuyer: 'First-time buyer',
   buyingTogether: 'Buying together',
 } as const satisfies Record<PlanField, string>
+
+/** The goal month is the keys month only on a home plan. */
+const labelOf = (field: PlanField, home: boolean): string =>
+  field === 'targetDate' && !home ? 'Goal month' : FIELD_LABELS[field]
 
 const NOT_SET = 'Not set'
 const yesNo = (value: boolean | null): string => (value === null ? NOT_SET : value ? 'Yes' : 'No')
@@ -185,6 +201,15 @@ function shown(field: PlanField, editable: PlanEditable): string {
  * The plan's own figures, one row each. Tapping a row opens it in place; one is open at a time.
  * A save that changes nothing closes the row without a request. A save that does change
  * something goes to the server, and the chat opens on Saoirse's reading of it.
+ *
+ * What the server can still say (saoi `routes/plans/case-plan.ts`):
+ * - 200 with "Nothing changed: the plan already has these figures." and the plan as it was
+ *   (same `updatedAt`, no `plan_edited` event): nothing for the chat to read, so the row closes.
+ * - 400 for a month that has passed, a figure of zero or less, an unknown key, or a price or kind
+ *   on a plan that is not for a home. The editors refuse the first two before sending, never send
+ *   an unknown key, and a non-home plan has no price or kind row; what is left (the month turning
+ *   over in Dublin before it does here) shows the server's sentence in the open row.
+ * - 404 when the plan has gone: the plan is read again, and the page says there is none.
  */
 function EditableRows({ caseId, plan }: { readonly caseId: string; readonly plan: CasePlan }) {
   const navigate = useNavigate()
@@ -210,7 +235,10 @@ function EditableRows({ caseId, plan }: { readonly caseId: string; readonly plan
     setEditing(null)
   }
 
-  const save = (body: PlanEditBody): void => {
+  const home = isHomePlan(plan)
+  const fields = FIELDS.filter((field) => home || !HOME_ONLY.has(field))
+
+  const save = (body: CasePlanEdit): void => {
     const keys = Object.keys(body) as PlanField[]
     if (keys.every((key) => body[key] === plan.editable[key])) {
       close()
@@ -218,6 +246,10 @@ function EditableRows({ caseId, plan }: { readonly caseId: string; readonly plan
     }
     update.mutate(body, {
       onSuccess: (edited) => {
+        if (edited.updatedAt === plan.updatedAt) {
+          close()
+          return
+        }
         handSaoirseLine(edited.reading)
         void navigate(routes.saoirse)
       },
@@ -226,7 +258,7 @@ function EditableRows({ caseId, plan }: { readonly caseId: string; readonly plan
 
   const editor = (field: PlanField): ReactNode => {
     const common = {
-      label: FIELD_LABELS[field],
+      label: labelOf(field, home),
       pending: update.isPending,
       error: update.isError ? `That was not saved. ${update.error.message}` : null,
       onCancel: close,
@@ -246,7 +278,7 @@ function EditableRows({ caseId, plan }: { readonly caseId: string; readonly plan
           <EuroEditor
             {...common}
             initial={editable.homePrice}
-            min="above-zero"
+            zeroMessage="Enter a price above €0."
             onSave={(value) => save({ homePrice: value })}
           />
         )
@@ -255,7 +287,7 @@ function EditableRows({ caseId, plan }: { readonly caseId: string; readonly plan
           <EuroEditor
             {...common}
             initial={editable.monthlySaving}
-            min="zero"
+            zeroMessage="Enter an amount above €0."
             onSave={(value) => save({ monthlySaving: value })}
           />
         )
@@ -288,7 +320,7 @@ function EditableRows({ caseId, plan }: { readonly caseId: string; readonly plan
 
   return (
     <Group>
-      {FIELDS.map((field) =>
+      {fields.map((field) =>
         editing === field ? (
           <div key={field} className="bg-muted/40 p-3">
             {editor(field)}
@@ -301,10 +333,10 @@ function EditableRows({ caseId, plan }: { readonly caseId: string; readonly plan
             }}
             type="button"
             className={rowClass}
-            aria-label={`${FIELD_LABELS[field]}: ${shown(field, plan.editable)}. Change`}
+            aria-label={`${labelOf(field, home)}: ${shown(field, plan.editable)}. Change`}
             onClick={() => open(field)}
           >
-            <span className="min-w-0 flex-1 text-sm font-medium">{FIELD_LABELS[field]}</span>
+            <span className="min-w-0 flex-1 text-sm font-medium">{labelOf(field, home)}</span>
             <span className="text-muted-foreground shrink-0 text-sm tabular-nums">
               {shown(field, plan.editable)}
             </span>
@@ -396,7 +428,8 @@ const MAX_EURO = 100_000_000
 /** A euro amount as typed: "350,000", "€350000" and "350000" are the same. */
 const euroNumber = (typed: string): number => Number(typed.replace(/[€,\s]/g, ''))
 
-const euroSchema = (min: 'zero' | 'above-zero') =>
+/** Above zero, as the server holds every amount (`positive()`), and within its ceiling. */
+const euroSchema = (zeroMessage: string) =>
   z.object({
     value: z
       .string()
@@ -405,22 +438,19 @@ const euroSchema = (min: 'zero' | 'above-zero') =>
         (value) => /^\d+(\.\d{1,2})?$/.test(value.replace(/[€,\s]/g, '')),
         'Enter an amount in euro.',
       )
-      .refine(
-        (value) => (min === 'zero' ? euroNumber(value) >= 0 : euroNumber(value) > 0),
-        min === 'zero' ? 'Enter an amount in euro.' : 'Enter a price above €0.',
-      )
+      .refine((value) => euroNumber(value) > 0, zeroMessage)
       .refine((value) => euroNumber(value) <= MAX_EURO, 'That is more than Saoi can work with.'),
   })
 
 function EuroEditor({
   label,
   initial,
-  min,
+  zeroMessage,
   onSave,
   ...actions
-}: EditorProps<number> & { readonly min: 'zero' | 'above-zero' }): ReactNode {
+}: EditorProps<number> & { readonly zeroMessage: string }): ReactNode {
   const form = useForm({
-    resolver: zodResolver(euroSchema(min)),
+    resolver: zodResolver(euroSchema(zeroMessage)),
     defaultValues: { value: initial === null ? '' : String(initial) },
   })
   const { setFocus } = form

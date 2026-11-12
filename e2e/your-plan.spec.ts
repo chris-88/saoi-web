@@ -103,7 +103,7 @@ async function stub(page: Page): Promise<unknown[]> {
   await page.route(`**/api/cases/${CASE}/plan`, (route) => {
     if (route.request().method() === 'PATCH') {
       patches.push(route.request().postDataJSON())
-      return json(route, 200, { ...PLAN, reading: READING })
+      return json(route, 200, { ...PLAN, updatedAt: '2026-11-12T11:00:00.000Z', reading: READING })
     }
     return json(route, 200, PLAN)
   })
