@@ -19,19 +19,3 @@ export function takeFirstMessage(): string | null {
   pending = null
   return message
 }
-
-/**
- * Saoirse's line on arrival when the server sent none (an API from before 2026-11-12). The
- * server owns the wording now (`opening` on the preview, the same line it writes at the claim);
- * this mirrors its fallback for plans without a hook question.
- */
-export const ARRIVAL_FALLBACK_LINE =
-  'Your comparison is here, with every figure as you left it. What would you like to look at first?'
-
-/** What Saoirse says first on arrival: the server's line, else the hook question, else the fallback. */
-export function openingLine(preview: {
-  readonly opening?: string | undefined
-  readonly arrival: { readonly hookQuestion: { readonly question: string } | null } | null
-}): string {
-  return preview.opening ?? preview.arrival?.hookQuestion?.question ?? ARRIVAL_FALLBACK_LINE
-}

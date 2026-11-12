@@ -89,7 +89,7 @@ const PREVIEW = {
     assumptions: [
       'Assumed: a new build, first-time buyers. Estimates only; rates and offers are not confirmed.',
     ],
-    hookQuestion: { key: 'taxPaid', question: HOOK, why: 'Help to Buy is conditional' },
+    hookQuestion: { key: 'tax_paid', question: HOOK, why: 'Help to Buy is conditional' },
   },
   opening: HOOK,
   expiresAt: '2026-11-13T12:00:00.000Z',

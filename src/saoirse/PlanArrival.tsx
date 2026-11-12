@@ -9,7 +9,7 @@ import { TypingBubble } from '@/saoirse/TypingBubble'
 import { PlanArrivalCard } from '@/saoirse/cards/PlanArrivalCard'
 import { CompactPlanCard, type CompactPlan } from '@/saoirse/cards/SavedPlanCard'
 import { PROBLEM_LINES, problemOf, type ClaimProblem } from '@/lib/planClaim'
-import { handFirstMessage, openingLine } from '@/lib/planArrival'
+import { handFirstMessage } from '@/lib/planArrival'
 import { routesOf } from '@/lib/planRoutes'
 import { claimPlan, previewPlan } from '@/lib/session'
 import { isBackendConfigured } from '@/lib/env'
@@ -119,7 +119,7 @@ export function PlanArrival({
               </Link>
             </div>
             <ChatBubble author="assistant" first>
-              <p>{openingLine(preview.data)}</p>
+              <p>{preview.data.opening}</p>
             </ChatBubble>
             {sent !== null && (
               <ChatBubble author="customer">

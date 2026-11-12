@@ -17,7 +17,7 @@ vi.mock('@/lib/session', () => ({
 }))
 
 const { PlanArrival } = await import('./PlanArrival')
-const { ARRIVAL_FALLBACK_LINE, takeFirstMessage } = await import('@/lib/planArrival')
+const { takeFirstMessage } = await import('@/lib/planArrival')
 const { problemOf } = await import('@/lib/planClaim')
 
 const HOOK =
@@ -56,7 +56,7 @@ const ARRIVAL = {
   assumptions: [
     'Assumed: a new build, first-time buyers. Estimates only; rates and offers are not confirmed.',
   ],
-  hookQuestion: { key: 'taxPaid', question: HOOK, why: 'Help to Buy €35,000 conditional' },
+  hookQuestion: { key: 'tax_paid', question: HOOK, why: 'Help to Buy €35,000 conditional' },
 }
 
 const PREVIEW = {
@@ -205,11 +205,14 @@ describe('a saved comparison arriving in the app', () => {
 })
 
 describe('an older plan, or one without a home goal', () => {
+  /** The server's line for a plan with no hook question (saoi `domain/market/arrival.ts`). */
+  const CARRY_ON =
+    'Your comparison is here, with every figure as you left it. What would you like to look at first?'
   const OLD = {
     ...PREVIEW,
     routes: [],
     arrival: null,
-    opening: undefined,
+    opening: CARRY_ON,
     products: [
       { name: 'Online Regular Saver', provider: 'PTSB', line: '€500 a month' },
       { name: '12 Month Fixed Term Deposit', provider: 'AIB', line: '€20,000' },
@@ -225,19 +228,15 @@ describe('an older plan, or one without a home goal', () => {
     expect(
       screen.getByRole('link', { name: 'Click here for the data protection notice' }),
     ).toBeInTheDocument()
-    expect(saoirseLines(container)).toEqual([ARRIVAL_FALLBACK_LINE])
+    expect(saoirseLines(container)).toEqual([CARRY_ON])
   })
 
-  it('says the server’s line when it sends one', async () => {
+  it('says the server’s line verbatim, whatever it is', async () => {
     previewPlan.mockResolvedValue({ ...OLD, opening: 'Your comparison is here.' })
     const { container } = open()
     await waitFor(() => {
       expect(saoirseLines(container)).toEqual(['Your comparison is here.'])
     })
-  })
-
-  it('the fallback line holds the comparison line: no instruction, no advice', () => {
-    expect(ARRIVAL_FALLBACK_LINE).not.toMatch(/\b(best|recommend|should|clear|switch|set up)\b/i)
   })
 })
 
