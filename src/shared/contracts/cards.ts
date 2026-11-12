@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { DOCUMENT_TYPES, PRODUCTS } from '../domain/journey.ts'
 import { APPLICATION_STATES } from '../domain/state-machine.ts'
-import { planRouteSchema } from './market-plan.ts'
+import { planArrivalViewSchema, planRouteSchema } from './market-plan.ts'
 
 /**
  * Cards are what the model asks for and the server renders.
@@ -585,6 +585,8 @@ export const savedPlanCardSchema = z.object({
    * shows three, then "More routes (N)". Empty for other plans and for plans saved before then.
    */
   routes: z.array(planRouteSchema).max(6).default([]),
+  /** What the host's card showed (2026-11-12); absent on older plans and non-home plans. */
+  arrival: planArrivalViewSchema.optional(),
   createdAt: z.string(),
   dataCheckedAt: z.string(),
 })

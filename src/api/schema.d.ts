@@ -9054,6 +9054,30 @@ export interface components {
           checkedOn: string
         }[]
       }[]
+      /** @default null */
+      arrival: {
+        keysOn: string | null
+        readyLine: string
+        readyNote: string | null
+        factParts: string[]
+        progress: {
+          savedEur: number
+          neededEur: number
+          monthlySavingEur: number
+        } | null
+        tiles: {
+          label: string
+          value: string
+          lines: string[]
+        }[]
+        assumptions: string[]
+        hookQuestion: {
+          key: string
+          question: string
+          why: string
+        } | null
+      } | null
+      opening?: string
       expiresAt: string
     }
     PreviewPlan: {

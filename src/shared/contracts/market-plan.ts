@@ -268,6 +268,33 @@ export const planRouteSchema = z.object({
 })
 export type PlanRoute = z.infer<typeof planRouteSchema>
 
+/**
+ * What the host's calculator card showed, as the app shows it again on arrival (2026-11-12,
+ * build 1 of the first-home experience). Figures worded by the server; the app adds no
+ * arithmetic. Tiles name a rate and a count, never a lender or a product.
+ */
+export const planArrivalViewSchema = z.object({
+  /** The month the money needed at the keys is held, or null when not reached. */
+  keysOn: monthOrDay.nullable(),
+  /** The large line: "April 2028", or "Not reached at this pace". */
+  readyLine: text(80),
+  /** Under it, small: "Before interest", "3 months after your date"; null for none. */
+  readyNote: text(120).nullable(),
+  /** "€40,000 deposit", "+ €4,000 stamp duty", "+ €3,000 legal and survey", "− €30,000 Help to Buy". */
+  factParts: z.array(text(80)).max(6),
+  /** Saved now against the money needed at the keys, and the monthly saving. */
+  progress: z.object({ savedEur: eur, neededEur: eur, monthlySavingEur: eur }).nullable(),
+  /** Savings, Mortgage, Could afford, in that order. */
+  tiles: z
+    .array(z.object({ label: text(40), value: text(60), lines: z.array(text(120)).max(3) }))
+    .max(3),
+  /** What was assumed and can be changed, one line each. */
+  assumptions: z.array(text(300)).max(6),
+  /** The question whose answer would change the plan most; Saoirse's first line. */
+  hookQuestion: z.object({ key: text(60), question: text(300), why: text(300) }).nullable(),
+})
+export type PlanArrivalView = z.infer<typeof planArrivalViewSchema>
+
 export const RANKING_OBJECTIVES = [
   'highest_net_return',
   'lowest_total_cost',
