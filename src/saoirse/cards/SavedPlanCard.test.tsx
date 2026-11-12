@@ -196,24 +196,24 @@ describe('a home plan carrying what the host card showed', () => {
       {
         label: 'Savings',
         qualifier: 'up to',
-        value: '3.25%',
-        sub: ['€612 interest by Sep 2027'],
-        quiet: ['7 accounts'],
-        detail: ['The best rate among 7 accounts open to you, after DIRT.', 'Variable rates.'],
+        value: '3.11%',
+        sub: ['€815 interest', 'by Jul 2028'],
+        quiet: ['28 accounts'],
+        detail: ['The best rate among 28 accounts open to you, after DIRT.', 'Variable rates.'],
       },
       {
         label: 'Mortgage',
-        qualifier: null,
-        value: '€1,607/mo',
-        sub: ['€360,000 loan', 'from 3.45%'],
-        quiet: ['41 options'],
-        detail: ['Over 30 years at the lowest rate of 41 options.'],
+        qualifier: 'from',
+        value: '€1,751/mo',
+        sub: ['€405,000 loan', 'from 3.20%'],
+        quiet: ['49 options'],
+        detail: ['Over 30 years at the lowest rate of 49 options.'],
       },
       {
         label: 'Could afford',
         qualifier: 'up to',
-        value: '€488,000',
-        sub: ['4× income, 90% loan'],
+        value: '€666,000',
+        sub: ['4× income', '90% loan'],
         quiet: [],
         detail: [],
       },
@@ -267,23 +267,42 @@ describe('a home plan carrying what the host card showed', () => {
     ).getAllByRole('listitem')
     const parts = (tile: HTMLElement | undefined): string[] =>
       [...(tile?.querySelectorAll(':scope > * > span') ?? [])].map((part) => part.textContent)
-    // Label row, qualifier row (empty when there is none, so the values line up), value, sub, quiet.
+    // Label row, qualifier row, value, each sub string, the quiet count.
     expect(parts(savings)).toEqual([
       'Savings',
       'up to',
-      '3.25%',
-      '€612 interest by Sep 2027',
-      '7 accounts',
+      '3.11%',
+      '€815 interest',
+      'by Jul 2028',
+      '28 accounts',
     ])
     expect(parts(mortgage)).toEqual([
       'Mortgage',
-      '',
-      '€1,607/mo',
-      '€360,000 loan',
-      'from 3.45%',
-      '41 options',
+      'from',
+      '€1,751/mo',
+      '€405,000 loan',
+      'from 3.20%',
+      '49 options',
     ])
-    expect(parts(afford)).toEqual(['Could afford', 'up to', '€488,000', '4× income, 90% loan'])
+    expect(parts(afford)).toEqual(['Could afford', 'up to', '€666,000', '4× income', '90% loan'])
+  })
+
+  it('keeps an empty qualifier row when a tile has none, so the values line up', () => {
+    const [first, ...rest] = homeCard.arrival?.tiles ?? []
+    if (first === undefined || homeCard.arrival === undefined) throw new Error('fixture')
+    render(
+      <SavedPlanCard
+        card={{
+          ...homeCard,
+          arrival: { ...homeCard.arrival, tiles: [{ ...first, qualifier: null }, ...rest] },
+        }}
+      />,
+    )
+    const savings = within(screen.getByRole('list', { name: 'At a glance' })).getAllByRole(
+      'listitem',
+    )[0]
+    const rows = [...(savings?.querySelectorAll(':scope > * > span') ?? [])]
+    expect(rows.map((row) => row.textContent).slice(0, 3)).toEqual(['Savings', '', '3.11%'])
   })
 
   it('opens a tile’s detail on a tap, one at a time; a tile without detail is not a button', () => {
@@ -303,7 +322,7 @@ describe('a home plan carrying what the host card showed', () => {
     fireEvent.click(mortgage)
     expect(savings).toHaveAttribute('aria-expanded', 'false')
     expect(mortgage).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText('Over 30 years at the lowest rate of 41 options.')).toBeVisible()
+    expect(screen.getByText('Over 30 years at the lowest rate of 49 options.')).toBeVisible()
     expect(screen.getByText('Variable rates.')).not.toBeVisible()
 
     fireEvent.click(mortgage)

@@ -72,13 +72,13 @@ const PREVIEW = {
     readyNote: null,
     factParts: ['€40,000 deposit', '+ €4,000 stamp duty', '+ €3,000 legal and survey'],
     progress: { savedEur: 32_000, neededEur: 47_000, monthlySavingEur: 1_500 },
-    // Chris's figures from the phone (2026-11-12), the widest the tiles carry.
+    // Chris's figures (2026-11-12), worded as saoi-api a598a76 sends them; the widest the tiles carry.
     tiles: [
       {
         label: 'Savings',
         qualifier: 'up to',
         value: '3.11%',
-        sub: ['€1,014 interest', 'by Jul 2028'],
+        sub: ['€815 interest', 'by Jul 2028'],
         quiet: ['28 accounts'],
         detail: [
           'The best rate among 28 accounts open to you, after DIRT.',
@@ -87,7 +87,7 @@ const PREVIEW = {
       },
       {
         label: 'Mortgage',
-        qualifier: null,
+        qualifier: 'from',
         value: '€1,751/mo',
         sub: ['€405,000 loan', 'from 3.20%'],
         quiet: ['49 options'],
@@ -97,7 +97,7 @@ const PREVIEW = {
         label: 'Could afford',
         qualifier: 'up to',
         value: '€666,000',
-        sub: ['4× income, 90% loan'],
+        sub: ['4× income', '90% loan'],
         quiet: [],
         detail: ['4 times €148,000 income, plus the deposit.'],
       },
@@ -228,7 +228,14 @@ test('the three tiles sit in one row at 390px, values on one line and level, and
     expect(cut, label).toBe(false)
   }
   // Each sub string on one line of its own: they break between the server's strings only.
-  for (const sub of ['€1,014 interest', 'by Jul 2028', '€405,000 loan', 'from 3.20%']) {
+  for (const sub of [
+    '€815 interest',
+    'by Jul 2028',
+    '€405,000 loan',
+    'from 3.20%',
+    '4× income',
+    '90% loan',
+  ]) {
     const box = await glance.getByText(sub, { exact: true }).boundingBox()
     expect(box?.height ?? Number.POSITIVE_INFINITY, sub).toBeLessThanOrEqual(17)
   }

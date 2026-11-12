@@ -48,26 +48,26 @@ const ARRIVAL = {
     {
       label: 'Savings',
       qualifier: 'up to',
-      value: '3.25%',
-      sub: ['€612 interest by Sep 2027'],
-      quiet: ['7 accounts'],
-      detail: ['The best rate among 7 accounts open to you, after DIRT.'],
+      value: '3.11%',
+      sub: ['€815 interest', 'by Jul 2028'],
+      quiet: ['28 accounts'],
+      detail: ['The best rate among 28 accounts open to you, after DIRT.'],
     },
     {
       label: 'Mortgage',
-      qualifier: null,
-      value: '€1,607/mo',
-      sub: ['€360,000 loan', 'from 3.45%'],
-      quiet: ['41 options'],
-      detail: ['Over 30 years at the lowest rate of 41 options.'],
+      qualifier: 'from',
+      value: '€1,751/mo',
+      sub: ['€405,000 loan', 'from 3.20%'],
+      quiet: ['49 options'],
+      detail: ['Over 30 years at the lowest rate of 49 options.'],
     },
     {
       label: 'Could afford',
       qualifier: 'up to',
-      value: '€488,000',
-      sub: ['4× income, 90% loan'],
+      value: '€666,000',
+      sub: ['4× income', '90% loan'],
       quiet: [],
-      detail: ['4 times €110,000 income, plus €40,000 deposit.'],
+      detail: ['4 times €148,000 income, plus the deposit.'],
     },
   ],
   assumptions: [
@@ -143,9 +143,9 @@ describe('a saved comparison arriving in the app', () => {
 
     const tiles = within(screen.getByRole('list', { name: 'At a glance' })).getAllByRole('listitem')
     expect(tiles.map((tile) => tile.textContent)).toEqual([
-      'Savingsup to3.25%€612 interest by Sep 20277 accounts',
-      'Mortgage€1,607/mo€360,000 loanfrom 3.45%41 options',
-      'Could affordup to€488,0004× income, 90% loan',
+      'Savingsup to3.11%€815 interestby Jul 202828 accounts',
+      'Mortgagefrom€1,751/mo€405,000 loanfrom 3.20%49 options',
+      'Could affordup to€666,0004× income90% loan',
     ])
     expect(screen.getByText(/^Assumed: a new build, first-time buyers/)).toBeInTheDocument()
   })
