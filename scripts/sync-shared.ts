@@ -15,6 +15,7 @@ const FILES = [
   'contracts/alerts.ts',
   'contracts/cards.ts',
   'contracts/case-action.ts',
+  'contracts/case-plan.ts',
   'contracts/case-read.ts',
   'contracts/common.ts',
   'contracts/holdings.ts',

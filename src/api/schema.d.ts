@@ -1439,11 +1439,6 @@ export interface paths {
     }
     trace?: never
   }
-  /**
-   * HAND-TYPED STAND-IN (saoi-web feat/your-plan, 2026-11-12): the plan routes agreed with the
-   * backend's `feat/plan-edit`, typed here so the client compiles before the API deploys.
-   * `npm run api:generate` replaces this entry with the real one.
-   */
   '/api/cases/{caseId}/plan': {
     parameters: {
       query?: never
@@ -1451,7 +1446,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** The plan claimed on the case, as the profile shows it */
+    /**
+     * The claimed plan, as the profile shows it
+     * @description The newest plan claimed into the case: the figures the profile can change in place, where it stands (the keys month, the cash needed, saved now and the progress line over the holdings), and its first three options in the customer’s order. Facts, never a pick. Primary customer only.
+     */
     get: {
       parameters: {
         query?: never
@@ -1463,6 +1461,7 @@ export interface paths {
       }
       requestBody?: never
       responses: {
+        /** @description The plan. */
         200: {
           headers: {
             [name: string]: unknown
@@ -1471,6 +1470,7 @@ export interface paths {
             'application/json': components['schemas']['CasePlan']
           }
         }
+        /** @description Missing or invalid token. */
         401: {
           headers: {
             [name: string]: unknown
@@ -1479,8 +1479,17 @@ export interface paths {
             'application/json': components['schemas']['ErrorResponse']
           }
         }
-        /** @description No such case for this caller, or no plan claimed on it. */
+        /** @description No such case for this caller, or it has no claimed plan. */
         404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
           headers: {
             [name: string]: unknown
           }
@@ -1495,7 +1504,10 @@ export interface paths {
     delete?: never
     options?: never
     head?: never
-    /** Change the plan's own figures; writes a `plan_edited` event */
+    /**
+     * Change a figure in the plan
+     * @description Changes one or more of the editable figures (a month not in the past; a price and a monthly saving above 0) and rebuilds the plan on them: the comparison re-runs on the new figures and the arrival, hook question included, is worked out again, on the filters and sort the plan was built with. Date reminders that came from the plan’s dates move with them. Writes `plan_edited`; the next return turn opens with `reading`, what changed and which options now fit. A body that changes nothing returns the plan as it is.
+     */
     patch: {
       parameters: {
         query?: never
@@ -1507,10 +1519,11 @@ export interface paths {
       }
       requestBody: {
         content: {
-          'application/json': components['schemas']['UpdateCasePlan']
+          'application/json': components['schemas']['CasePlanEdit']
         }
       }
       responses: {
+        /** @description The rebuilt plan, and what the change does. */
         200: {
           headers: {
             [name: string]: unknown
@@ -1519,6 +1532,7 @@ export interface paths {
             'application/json': components['schemas']['CasePlanEdited']
           }
         }
+        /** @description The body is not valid: a month passed, a figure not above 0, no figure. */
         400: {
           headers: {
             [name: string]: unknown
@@ -1527,6 +1541,7 @@ export interface paths {
             'application/json': components['schemas']['ErrorResponse']
           }
         }
+        /** @description Missing or invalid token. */
         401: {
           headers: {
             [name: string]: unknown
@@ -1535,7 +1550,17 @@ export interface paths {
             'application/json': components['schemas']['ErrorResponse']
           }
         }
+        /** @description No such case for this caller, or it has no claimed plan. */
         404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
           headers: {
             [name: string]: unknown
           }
@@ -7814,41 +7839,6 @@ export interface components {
       /** @default false */
       hasUpdates: boolean
     }
-    /** HAND-TYPED STAND-IN until `npm run api:generate` (see the plan path). */
-    CasePlanEditable: {
-      targetDate: string | null
-      homePrice: number | null
-      monthlySaving: number | null
-      /** @enum {string|null} */
-      propertyKind: 'new_build' | 'second_hand' | 'self_build' | null
-      firstTimeBuyer: boolean | null
-      buyingTogether: boolean | null
-    }
-    /** HAND-TYPED STAND-IN until `npm run api:generate` (see the plan path). */
-    CasePlan: {
-      planId: string
-      title: string
-      editable: components['schemas']['CasePlanEditable']
-      summary: {
-        keysOn: string | null
-        neededAtKeysEur: number | null
-        savedEur: number | null
-        progressLine: string | null
-      }
-      watched: {
-        lead: string
-        kind: string
-        value: string
-        figure: string
-      }[]
-      updatedAt: string
-    }
-    /** HAND-TYPED STAND-IN until `npm run api:generate` (see the plan path). */
-    CasePlanEdited: components['schemas']['CasePlan'] & {
-      reading: string
-    }
-    /** HAND-TYPED STAND-IN until `npm run api:generate` (see the plan path). */
-    UpdateCasePlan: Partial<components['schemas']['CasePlanEditable']>
     ErrorResponse: {
       /** @enum {boolean} */
       ok: false
@@ -8336,6 +8326,115 @@ export interface components {
       productId?: string | null
       /** @description The day the balance was true. Default when the balance changes: today (Europe/Dublin). */
       notedOn?: string
+    }
+    /** @description The claimed plan, as the profile shows it. */
+    CasePlan: {
+      /** @description The claimed plan. */
+      planId: string
+      title: string
+      /** @description The figures the profile can change in place. */
+      editable: {
+        /** @description The month the leading goal is for (the keys, for a home), YYYY-MM. Null: none. */
+        targetDate: string | null
+        /** @description The price the home comparison uses: the one given, else the one it worked out. Held when another figure changes. Null: not a home plan. */
+        homePrice: number | null
+        /** @description What they put aside each month. */
+        monthlySaving: number | null
+        /**
+         * @description The kind of home, as they said it. Null: not given (second-hand is assumed).
+         * @enum {string|null}
+         */
+        propertyKind: 'new_build' | 'self_build' | 'second_hand' | null
+        /** @description As they said it. Null: not given (a first-time buyer is assumed). */
+        firstTimeBuyer: boolean | null
+        /** @description Two people buying. Null: not given. Changes no figure; questions are worded for both. */
+        buyingTogether: boolean | null
+      }
+      /** @description Where the plan stands. */
+      summary: {
+        /** @description The month the card names for the keys, YYYY-MM. Null: not reached, or not a home plan. */
+        keysOn: string | null
+        /** @description The cash needed at the keys: deposit, stamp duty, fees, less Help to Buy counted. */
+        neededAtKeysEur: number | null
+        /** @description Saved now: the holdings’ accounts, else the plan’s own savings. */
+        savedEur: number | null
+        /** @description Where the holdings leave the plan, one factual line (`planProgress`). */
+        progressLine: string | null
+      }
+      /** @description The plan’s first three options in the customer’s order. Never a pick. */
+      watched: {
+        /** @description The lender, or the provider for a savings plan. */
+        lead: string
+        /** @description "3-year fixed", "variable", or the product’s part in the plan. */
+        kind: string
+        /** @description The rate: "3.45%". */
+        value: string
+        /** @description The figure the options are sorted by ("€1,751/mo"), or the amounts placed. */
+        figure: string
+      }[]
+      /** @description When the plan last changed: its last edit, else when it was made. */
+      updatedAt: string
+    }
+    /** @description The rebuilt plan, and what the change does. */
+    CasePlanEdited: {
+      /** @description The claimed plan. */
+      planId: string
+      title: string
+      /** @description The figures the profile can change in place. */
+      editable: {
+        /** @description The month the leading goal is for (the keys, for a home), YYYY-MM. Null: none. */
+        targetDate: string | null
+        /** @description The price the home comparison uses: the one given, else the one it worked out. Held when another figure changes. Null: not a home plan. */
+        homePrice: number | null
+        /** @description What they put aside each month. */
+        monthlySaving: number | null
+        /**
+         * @description The kind of home, as they said it. Null: not given (second-hand is assumed).
+         * @enum {string|null}
+         */
+        propertyKind: 'new_build' | 'self_build' | 'second_hand' | null
+        /** @description As they said it. Null: not given (a first-time buyer is assumed). */
+        firstTimeBuyer: boolean | null
+        /** @description Two people buying. Null: not given. Changes no figure; questions are worded for both. */
+        buyingTogether: boolean | null
+      }
+      /** @description Where the plan stands. */
+      summary: {
+        /** @description The month the card names for the keys, YYYY-MM. Null: not reached, or not a home plan. */
+        keysOn: string | null
+        /** @description The cash needed at the keys: deposit, stamp duty, fees, less Help to Buy counted. */
+        neededAtKeysEur: number | null
+        /** @description Saved now: the holdings’ accounts, else the plan’s own savings. */
+        savedEur: number | null
+        /** @description Where the holdings leave the plan, one factual line (`planProgress`). */
+        progressLine: string | null
+      }
+      /** @description The plan’s first three options in the customer’s order. Never a pick. */
+      watched: {
+        /** @description The lender, or the provider for a savings plan. */
+        lead: string
+        /** @description "3-year fixed", "variable", or the product’s part in the plan. */
+        kind: string
+        /** @description The rate: "3.45%". */
+        value: string
+        /** @description The figure the options are sorted by ("€1,751/mo"), or the amounts placed. */
+        figure: string
+      }[]
+      /** @description When the plan last changed: its last edit, else when it was made. */
+      updatedAt: string
+      /** @description What changed and which options now fit, in their figures: one or two sentences of fact, never "better" and never a pick. The conversation opens with it. */
+      reading: string
+    }
+    /** @description The figures to change; the rest stay as they are. */
+    CasePlanEdit: {
+      /** @description YYYY-MM, this month or later. */
+      targetDate?: string
+      homePrice?: number
+      monthlySaving?: number
+      /** @enum {string} */
+      propertyKind?: 'new_build' | 'self_build' | 'second_hand'
+      firstTimeBuyer?: boolean
+      buyingTogether?: boolean
     }
     CaseActionResult: {
       applications: {
@@ -9274,6 +9373,58 @@ export interface components {
             why: string
           } | null
         }
+        inputs?: {
+          homePrice?: number
+          /** @enum {string} */
+          propertyKind?: 'new_build' | 'self_build' | 'second_hand'
+          firstTimeBuyer?: boolean
+          buyingTogether?: boolean
+          taxPaidLastFourYearsEur?: number
+          county?: string
+          monthlyRentEur?: number
+          homePreferences?: {
+            currentBank?: string
+            stayWithBank?: boolean
+            /** @enum {string} */
+            rateType?: 'fixed' | 'variable' | 'either'
+            green?: boolean
+            openToCurrentAccountSwitch?: boolean
+            /** @enum {string} */
+            sortBy?: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
+          }
+          emergencyBufferEur?: number
+          emergencyBufferMonths?: number
+          keepAccessible?: boolean
+          goalDateCertain?: boolean
+          minLockGainEur?: number
+          minLockGainPctPerYear?: number
+          maxAccounts?: number
+          savings?: {
+            /** @enum {string} */
+            access?: 'instant' | 'notice' | 'fixed_term' | 'current_account'
+            fixedTermEndsOn?: string
+          }[]
+          debtPlans?: {
+            debtId: string
+            /** @enum {string} */
+            plan: 'clear' | 'keep' | 'compare'
+          }[]
+        }
+        edits?: {
+          /** Format: date-time */
+          at: string
+          /** @enum {string} */
+          field:
+            | 'targetDate'
+            | 'homePrice'
+            | 'monthlySaving'
+            | 'propertyKind'
+            | 'firstTimeBuyer'
+            | 'buyingTogether'
+          from: string | number | boolean | unknown
+          to: string | number | boolean | unknown
+        }[]
+        openedWith?: string
         /** Format: date-time */
         createdAt: string
         /** Format: date-time */
@@ -12814,6 +12965,58 @@ export interface components {
             why: string
           } | null
         }
+        inputs?: {
+          homePrice?: number
+          /** @enum {string} */
+          propertyKind?: 'new_build' | 'self_build' | 'second_hand'
+          firstTimeBuyer?: boolean
+          buyingTogether?: boolean
+          taxPaidLastFourYearsEur?: number
+          county?: string
+          monthlyRentEur?: number
+          homePreferences?: {
+            currentBank?: string
+            stayWithBank?: boolean
+            /** @enum {string} */
+            rateType?: 'fixed' | 'variable' | 'either'
+            green?: boolean
+            openToCurrentAccountSwitch?: boolean
+            /** @enum {string} */
+            sortBy?: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
+          }
+          emergencyBufferEur?: number
+          emergencyBufferMonths?: number
+          keepAccessible?: boolean
+          goalDateCertain?: boolean
+          minLockGainEur?: number
+          minLockGainPctPerYear?: number
+          maxAccounts?: number
+          savings?: {
+            /** @enum {string} */
+            access?: 'instant' | 'notice' | 'fixed_term' | 'current_account'
+            fixedTermEndsOn?: string
+          }[]
+          debtPlans?: {
+            debtId: string
+            /** @enum {string} */
+            plan: 'clear' | 'keep' | 'compare'
+          }[]
+        }
+        edits?: {
+          /** Format: date-time */
+          at: string
+          /** @enum {string} */
+          field:
+            | 'targetDate'
+            | 'homePrice'
+            | 'monthlySaving'
+            | 'propertyKind'
+            | 'firstTimeBuyer'
+            | 'buyingTogether'
+          from: string | number | boolean | unknown
+          to: string | number | boolean | unknown
+        }[]
+        openedWith?: string
         /** Format: date-time */
         createdAt: string
         /** Format: date-time */
@@ -13726,6 +13929,58 @@ export interface components {
               why: string
             } | null
           }
+          inputs?: {
+            homePrice?: number
+            /** @enum {string} */
+            propertyKind?: 'new_build' | 'self_build' | 'second_hand'
+            firstTimeBuyer?: boolean
+            buyingTogether?: boolean
+            taxPaidLastFourYearsEur?: number
+            county?: string
+            monthlyRentEur?: number
+            homePreferences?: {
+              currentBank?: string
+              stayWithBank?: boolean
+              /** @enum {string} */
+              rateType?: 'fixed' | 'variable' | 'either'
+              green?: boolean
+              openToCurrentAccountSwitch?: boolean
+              /** @enum {string} */
+              sortBy?: 'five_year_cost' | 'keys_date' | 'monthly_repayment'
+            }
+            emergencyBufferEur?: number
+            emergencyBufferMonths?: number
+            keepAccessible?: boolean
+            goalDateCertain?: boolean
+            minLockGainEur?: number
+            minLockGainPctPerYear?: number
+            maxAccounts?: number
+            savings?: {
+              /** @enum {string} */
+              access?: 'instant' | 'notice' | 'fixed_term' | 'current_account'
+              fixedTermEndsOn?: string
+            }[]
+            debtPlans?: {
+              debtId: string
+              /** @enum {string} */
+              plan: 'clear' | 'keep' | 'compare'
+            }[]
+          }
+          edits?: {
+            /** Format: date-time */
+            at: string
+            /** @enum {string} */
+            field:
+              | 'targetDate'
+              | 'homePrice'
+              | 'monthlySaving'
+              | 'propertyKind'
+              | 'firstTimeBuyer'
+              | 'buyingTogether'
+            from: string | number | boolean | unknown
+            to: string | number | boolean | unknown
+          }[]
+          openedWith?: string
           /** Format: date-time */
           createdAt: string
           /** Format: date-time */
