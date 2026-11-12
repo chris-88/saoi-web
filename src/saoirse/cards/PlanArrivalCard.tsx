@@ -111,7 +111,7 @@ type TileView = PlanArrivalView['tiles'][number]
  * The three tiles in one row at 390px (Chris, 2026-11-12): the icon beside the label, the
  * qualifier ("up to") on its own small row above the value, never on the value's line, and both
  * rows a fixed height, so the three headline figures start at the same height whether a tile has
- * a qualifier or not. `sub` is secondary (darker than muted); only `quiet` is the small quiet
+ * a qualifier or not. `sub` is secondary (between the value and muted); only `quiet` is the small quiet
  * count. A tile with `detail` is a button that opens those lines in a panel under the row, one
  * at a time, with a chevron because it is tappable; a tile without is not, and has none.
  */
@@ -147,7 +147,7 @@ function Tiles({ tiles }: { tiles: readonly TileView[] }): ReactNode {
             className="bg-muted/50 mt-1 space-y-1 rounded-lg px-3 py-2.5"
           >
             {tile.detail.map((line) => (
-              <p key={line} className="text-secondary-foreground text-xs leading-snug">
+              <p key={line} className="text-foreground/75 text-xs leading-snug">
                 {line}
               </p>
             ))}
@@ -183,10 +183,13 @@ function Tile({
       <span className="block text-[15px] leading-5 font-semibold tracking-tight whitespace-nowrap tabular-nums">
         {tile.value}
       </span>
+      {/* One block per server string, so a line breaks only between them; a string wraps
+          inside itself only when it is wider than the tile. Foreground at 75%: darker than the
+          quiet count in light, lighter than the value in dark. */}
       {tile.sub.slice(0, 2).map((line) => (
         <span
           key={line}
-          className="text-secondary-foreground mt-0.5 block text-xs leading-snug tabular-nums"
+          className="text-foreground/75 mt-0.5 block text-xs leading-snug tabular-nums"
         >
           {line}
         </span>

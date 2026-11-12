@@ -78,7 +78,7 @@ const PREVIEW = {
         label: 'Savings',
         qualifier: 'up to',
         value: '3.11%',
-        sub: ['€1,014 interest by Jul 2028'],
+        sub: ['€1,014 interest', 'by Jul 2028'],
         quiet: ['28 accounts'],
         detail: [
           'The best rate among 28 accounts open to you, after DIRT.',
@@ -227,7 +227,31 @@ test('the three tiles sit in one row at 390px, values on one line and level, and
       .evaluate((node: Overflowing) => node.scrollWidth > node.clientWidth)
     expect(cut, label).toBe(false)
   }
-  await glance.screenshot({ path: test.info().outputPath('tiles-390.png') })
+  // Each sub string on one line of its own: they break between the server's strings only.
+  for (const sub of ['€1,014 interest', 'by Jul 2028', '€405,000 loan', 'from 3.20%']) {
+    const box = await glance.getByText(sub, { exact: true }).boundingBox()
+    expect(box?.height ?? Number.POSITIVE_INFINITY, sub).toBeLessThanOrEqual(17)
+  }
+  // Not a bubble: the card takes the column's full width, not the avatar's indent.
+  const column = await page.getByText('Click here for the data protection notice').boundingBox()
+  const list = await glance.boundingBox()
+  expect(column?.x ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(17)
+  expect(list?.width ?? 0).toBeGreaterThan(330)
+  await page
+    .locator('ul[aria-label="At a glance"]')
+    .locator('..')
+    .screenshot({
+      path: test.info().outputPath('tiles-390.png'),
+    })
+  // The same row in dark (nothing applies .dark in the app yet; the tokens are defined).
+  await page.evaluate('document.documentElement.classList.add("dark")')
+  await page
+    .locator('ul[aria-label="At a glance"]')
+    .locator('..')
+    .screenshot({
+      path: test.info().outputPath('tiles-390-dark.png'),
+    })
+  await page.evaluate('document.documentElement.classList.remove("dark")')
 
   // A tile is a button: Enter opens its detail, Space on another moves the one open panel.
   const savings = page.getByRole('button', { name: /^Savings/ })
