@@ -1,24 +1,24 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import type { Card } from '@contracts/cards.ts'
+import type { Card, MarketProductsCard } from '@contracts/cards.ts'
 import { assertNever } from '@/lib/assertNever'
 import { CardRenderer } from './CardRenderer'
 
-const marketProducts: Extract<Card, { type: 'market_products' }> = {
+const marketProducts: MarketProductsCard = {
   type: 'market_products',
   question: 'What would the mortgage cost?',
   arrangement: {
     kind: 'mortgage_by_sort',
     title: 'Mortgage options at 90% loan-to-value',
-    line: 'Arranged by monthly repayment, as you chose.',
+    line: 'Arranged by monthly repayment, as you chose. Ask for them by 5-year cost instead.',
   },
   rows: [
     {
-      id: 'avant-4',
+      id: 'avant:fixed-4',
       lead: 'Avant Money',
-      kind: '4-year fixed',
-      value: '€1,598 a month',
-      figure: '3.60%, then 4.10% variable',
+      kind: '4-year fixed at 3.25%',
+      value: '€1,567/mo',
+      figure: '€58,612 over 5 years',
       note: null,
       held: false,
       confirmed: true,
@@ -26,13 +26,14 @@ const marketProducts: Extract<Card, { type: 'market_products' }> = {
   ],
   more: 0,
   basis: {
-    figures: [],
-    objective: 'Monthly repayment',
+    figures: ['a €400,000 home, €360,000 borrowed (90% of the price)'],
+    objective: 'Monthly repayment, lowest first.',
     assumptions: [],
-    coverage: '',
-    warnings: [],
+    coverage: '11 lenders, checked 12 Nov 2026',
+    warnings: ['Warning: the cost of your monthly repayments may increase.'],
   },
-  statement: 'Information, not advice.',
+  statement:
+    'Saoi is not regulated by the Central Bank of Ireland and does not give advice; it compares products on the figures you give.',
 }
 
 describe('CardRenderer', () => {

@@ -1,11 +1,10 @@
 import { useId, useState, type ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
-import type { Card as CardPayload } from '@contracts/cards.ts'
+import type { MarketProductsCard as Payload } from '@contracts/cards.ts'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
-type Payload = Extract<CardPayload, { type: 'market_products' }>
 type Row = Payload['rows'][number]
 
 /**
@@ -55,7 +54,8 @@ export function MarketProductsCard({ card }: { card: Payload }): ReactNode {
       <Basis basis={card.basis} />
 
       <div className="text-muted-foreground space-y-0.5 border-t px-4 py-2 text-[11px] leading-snug">
-        {anyUnconfirmed && <p>* Not confirmed on the provider’s own site.</p>}
+        {/* `confirmed: false` is a rate or incentive resting on CCPC's figure alone. */}
+        {anyUnconfirmed && <p>* From CCPC only, not confirmed on the provider’s own site.</p>}
         <p>{card.statement}</p>
       </div>
     </Card>

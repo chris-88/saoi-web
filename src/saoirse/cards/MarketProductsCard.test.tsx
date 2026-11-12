@@ -1,23 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import type { Card } from '@contracts/cards.ts'
-import { cardSchema } from '@contracts/cards.ts'
+import { cardSchema, type MarketProductsCard as Payload } from '@contracts/cards.ts'
 import { MarketProductsCard } from './MarketProductsCard'
 
-type Payload = Extract<Card, { type: 'market_products' }>
-
+/**
+ * Fixtures in the server's conventions (`domain/market/products-card.ts` in `chris-88/saoi`):
+ * held rows are `held:<n>` and led "Your …"; savings kinds are lower case ("instant access",
+ * "6-month fixed"); a mortgage row's kind carries the rate, its value is "€…/mo" and its figure
+ * the five-year cost, with the keys month in front under the keys-date sort.
+ */
 const statement =
-  'Information, not advice. Saoi is not regulated by the Central Bank of Ireland. Saoi earns nothing from any provider.'
+  'Saoi is not regulated by the Central Bank of Ireland and does not give advice; it compares products on the figures you give.'
 
 const savingsBasis: Payload['basis'] = {
   figures: ['€25,000 saved', '€800 a month'],
-  objective: 'Interest after DIRT over 12 months',
-  assumptions: ['Rates stay as published', 'DIRT at 33%'],
-  coverage: '14 savings and deposit accounts from 9 providers, checked 12 Nov 2026',
+  objective: 'Interest after DIRT by July 2028, highest first. Ask for them by access instead.',
+  assumptions: ['Rates stay as published until July 2028', 'DIRT at 33%'],
+  coverage:
+    '31 savings and deposit accounts from CCPC and the providers’ own sites, checked 12 Nov 2026',
   warnings: [],
 }
 
-/** Their own account, sent second by the server, shown first by the card. */
+/** Their own account, sent second here, shown first by the card. */
 const heldVsMarket: Payload = {
   type: 'market_products',
   question: 'What does my savings account earn against the market?',
@@ -28,32 +32,32 @@ const heldVsMarket: Payload = {
   },
   rows: [
     {
-      id: 'bunq-easy',
-      lead: 'bunq',
-      kind: 'Easy savings',
-      value: '2.51% AER',
-      figure: '€421 after DIRT in a year',
+      id: 'bunq:easy-savings',
+      lead: 'bunq Easy Savings',
+      kind: 'instant access',
+      value: '2.51%',
+      figure: '€1,402 by Jul 2028',
       note: null,
       held: false,
       confirmed: true,
     },
     {
-      id: 'aib-online',
-      lead: 'AIB Online Saver',
-      kind: 'Regular saver',
-      value: '0.10% AER',
-      figure: '€17 after DIRT in a year',
-      note: 'Up to €1,000 a month',
+      id: 'held:0',
+      lead: 'Your BoI savings',
+      kind: 'instant access',
+      value: '0.10%',
+      figure: '€56 by Jul 2028',
+      note: 'your rate as you gave it',
       held: true,
       confirmed: true,
     },
     {
-      id: 'moco-savings',
-      lead: 'MoCo',
-      kind: 'Instant access',
-      value: '2.25% AER',
-      figure: '€377 after DIRT in a year',
-      note: null,
+      id: 'moco:instant',
+      lead: 'MoCo Instant Access',
+      kind: 'instant access',
+      value: '2.25%',
+      figure: '€1,257 by Jul 2028',
+      note: 'rate from CCPC only',
       held: false,
       confirmed: false,
     },
@@ -69,26 +73,36 @@ const byAccess: Payload = {
   arrangement: {
     kind: 'by_access',
     title: 'Instant access against fixed term',
-    line: 'Arranged by access; the rate difference is the price of access. Ask for them by rate instead.',
+    line: 'Arranged by access, the rate difference stated as the price of access. Ask for them by rate, or by the date, instead.',
   },
   rows: [
     {
-      id: 'bunq-easy',
-      lead: 'bunq',
-      kind: 'Instant access',
-      value: '2.51% AER',
-      figure: 'Any day',
+      id: 'bunq:easy-savings',
+      lead: 'bunq Easy Savings',
+      kind: 'instant access',
+      value: '2.51%',
+      figure: '€421 in a year',
       note: null,
       held: false,
       confirmed: true,
     },
     {
-      id: 'ptsb-12m',
-      lead: 'PTSB',
-      kind: '12-month fixed term',
-      value: '2.80% AER',
-      figure: '0.29 points more, for 12 months locked',
-      note: 'Early withdrawal not allowed',
+      id: 'ptsb:notice-31',
+      lead: 'PTSB Notice Account',
+      kind: '31-day notice',
+      value: '2.60%',
+      figure: '€436 in a year',
+      note: null,
+      held: false,
+      confirmed: true,
+    },
+    {
+      id: 'ptsb:fixed-12',
+      lead: 'PTSB Fixed Term',
+      kind: '1-year fixed',
+      value: '2.80%',
+      figure: '€469 in a year',
+      note: '0.29 points more than instant access, for a year locked',
       held: false,
       confirmed: true,
     },
@@ -100,20 +114,30 @@ const byAccess: Payload = {
 
 const fitsDate: Payload = {
   type: 'market_products',
-  question: 'Where should the deposit sit until the keys?',
+  question: 'Where can the deposit sit until the keys in July 2028?',
   arrangement: {
     kind: 'fits_date',
     title: 'Accounts that fit July 2028',
-    line: 'Six-month terms, since the keys are more than six months away. Ask for them by access instead.',
+    line: 'Arranged by the term that fits July 2028: six-month terms, then accounts you can take the money from, each by what it adds by then. Ask for them by access, or against your own account, instead.',
   },
   rows: [
     {
-      id: 'boi-6m',
-      lead: 'Bank of Ireland',
-      kind: '6-month fixed term',
-      value: '€1,018',
-      figure: '€25,000 earns €1,018 after DIRT by July 2028',
-      note: 'Bonus counted in the total',
+      id: 'boi:fixed-6',
+      lead: 'Bank of Ireland Fixed Term',
+      kind: '6-month fixed',
+      value: '2.40%',
+      figure: '€201 by Jul 2028',
+      note: null,
+      held: false,
+      confirmed: true,
+    },
+    {
+      id: 'aib:online-saver',
+      lead: 'AIB Online Saver',
+      kind: 'instant access',
+      value: '2.00%',
+      figure: '€1,118 by Jul 2028',
+      note: 'bonus paid after drawdown, not counted',
       held: false,
       confirmed: true,
     },
@@ -129,37 +153,42 @@ const mortgageBySort: Payload = {
   arrangement: {
     kind: 'mortgage_by_sort',
     title: 'Mortgage options at 90% loan-to-value',
-    line: 'Arranged by monthly repayment, as you chose. Ask for them by 5-year cost instead.',
+    line: 'Arranged by keys date, as you chose. Ask for them by 5-year cost, or by monthly repayment, instead.',
   },
   rows: [
     {
-      id: 'avant-4',
+      id: 'avant:fixed-4',
       lead: 'Avant Money',
-      kind: '4-year fixed',
-      value: '€1,598 a month',
-      figure: '3.60%, then 4.10% variable',
+      kind: '4-year fixed at 3.25%',
+      value: '€1,567/mo',
+      figure: 'keys Jul 2028, €58,612 over 5 years',
       note: null,
       held: false,
       confirmed: true,
     },
     {
-      id: 'aib-green-3',
+      id: 'aib:green-3',
       lead: 'AIB',
-      kind: '3-year fixed green',
-      value: '€1,612 a month',
-      figure: '3.45%, then 4.15% variable',
-      note: 'Needs BER B3 or better',
+      kind: '3-year fixed at 3.45%',
+      value: '€1,612/mo',
+      figure: 'keys Jul 2028, €60,118 over 5 years',
+      note: 'cashback from CCPC only',
       held: false,
       confirmed: false,
     },
   ],
   more: 9,
   basis: {
-    figures: ['€360,000 loan over 30 years', '€400,000 home'],
-    objective: 'Monthly repayment, lowest first',
-    assumptions: ['First-time buyer', 'The follow-on rate is today’s variable'],
-    coverage: '11 lenders, checked 12 Nov 2026',
-    warnings: ['A lender assesses affordability itself; these are the published rates only.'],
+    figures: ['a €400,000 home, €360,000 borrowed (90% of the price)', 'over 30 years'],
+    objective:
+      'The month the keys are in reach, soonest first. Ask for them by 5-year cost instead.',
+    assumptions: ['First-time buyer', 'The rate after the fixed period is today’s variable'],
+    coverage: '11 lenders from CCPC and the lenders’ own sites, checked 12 Nov 2026',
+    warnings: [
+      'Warning: if you do not keep up your repayments you may lose your home.',
+      'Warning: the cost of your monthly repayments may increase.',
+      'Warning: if you do not meet the repayments on your loan, your account will go into arrears.',
+    ],
   },
   statement,
 }
@@ -181,10 +210,14 @@ describe('MarketProductsCard', () => {
       expect(screen.getByText(card.arrangement.line)).toBeInTheDocument()
       expect(screen.getByText(statement)).toBeInTheDocument()
       const list = screen.getByRole('list', { name: card.arrangement.title })
-      expect(within(list).getAllByRole('listitem')).toHaveLength(card.rows.length)
+      const items = within(list).getAllByRole('listitem')
+      expect(items).toHaveLength(card.rows.length)
       for (const row of card.rows) {
-        expect(within(list).getByText(row.value)).toBeInTheDocument()
-        expect(within(list).getByText(row.figure)).toBeInTheDocument()
+        const item = items.find((candidate) => candidate.textContent.includes(row.lead))
+        expect(item).toBeDefined()
+        expect(item).toHaveTextContent(row.value)
+        expect(item).toHaveTextContent(row.figure)
+        expect(item).toHaveTextContent(row.kind)
       }
       // Nothing on the card is a pick: the fold is the only control.
       expect(screen.getAllByRole('button')).toHaveLength(1)
@@ -196,31 +229,35 @@ describe('MarketProductsCard', () => {
     const items = within(
       screen.getByRole('list', { name: heldVsMarket.arrangement.title }),
     ).getAllByRole('listitem')
-    expect(items[0]).toHaveTextContent('AIB Online Saver')
+    expect(items[0]).toHaveTextContent('Your BoI savings')
     expect(within(items[0]!).getByText('yours')).toBeInTheDocument()
-    expect(items[1]).toHaveTextContent('bunq')
+    expect(items[1]).toHaveTextContent('bunq Easy Savings')
     expect(screen.getAllByText('yours')).toHaveLength(1)
-    expect(screen.getByText('Up to €1,000 a month')).toBeInTheDocument()
+    expect(screen.getByText('your rate as you gave it')).toBeInTheDocument()
   })
 
-  it('sets instant access and fixed term side by side, each with its kind', () => {
+  it('sets instant access, notice and fixed term side by side, each with its kind', () => {
     render(<MarketProductsCard card={byAccess} />)
-    expect(screen.getByText(/Instant access$/)).toBeInTheDocument()
-    expect(screen.getByText(/12-month fixed term$/)).toBeInTheDocument()
+    expect(screen.getByText(/instant access$/)).toBeInTheDocument()
+    expect(screen.getByText(/31-day notice$/)).toBeInTheDocument()
+    expect(screen.getByText(/1-year fixed$/)).toBeInTheDocument()
     expect(screen.queryByText('yours')).not.toBeInTheDocument()
   })
 
-  it('shows the accounts that fit the date with what they earn by then', () => {
+  it('shows the accounts that fit the date with what they add by then', () => {
     render(<MarketProductsCard card={fitsDate} />)
-    expect(screen.getByText('€25,000 earns €1,018 after DIRT by July 2028')).toBeInTheDocument()
+    expect(screen.getByText(/6-month fixed$/)).toBeInTheDocument()
+    expect(screen.getByText('€201 by Jul 2028')).toBeInTheDocument()
+    expect(screen.getByText('bonus paid after drawdown, not counted')).toBeInTheDocument()
     expect(screen.getByText('1 more; ask to see it')).toBeInTheDocument()
   })
 
-  it('lists lender rows with their monthly repayment', () => {
+  it('lists lender rows with their monthly repayment and five-year cost', () => {
     render(<MarketProductsCard card={mortgageBySort} />)
-    expect(screen.getByText('€1,598 a month')).toBeInTheDocument()
-    expect(screen.getByText('€1,612 a month')).toBeInTheDocument()
-    expect(screen.getByText(/3-year fixed green$/)).toBeInTheDocument()
+    expect(screen.getByText('€1,567/mo')).toBeInTheDocument()
+    expect(screen.getByText('€1,612/mo')).toBeInTheDocument()
+    expect(screen.getByText(/4-year fixed at 3\.25%$/)).toBeInTheDocument()
+    expect(screen.getByText('keys Jul 2028, €58,612 over 5 years')).toBeInTheDocument()
   })
 
   it('says how many more there are, as something to ask for', () => {
@@ -236,20 +273,20 @@ describe('MarketProductsCard', () => {
   it('marks an unconfirmed row and says what the mark means', () => {
     render(<MarketProductsCard card={heldVsMarket} />)
     expect(screen.getAllByLabelText('not confirmed')).toHaveLength(1)
-    expect(screen.getByText(/Not confirmed on the provider’s own site/)).toBeInTheDocument()
+    expect(screen.getByText(/^\* From CCPC only/)).toBeInTheDocument()
   })
 
   it('has no mark and no footnote when every row is confirmed', () => {
     render(<MarketProductsCard card={byAccess} />)
     expect(screen.queryByLabelText('not confirmed')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Not confirmed on the provider’s own site/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^\* From CCPC only/)).not.toBeInTheDocument()
   })
 
   it('folds the basis behind one line that opens and closes', () => {
     render(<MarketProductsCard card={mortgageBySort} />)
     const fold = screen.getByRole('button', { name: 'How this was worked out' })
     expect(fold).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByText('11 lenders, checked 12 Nov 2026')).not.toBeVisible()
+    expect(screen.queryByText(mortgageBySort.basis.coverage)).not.toBeVisible()
 
     fireEvent.click(fold)
     expect(fold).toHaveAttribute('aria-expanded', 'true')
