@@ -267,6 +267,7 @@ export function settledState(card: Card, state: CaseState): Settled | undefined 
     case 'accounts_overview':
     case 'account_opened':
     case 'saved_plan':
+    case 'market_products':
     case 'comparison':
     case 'reuse':
     case 'consent':
@@ -276,7 +277,6 @@ export function settledState(card: Card, state: CaseState): Settled | undefined 
     case 'partner_invite':
     case 'quote':
     case 'status':
-    case 'market_products':
       return undefined
   }
 }

@@ -596,6 +596,93 @@ export const savedPlanCardSchema = z.object({
 })
 
 /**
+ * How a products card is arranged, from the question the customer asked (the first-home
+ * experience, "4. The conversation", 2026-11-12):
+ *
+ * - `held_vs_market`: their own account on top as the baseline, the market under it, by rate.
+ * - `by_access`: instant access beside fixed term, the rate difference stated as the price of
+ *   access.
+ * - `fits_date`: the accounts that take this saving by the keys month, by the term that fits
+ *   (more than six months away: the six-month terms), any bonus counted by the date.
+ * - `mortgage_by_sort`: the lender options at their loan-to-value, by the sort they chose.
+ */
+export const MARKET_ARRANGEMENT_KINDS = [
+  'held_vs_market',
+  'by_access',
+  'fits_date',
+  'mortgage_by_sort',
+] as const
+export type ProductsArrangement = (typeof MARKET_ARRANGEMENT_KINDS)[number]
+
+/** The most rows a products card shows; the rest are counted in `more`. */
+export const PRODUCTS_CARD_MAX_ROWS = 8
+
+/**
+ * The product card that follows the question asked (`show_products`): the key facts of what the
+ * customer asked about, from the whole market and their own figures, arranged by what the
+ * question implies rather than a fixed default. Every row and figure is the engine's
+ * (`domain/market/products-card.ts`); the model chooses the arrangement and writes nothing on it.
+ *
+ * Rows name providers and products: the comparison-not-pick line is about ranking and wording,
+ * not anonymity. Every card names its arrangement and how to change it (`arrangement.line`) and
+ * carries the basis statement (duty of care 2.4): the figures used, the ranking objective, the
+ * assumptions, the coverage and the warnings.
+ *
+ * Something to read, not something to decide: not in `AWAITING_CARDS`.
+ */
+export const marketProductsCardSchema = z.object({
+  type: z.literal('market_products'),
+  /** The customer's question as understood, one line. */
+  question: z.string(),
+  arrangement: z.object({
+    kind: z.enum(MARKET_ARRANGEMENT_KINDS),
+    /** "Your account against the market", "Mortgage options at 90% loan-to-value". */
+    title: z.string(),
+    /** Names the arrangement and how to change it. */
+    line: z.string(),
+  }),
+  rows: z
+    .array(
+      z.object({
+        /** The product's id (`<provider>:<productId>`), or `held:<n>` for their own account. */
+        id: z.string(),
+        /** The provider and product, or "Your <account label>" for a held account. */
+        lead: z.string(),
+        /** The access or term: "instant access", "6-month fixed", "4-year fixed at 3.20%". */
+        kind: z.string(),
+        /** The headline: "3.11%", "€1,751/mo". */
+        value: z.string(),
+        /** The money in their figures: "€815 by Jul 2028", "€49,338 over 5 years". */
+        figure: z.string(),
+        /** One flag, or null: "rate from CCPC only", "bonus until 1 Jan". */
+        note: z.string().nullable(),
+        /** Their own account, the baseline. */
+        held: z.boolean(),
+        /** False where the rate or an incentive rests on CCPC's figure alone. */
+        confirmed: z.boolean(),
+      }),
+    )
+    .max(PRODUCTS_CARD_MAX_ROWS),
+  /** Rows not shown; the customer can ask for them. */
+  more: z.number().int().nonnegative(),
+  /** The basis statement (duty of care 2.4). */
+  basis: z.object({
+    /** The figures used, listed back. */
+    figures: z.array(z.string()),
+    /** The objective the order uses, and how to change it. */
+    objective: z.string(),
+    assumptions: z.array(z.string()),
+    /** Which products were searched, the source and the date checked, what is left out. */
+    coverage: z.string(),
+    /** The warnings that attach to what is shown; the statutory three on a mortgage card. */
+    warnings: z.array(z.string()),
+  }),
+  /** Not regulated, no advice (`market/disclosures.ts`). */
+  statement: z.string(),
+})
+export type MarketProductsCard = z.infer<typeof marketProductsCardSchema>
+
+/**
  * Open banking, simulated (Nexus, a stand-in aggregator). Three cards.
  *
  * `connect_accounts` is the consent: the customer picks the bank and allows exactly the scope
@@ -663,69 +750,6 @@ export const transferCardSchema = z.object({
   why: z.string(),
 })
 
-/**
- * The product card that follows the question asked (first-home experience, section 4).
- *
- * HAND-TYPED STAND-IN (saoi-web, 2026-11-12): the backend adds this card on `saoi` branch
- * `feat/question-led-card`, emitted by the `show_products` tool. Replace with `npm run
- * shared:sync` once that branch is deployed.
- *
- * Arranged by what the question implies rather than by a fixed default, and the card names its
- * arrangement and how to change it. Every row, figure and line is the server's; the card adds no
- * arithmetic. Something to read, not something to decide: nothing on it is a pick, so it is not
- * in `AWAITING_CARDS`.
- */
-export const MARKET_ARRANGEMENT_KINDS = [
-  'held_vs_market',
-  'by_access',
-  'fits_date',
-  'mortgage_by_sort',
-] as const
-
-export const marketProductsCardSchema = z.object({
-  type: z.literal('market_products'),
-  /** The customer's question as understood, one line. */
-  question: z.string(),
-  arrangement: z.object({
-    kind: z.enum(MARKET_ARRANGEMENT_KINDS),
-    /** "Your account against the market". */
-    title: z.string(),
-    /** How it is arranged, and how to ask for it another way. */
-    line: z.string(),
-  }),
-  rows: z
-    .array(
-      z.object({
-        id: z.string(),
-        /** The provider and product, or the lender. */
-        lead: z.string(),
-        /** "Instant access", "6-month fixed term", "3-year fixed". */
-        kind: z.string(),
-        /** The headline figure: "3.00% AER", "€1,612 a month". */
-        value: z.string(),
-        /** The supporting figure: "€612 after DIRT by July 2028". */
-        figure: z.string(),
-        note: z.string().nullable(),
-        /** The customer's own account. */
-        held: z.boolean(),
-        /** False when the figures are not confirmed on the provider's own site. */
-        confirmed: z.boolean(),
-      }),
-    )
-    .max(8),
-  /** How many more matched than are shown. */
-  more: z.number().int().nonnegative(),
-  /** The basis statement (duty-of-care standard 2.4). */
-  basis: z.object({
-    figures: z.array(z.string()),
-    objective: z.string(),
-    assumptions: z.array(z.string()),
-    coverage: z.string(),
-    warnings: z.array(z.string()),
-  }),
-  statement: z.string(),
-})
-
 export const cardSchema = z.discriminatedUnion('type', [
   quoteCardSchema,
   planProposalCardSchema,
@@ -747,10 +771,10 @@ export const cardSchema = z.discriminatedUnion('type', [
   signInCardSchema,
   accountOpenedCardSchema,
   savedPlanCardSchema,
+  marketProductsCardSchema,
   connectAccountsCardSchema,
   accountsOverviewCardSchema,
   transferCardSchema,
-  marketProductsCardSchema,
 ])
 
 export type Card = z.infer<typeof cardSchema>
@@ -777,10 +801,10 @@ export const CARD_TYPES = [
   'sign_in',
   'account_opened',
   'saved_plan',
+  'market_products',
   'connect_accounts',
   'accounts_overview',
   'transfer',
-  'market_products',
 ] as const satisfies readonly CardType[]
 
 /**
