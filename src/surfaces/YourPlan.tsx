@@ -18,7 +18,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { IconTile } from '@/components/IconTile'
-import { useCasePlan, useUpdateCasePlan } from '@/api/plan'
+import { useCasePlan, useRemovePlanChoice, useUpdateCasePlan } from '@/api/plan'
 import {
   PROPERTY_KIND_LABELS,
   PROPERTY_KINDS,
@@ -31,7 +31,14 @@ import {
   type PropertyKind,
 } from '@/lib/plan'
 import type { CasePlan, CasePlanEdit, PlanEditable } from '@contracts/case-plan.ts'
-import { handSaoirseLine } from '@/lib/planArrival'
+import { handComposerLine, handSaoirseLine } from '@/lib/planArrival'
+import {
+  changeLine,
+  PLAN_CHOICE_SLOTS,
+  slotName,
+  type CasePlanRead,
+  type PlanChoiceSlot,
+} from '@/lib/planChoices'
 import { routes } from '@/app/routes'
 import { Group, GroupLabel, LinkRow, rowClass } from '@/surfaces/YouRows'
 
@@ -42,7 +49,8 @@ import { Group, GroupLabel, LinkRow, rowClass } from '@/surfaces/YouRows'
  * The goal and the keys month first and large, saved against needed under them, then the plan's
  * own figures, each editable in place, one at a time. An edit does not end here: the server
  * recomputes the plan and says in one sentence what changed, and the chat opens on that
- * sentence as Saoirse's, then reads what now fits. Below the figures, the options being watched,
+ * sentence as Saoirse's, then reads what now fits. Below the figures, the products chosen for
+ * the plan (each changed in the chat, or removed here), the options being watched,
  * the way to the balances (edited where they already are, in Your money), and the places for
  * what the app will hold later, greyed until they are live.
  */
@@ -76,7 +84,7 @@ export function PlanSection({ caseId }: { readonly caseId: string }): ReactNode 
   return <PlanBody caseId={caseId} plan={plan.data} />
 }
 
-function PlanBody({ caseId, plan }: { readonly caseId: string; readonly plan: CasePlan }) {
+function PlanBody({ caseId, plan }: { readonly caseId: string; readonly plan: CasePlanRead }) {
   return (
     <div className="space-y-6">
       <Summary plan={plan} />
@@ -84,6 +92,7 @@ function PlanBody({ caseId, plan }: { readonly caseId: string; readonly plan: Ca
         <GroupLabel>The plan</GroupLabel>
         <EditableRows caseId={caseId} plan={plan} />
       </div>
+      <Choices caseId={caseId} plan={plan} />
       <Watched watched={plan.watched} />
       <Group>
         <LinkRow
@@ -588,6 +597,102 @@ function SwitchEditor({ label, initial, onSave, ...actions }: EditorProps<boolea
         <Actions {...actions} />
       </form>
     </Form>
+  )
+}
+
+/**
+ * Your choices (Chris, 2026-11-13: "get the customer to pick products from the product lists
+ * we're presenting"): one row per slot, the product chosen and its figure, or "Not chosen yet".
+ * Choosing happens in the chat, on the cards. "Change" (or "See options" for an open slot) opens
+ * the chat with the customer's own line waiting in the composer, unsent; "Remove" clears the
+ * slot (`DELETE …/plan/choices/{slot}`), and a refusal shows the server's sentence on its row.
+ */
+function Choices({ caseId, plan }: { readonly caseId: string; readonly plan: CasePlanRead }) {
+  const navigate = useNavigate()
+  const remove = useRemovePlanChoice(caseId)
+  const anyChosen = PLAN_CHOICE_SLOTS.some((slot) => plan.choices[slot] !== null)
+
+  const askInChat = (slot: PlanChoiceSlot, again: boolean): void => {
+    handComposerLine(changeLine(slot, again))
+    void navigate(routes.saoirse)
+  }
+
+  return (
+    <div>
+      <GroupLabel>Your choices</GroupLabel>
+      <Group>
+        <ul className="divide-y" aria-label="Your choices">
+          {PLAN_CHOICE_SLOTS.map((slot) => {
+            const choice = plan.choices[slot]
+            const name = slotName(slot, plan, 'Your')
+            const removing = remove.isPending && remove.variables === slot
+            const failed = remove.isError && remove.variables === slot
+            return (
+              <li key={slot} className="px-4 py-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-muted-foreground text-xs tabular-nums">{name}</p>
+                  {choice !== null && (
+                    <span className="text-foreground/75 shrink-0 text-xs tabular-nums">
+                      {choice.value}
+                    </span>
+                  )}
+                </div>
+                {choice === null ? (
+                  <p className="text-muted-foreground mt-0.5 text-sm">Not chosen yet</p>
+                ) : (
+                  <div className="mt-0.5">
+                    <p className="text-sm leading-snug font-medium">
+                      {choice.lead}{' '}
+                      <span className="text-muted-foreground text-xs font-normal whitespace-nowrap">
+                        · {choice.kind}
+                      </span>
+                    </p>
+                    <p className="text-foreground/75 text-xs leading-snug tabular-nums">
+                      {choice.figure}
+                    </p>
+                  </div>
+                )}
+                <div className="mt-1 -mb-1.5 -ml-2.5 flex gap-1">
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-9 px-2.5"
+                    aria-label={`${choice === null ? 'See options for' : 'Change'} ${name.toLowerCase()}`}
+                    onClick={() => askInChat(slot, choice !== null)}
+                  >
+                    {choice === null ? 'See options' : 'Change'}
+                  </Button>
+                  {choice !== null && (
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="text-muted-foreground h-9 px-2.5"
+                      aria-label={`Remove ${choice.lead} from ${name.toLowerCase()}`}
+                      disabled={remove.isPending}
+                      onClick={() => remove.mutate(slot)}
+                    >
+                      {removing ? 'Removing…' : 'Remove'}
+                    </Button>
+                  )}
+                </div>
+                {failed && (
+                  <p role="alert" className="text-destructive text-xs">
+                    That was not removed. {remove.error.message}
+                  </p>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+        {!anyChosen && (
+          <p className="text-muted-foreground px-4 py-3 text-xs leading-relaxed">
+            Choose from the products Saoirse shows you: tap one, then “Choose for…”.
+          </p>
+        )}
+      </Group>
+    </div>
   )
 }
 

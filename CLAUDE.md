@@ -82,7 +82,10 @@ If you can't satisfy an item, say so explicitly rather than quietly skipping it.
                    `src/lib/planArrival.ts`, never sent), then the return turn reads the
                    `plan_edited` event. A "Nothing changed" answer (same `updatedAt`) closes
                    the row instead. Contract: `@contracts/case-plan.ts`; a plan that is not for
-                   a home (`homePrice` null) has no price, kind or buyer rows
+                   a home (`homePrice` null) has no price, kind or buyer rows. "Your choices" lists
+                   the product chosen for each slot (lump sum, monthly saving, mortgage): "Change"
+                   opens the chat with the customer's line in the composer, unsent
+                   (`handComposerLine`), "Remove" is `DELETE …/plan/choices/{slot}`
 /#/join/:token     partner experience
 /#/plan/:token     a plan made in the customer's own AI (one-time link; `?plan=<token>` moves here
                    and leaves the address at once). From the public preview, nothing stored: the
@@ -129,6 +132,13 @@ from model text; nothing sensitive in URLs; nothing secret in `VITE_*`.
 - Zustand for the composer draft, open sheets and the products selected to compare
   (`src/saoirse/productSelection.ts`: up to three by row id across every products card, sent as
   the turn's `selection` with the next message and cleared when its reply is saved) only.
+- Plan choices (2026-11-13): with exactly one product selected, the compare bar offers "Choose
+  for…" (and every comparison column has "Choose"), a sheet of the plan's three slots
+  (`src/saoirse/ChooseSheet.tsx`). The tap is the commit, `POST …/plan/choices`; the chat says
+  nothing (the server narrates on the next turn). Badges and the plan card's "Your choices" read
+  the live plan (`usePlanForCards`), not the card's stored `chosen`. The shapes are typed by hand
+  in `src/lib/planChoices.ts` until `shared:sync` and `api:generate` bring them into
+  `@contracts` and `schema.d.ts`; then those take over.
 - shadcn components are added with the CLI; the look comes from tokens in `src/index.css`.
   Mobile first at 390px.
 - Sentry never receives message content or fact values.
