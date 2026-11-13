@@ -602,8 +602,9 @@ export const savedPlanCardSchema = z.object({
  * - `held_vs_market`: their own account on top as the baseline, the market under it, by rate.
  * - `by_access`: instant access beside fixed term, the rate difference stated as the price of
  *   access.
- * - `fits_date`: the accounts that take this saving by the keys month, by the term that fits
- *   (more than six months away: the six-month terms), any bonus counted by the date.
+ * - `fits_date`: the accounts that take this saving by the keys month, each fixed term at the
+ *   longest that ends a month before the keys month its own interest gives
+ *   (`domain/market/term-fit.ts`), by that keys month; any bonus counted by the date.
  * - `mortgage_by_sort`: the lender options at their loan-to-value, by the sort they chose.
  */
 export const MARKET_ARRANGEMENT_KINDS = [
@@ -616,6 +617,24 @@ export type ProductsArrangement = (typeof MARKET_ARRANGEMENT_KINDS)[number]
 
 /** The most rows a products card shows; the rest are counted in `more`. */
 export const PRODUCTS_CARD_MAX_ROWS = 8
+
+/** The most groups a products card divides its rows into (`arrangement.groups`). */
+export const PRODUCTS_CARD_MAX_GROUPS = 4
+
+/** The most facts a products row puts in front of the customer before they choose (`mustKnow`). */
+export const PRODUCTS_ROW_MAX_MUST_KNOW = 3
+
+/** The most sentences a products row opens to (`detail`). */
+export const PRODUCTS_ROW_MAX_DETAIL = 6
+
+/**
+ * A provider's brand colours, for the monogram drawn when there is no logo
+ * (`market/provider-brand.ts`): `bg` its colour, `fg` the initials on it.
+ */
+export const providerBrandSchema = z.object({
+  bg: z.string().regex(/^#[0-9a-f]{6}$/i),
+  fg: z.enum(['#fff', '#000']),
+})
 
 /**
  * The product card that follows the question asked (`show_products`): the key facts of what the
@@ -638,15 +657,19 @@ export const marketProductsCardSchema = z.object({
     kind: z.enum(MARKET_ARRANGEMENT_KINDS),
     /** "Your account against the market", "Mortgage options at 90% loan-to-value". */
     title: z.string(),
-    /** One short sentence: the arrangement and how to change it. */
+    /** Names the arrangement and how to change it, in one short sentence. */
     line: z.string(),
     /**
-     * The rows by type, in order: "Instant access", "Fixed term", "Yours", "The market"
-     * (2026-11-13). Optional: absent, the rows are one list. A row in no group follows them.
+     * The rows in groups, in the card's order (Chris, 2026-11-13: instant access and fixed term
+     * in one undivided list read as one ranking): `held_vs_market` "Yours" and "The market",
+     * `by_access` "Instant access", "Notice" and "Fixed term", `fits_date` "Fixed term",
+     * "Instant access" and "Notice"; a mortgage card has none. Each group's rows keep the card's
+     * order within it, and the rows array is in group order. Optional: cards stored before it
+     * are one list. `more` stays card-level.
      */
     groups: z
       .array(z.object({ label: z.string(), rowIds: z.array(z.string()) }))
-      .max(4)
+      .max(PRODUCTS_CARD_MAX_GROUPS)
       .optional(),
   }),
   rows: z
@@ -658,25 +681,44 @@ export const marketProductsCardSchema = z.object({
         lead: z.string(),
         /** The access or term: "instant access", "6-month fixed", "4-year fixed at 3.20%". */
         kind: z.string(),
-        /** The headline: "3.11%", "€1,751/mo". */
+        /**
+         * The headline: "€1,751/mo", "3.11%"; a savings rate that ends before the date names its
+         * end ("3.11% to 1 Jan").
+         */
         value: z.string(),
         /** The money in their figures: "€815 by Jul 2028", "€49,338 over 5 years". */
         figure: z.string(),
-        /** One flag, or null: "rate from CCPC only", "bonus until 1 Jan". */
+        /**
+         * One flag, or null: "then 1.51%; the money counts both", "rate for new accounts; how
+         * long it holds is not stated", "rate from CCPC only; how long it holds is not stated".
+         */
         note: z.string().nullable(),
         /** Their own account, the baseline. */
         held: z.boolean(),
         /** False where the rate or an incentive rests on CCPC's figure alone. */
         confirmed: z.boolean(),
-        // Key facts (2026-11-13). Optional: cards saved before them still parse and render.
-        /** The provider, for the monogram. */
+        /*
+         * The key facts and the detail (Chris, 2026-11-13: "we don't need to display everything
+         * in the line item, just the key facts"). The closed row is `lead`, `kind`, `value` and
+         * `figure`; these four are optional so cards stored before them still parse, and a row
+         * without `detail` opens to its `note`.
+         */
+        /** The provider's id (`boi`, `bunq`), for its logo; absent for a held account not matched. */
         providerId: z.string().optional(),
-        /** The provider's colours for the monogram; null when it has none on record. */
-        brand: z.object({ bg: z.string(), fg: z.string() }).nullable().optional(),
-        /** Everything that left the closed row: the period and what follows, conditions, source. */
-        detail: z.array(z.string()).max(6).optional(),
-        /** The one to three facts a person should know before choosing this product. */
-        mustKnow: z.array(z.string()).max(3).optional(),
+        /** The provider's brand colours for the monogram; null when none is recorded. */
+        brand: providerBrandSchema.nullable().optional(),
+        /**
+         * What the row opens to, one sentence each: the rate's period and what follows, the money
+         * and what it counts, the conditions as the source states them, the source and the day
+         * checked, what is not stated.
+         */
+        detail: z.array(z.string()).max(PRODUCTS_ROW_MAX_DETAIL).optional(),
+        /**
+         * The facts to know before choosing it, as facts, never a steer: "Money locked until May
+         * 2028", "Rate ends 1 Jan, then 1.61% to €10,000 and 1.51% above", "Deposit guarantee:
+         * Netherlands, not Ireland", "Monthly saving not accepted; lump sum only".
+         */
+        mustKnow: z.array(z.string()).max(PRODUCTS_ROW_MAX_MUST_KNOW).optional(),
       }),
     )
     .max(PRODUCTS_CARD_MAX_ROWS),
@@ -686,7 +728,10 @@ export const marketProductsCardSchema = z.object({
   basis: z.object({
     /** The figures used, listed back. */
     figures: z.array(z.string()),
-    /** The objective the order uses, and how to change it. */
+    /**
+     * The objective the order uses, and the comparison it rests on (`by_access`: the price of
+     * access, moved here from `arrangement.line` on 2026-11-13).
+     */
     objective: z.string(),
     assumptions: z.array(z.string()),
     /** Which products were searched, the source and the date checked, what is left out. */
