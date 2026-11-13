@@ -14,9 +14,14 @@ import type { HistoryEntry } from '@domain/card-state.ts'
  * - Saoirse's reading of a plan edit (build 4): one factual sentence of what the edit changed,
  *   shown as Saoirse's line the moment the chat opens. Nothing is sent in the customer's name;
  *   the server has written a `plan_edited` event, and the chat's return turn reads it.
+ *
+ * And one thing for the customer to send or not: a line put in the composer, unsent, from
+ * "Change" on a plan choice under Your plan ("Show me the options for my monthly saving
+ * again", 2026-11-13). It is theirs to edit, send or delete.
  */
 let pending: string | null = null
 let saoirseLine: string | null = null
+let composerLine: string | null = null
 
 export function handFirstMessage(message: string): void {
   pending = message
@@ -35,6 +40,16 @@ export function handSaoirseLine(line: string): void {
 export function takeSaoirseLine(): string | null {
   const line = saoirseLine
   saoirseLine = null
+  return line
+}
+
+export function handComposerLine(line: string): void {
+  composerLine = line
+}
+
+export function takeComposerLine(): string | null {
+  const line = composerLine
+  composerLine = null
   return line
 }
 

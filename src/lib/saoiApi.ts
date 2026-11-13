@@ -36,12 +36,15 @@ import {
   type UpdateHoldingBody,
 } from '@contracts/holdings.ts'
 import {
+  casePlanChoiceBodySchema,
   casePlanEditedSchema,
   casePlanSchema,
   type CasePlan,
+  type CasePlanChoiceBody,
   type CasePlanEdit,
   type CasePlanEdited,
 } from '@contracts/case-plan.ts'
+import type { PlanChoiceSlot } from '@contracts/market-plan.ts'
 
 export { SaoiApiError }
 
@@ -187,6 +190,31 @@ export function updateCasePlan(caseId: string, body: CasePlanEdit): Promise<Case
       body: compact(body),
     }),
     casePlanEditedSchema,
+  )
+}
+
+/**
+ * The customer's own tap choosing a product for one slot of their plan (the model proposes, the
+ * UI commits). Replaces whatever that slot held. Returns the plan with its choices; the server
+ * narrates the choice on the next turn, so nothing is said here.
+ */
+export function choosePlanProduct(caseId: string, body: CasePlanChoiceBody): Promise<CasePlan> {
+  return parsed(
+    api.POST('/api/cases/{caseId}/plan/choices', {
+      params: { path: { caseId } },
+      body: casePlanChoiceBodySchema.parse(body),
+    }),
+    casePlanSchema,
+  )
+}
+
+/** Clears one slot's choice. Returns the plan with its choices. */
+export function removePlanChoice(caseId: string, slot: PlanChoiceSlot): Promise<CasePlan> {
+  return parsed(
+    api.DELETE('/api/cases/{caseId}/plan/choices/{slot}', {
+      params: { path: { caseId, slot } },
+    }),
+    casePlanSchema,
   )
 }
 

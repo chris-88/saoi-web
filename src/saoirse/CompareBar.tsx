@@ -2,13 +2,15 @@ import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useProductSelection } from '@/saoirse/productSelection'
+import { ChooseSheet } from '@/saoirse/ChooseSheet'
 
 /** The customer's message when they press Compare; the selection goes with it. */
 export const COMPARE_MESSAGE = 'Compare these'
 
 /**
  * The slim bar above the composer while products are selected: what is selected, Compare (from
- * two) and Clear. Nothing when nothing is selected.
+ * two) and Clear, and with exactly one selected, "Choose for…" (the Choose sheet: put it into
+ * the plan). Nothing when nothing is selected.
  *
  * Compare sends "Compare these" as the customer's own message with the selection on the turn;
  * the selection clears when the reply arrives (`useConversation`). A message they type instead
@@ -17,9 +19,12 @@ export const COMPARE_MESSAGE = 'Compare these'
 export function CompareBar({
   onCompare,
   canSend,
+  caseId = null,
   className,
 }: {
   onCompare: () => void
+  /** The conversation, for choosing into its plan; with none, there is no "Choose for…". */
+  caseId?: string | null
   /** Whether a message can go now (not while a turn is in flight). Clear is always open. */
   canSend: boolean
   className?: string | undefined
@@ -30,6 +35,7 @@ export function CompareBar({
 
   const leads = selected.map((item) => item.lead)
   const summary = selected.length === 1 ? '1 selected' : leads.join(' · ')
+  const only = selected.length === 1 ? selected[0] : undefined
 
   return (
     <div
@@ -50,6 +56,22 @@ export function CompareBar({
       >
         Clear
       </Button>
+      {only !== undefined && caseId !== null && (
+        <ChooseSheet
+          caseId={caseId}
+          product={{ rowId: only.rowId, lead: only.lead }}
+          trigger={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-full px-3.5 text-xs"
+            >
+              Choose for…
+            </Button>
+          }
+        />
+      )}
       <Button
         type="button"
         size="sm"

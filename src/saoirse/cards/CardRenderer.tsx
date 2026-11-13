@@ -324,10 +324,10 @@ function LiveCard({
       )
 
     case 'market_products':
-      return <MarketProductsCard card={card} cardId={cardId} />
+      return <MarketProductsCard card={card} cardId={cardId} caseId={caseId} />
 
     case 'product_comparison':
-      return <ProductComparisonCard card={card} />
+      return <ProductComparisonCard card={card} caseId={caseId} />
 
     default:
       return assertNever(card, 'card')

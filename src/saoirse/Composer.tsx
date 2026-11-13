@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowUpIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGhostPrompt } from '@/saoirse/useGhostPrompt'
@@ -25,6 +25,7 @@ export function Composer({
   placeholder,
   hint = true,
   onFocusChange,
+  initialText = null,
   className,
 }: {
   onSend?: ((message: string) => void) | undefined
@@ -49,6 +50,8 @@ export function Composer({
   hint?: boolean | undefined
   /** The opening screen dims itself while somebody is typing into it (spec §4). */
   onFocusChange?: ((focused: boolean) => void) | undefined
+  /** Text put in the box when it mounts, unsent, with the caret after it. */
+  initialText?: string | null | undefined
   className?: string | undefined
 }): ReactNode {
   const box = useRef<HTMLDivElement>(null)
@@ -66,6 +69,22 @@ export function Composer({
   const ghost = useGhostPrompt(hint && length === 0 && placeholder === undefined)
 
   const read = (): string => (box.current?.textContent ?? '').trim()
+
+  // Once, on mount: the element owns its text from then on (see above).
+  const [prefill] = useState(initialText)
+  useEffect(() => {
+    const element = box.current
+    if (element === null || prefill === null || prefill === '') return
+    element.textContent = prefill
+    setLength(prefill.trim().length)
+    element.focus()
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    range.collapse(false)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+  }, [prefill])
 
   const clear = (): void => {
     if (box.current !== null) box.current.textContent = ''

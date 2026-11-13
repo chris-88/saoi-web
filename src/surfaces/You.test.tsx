@@ -6,12 +6,14 @@ import type { ListCasesResponse } from '@contracts/session.ts'
 import type { CaseHoldingsResponse, Holding } from '@contracts/holdings.ts'
 import type { Identity } from '@/lib/identity'
 import type { CasePlan, CasePlanEdit, CasePlanEdited } from '@contracts/case-plan.ts'
+import type { PlanChoiceSlot } from '@contracts/market-plan.ts'
 import type * as IdentityModule from '@/lib/identity'
 
 const listCases = vi.fn<() => Promise<ListCasesResponse>>()
 const fetchCaseHoldings = vi.fn<(caseId: string) => Promise<CaseHoldingsResponse>>()
 const currentIdentity = vi.fn<() => Promise<Identity>>()
 const fetchCasePlan = vi.fn<(caseId: string) => Promise<CasePlan | null>>()
+const removePlanChoice = vi.fn<(caseId: string, slot: PlanChoiceSlot) => Promise<CasePlan>>()
 const updateCasePlan = vi.fn<(caseId: string, body: CasePlanEdit) => Promise<CasePlanEdited>>()
 
 vi.mock('@/lib/session', () => ({
@@ -27,6 +29,7 @@ vi.mock('@/lib/saoiApi', () => ({
   deleteHolding: vi.fn(),
   fetchCasePlan: (caseId: string) => fetchCasePlan(caseId),
   updateCasePlan: (caseId: string, body: CasePlanEdit) => updateCasePlan(caseId, body),
+  removePlanChoice: (caseId: string, slot: PlanChoiceSlot) => removePlanChoice(caseId, slot),
 }))
 vi.mock('@/lib/identity', async (importOriginal) => ({
   ...(await importOriginal<typeof IdentityModule>()),
@@ -35,7 +38,7 @@ vi.mock('@/lib/identity', async (importOriginal) => ({
 }))
 
 const { You } = await import('./You')
-const { takeSaoirseLine } = await import('@/lib/planArrival')
+const { takeComposerLine, takeSaoirseLine } = await import('@/lib/planArrival')
 
 const CASE = '22222222-2222-4222-8222-222222222222'
 const OTHER = '33333333-3333-4333-8333-333333333333'
@@ -101,6 +104,26 @@ const PLAN: CasePlan = {
     { lead: 'AIB', kind: 'six-month deposit', value: '2.75%', figure: '€1,210 by March 2028' },
   ],
   updatedAt: '2026-11-12T10:00:00.000Z',
+  choices: { lump_sum: null, monthly_saving: null, mortgage: null },
+}
+
+/** The plan with a product chosen for the monthly saving. */
+const CHOSEN: CasePlan = {
+  ...PLAN,
+  choices: {
+    lump_sum: null,
+    monthly_saving: {
+      slot: 'monthly_saving',
+      rowId: 'bunq:savings.bunq_savings',
+      lead: 'bunq Easy Savings',
+      providerId: 'bunq',
+      kind: 'instant access',
+      value: '2.01%',
+      figure: '€815 by Mar 2028',
+      chosenAt: '2026-11-13T09:00:00.000Z',
+    },
+    mortgage: null,
+  },
 }
 
 /** When an edit that changed something was saved: after the plan's own time. */
@@ -459,6 +482,74 @@ describe('Your plan', () => {
     for (const name of [/price of the home/i, /kind of home/i, /first-time/i, /buying together/i]) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
     }
+  })
+
+  describe('Your choices', () => {
+    it('shows each slot in their figures, open ones not chosen yet', async () => {
+      fetchCasePlan.mockResolvedValue(CHOSEN)
+      renderAt('/you/plan')
+      const list = await screen.findByRole('list', { name: 'Your choices' })
+      const items = within(list).getAllByRole('listitem')
+      expect(items).toHaveLength(3)
+      expect(items[0]).toHaveTextContent('Your €12,000')
+      expect(items[0]).toHaveTextContent('Not chosen yet')
+      expect(items[1]).toHaveTextContent('Your €1,500 a month')
+      expect(items[1]).toHaveTextContent('bunq Easy Savings')
+      expect(items[1]).toHaveTextContent('€815 by Mar 2028')
+      expect(items[2]).toHaveTextContent('Your mortgage')
+      expect(items[2]).toHaveTextContent('Not chosen yet')
+      // Remove only where there is something to remove.
+      expect(within(list).getAllByRole('button', { name: /^remove/i })).toHaveLength(1)
+    })
+
+    it('says how to choose when nothing is chosen', async () => {
+      fetchCasePlan.mockResolvedValue(PLAN)
+      renderAt('/you/plan')
+      expect(await screen.findByText(/then “Choose for…”/)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /^remove/i })).not.toBeInTheDocument()
+    })
+
+    it('removes a choice with the DELETE, then reads the plan again', async () => {
+      fetchCasePlan.mockResolvedValueOnce(CHOSEN).mockResolvedValue(PLAN)
+      removePlanChoice.mockResolvedValue(PLAN)
+      renderAt('/you/plan')
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: 'Remove bunq Easy Savings from your €1,500 a month',
+        }),
+      )
+      await waitFor(() => expect(removePlanChoice).toHaveBeenCalledWith(CASE, 'monthly_saving'))
+      await waitFor(() => expect(screen.queryByText('bunq Easy Savings')).not.toBeInTheDocument())
+      expect(fetchCasePlan).toHaveBeenCalledTimes(2)
+    })
+
+    it('shows the server’s sentence when a removal is refused', async () => {
+      fetchCasePlan.mockResolvedValue(CHOSEN)
+      removePlanChoice.mockRejectedValue(new Error('That choice has already gone.'))
+      renderAt('/you/plan')
+      fireEvent.click(await screen.findByRole('button', { name: /^remove bunq/i }))
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'That was not removed. That choice has already gone.',
+      )
+      expect(screen.getByText('bunq Easy Savings')).toBeInTheDocument()
+    })
+
+    it('changes in the chat, with their line waiting in the composer', async () => {
+      fetchCasePlan.mockResolvedValue(CHOSEN)
+      renderAt('/you/plan')
+      fireEvent.click(await screen.findByRole('button', { name: 'Change your €1,500 a month' }))
+      expect(await screen.findByText('The chat')).toBeInTheDocument()
+      expect(takeComposerLine()).toBe('Show me the options for my monthly saving again')
+      expect(takeComposerLine()).toBeNull()
+    })
+
+    it('asks for the options of an open slot, without "again"', async () => {
+      fetchCasePlan.mockResolvedValue(CHOSEN)
+      renderAt('/you/plan')
+      fireEvent.click(await screen.findByRole('button', { name: 'See options for your mortgage' }))
+      expect(await screen.findByText('The chat')).toBeInTheDocument()
+      expect(takeComposerLine()).toBe('Show me the options for my mortgage')
+    })
   })
 
   it('keeps the row open with the reason when the save fails', async () => {

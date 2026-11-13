@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useProductSelection } from '@/saoirse/productSelection'
+import { ChosenBadge } from './ChosenBadge'
 import { BasisPart, Fold } from './Fold'
 import { ProviderMonogram } from './ProviderMonogram'
 import { groupRows, splitValue } from './productRow'
@@ -32,6 +33,10 @@ type Row = Payload['rows'][number]
  * When the server groups the rows by type ("Instant access", "Fixed term"; Chris, 2026-11-13:
  * different products were mixed in one list), each group sits under a small quiet label.
  *
+ * A row the customer has chosen for their plan (the Choose sheet, from the compare bar) carries a
+ * small badge naming the slot ("your monthly saving"), read from the live plan so a card shown
+ * before the choice still shows it.
+ *
  * Every word and figure is the server's; the card only lays them out and, in an ungrouped list,
  * puts the customer's own account first. Nothing here is a pick: selecting is the customer's
  * own choice of what to compare, and the comparison never orders or favours.
@@ -39,10 +44,13 @@ type Row = Payload['rows'][number]
 export function MarketProductsCard({
   card,
   cardId,
+  caseId = null,
 }: {
   card: Payload
   /** The chat entry this card is, so a refused fourth selection is noted on this card. */
   cardId?: string | undefined
+  /** The conversation, whose plan says which rows are chosen; with none, no badges. */
+  caseId?: string | null
 }): ReactNode {
   const fallbackId = useId()
   const cardMessageId = cardId ?? fallbackId
@@ -84,6 +92,7 @@ export function MarketProductsCard({
                 key={row.id}
                 row={row}
                 selected={selectedIds.has(row.id)}
+                caseId={caseId}
                 onToggle={() => {
                   toggle({ rowId: row.id, lead: row.lead, cardMessageId })
                 }}
@@ -157,10 +166,13 @@ function RowSection({
 function ProductRow({
   row,
   selected,
+  caseId,
   onToggle,
 }: {
   row: Row
   selected: boolean
+  /** The conversation, whose plan says whether this row is chosen. */
+  caseId: string | null
   onToggle: () => void
 }): ReactNode {
   const { value, period } = splitValue(row.value)
@@ -204,6 +216,7 @@ function ProductRow({
             <span className="bg-muted text-muted-foreground max-w-full truncate rounded-full px-1.5 text-2xs">
               {row.kind}
             </span>
+            {caseId !== null && <ChosenBadge caseId={caseId} rowId={row.id} />}
           </span>
         </span>{' '}
         <span className="flex min-w-14 shrink-0 flex-col items-end">
