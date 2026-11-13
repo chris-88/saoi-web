@@ -200,6 +200,7 @@ describe('a home plan carrying what the host card showed', () => {
         sub: ['€815 interest', 'by Jul 2028'],
         quiet: ['28 accounts'],
         detail: ['The best rate among 28 accounts open to you, after DIRT.', 'Variable rates.'],
+        lines: ['€815 interest', 'by Jul 2028', '28 accounts'],
       },
       {
         label: 'Mortgage',
@@ -208,6 +209,7 @@ describe('a home plan carrying what the host card showed', () => {
         sub: ['€405,000 loan', 'from 3.20%'],
         quiet: ['49 options'],
         detail: ['Over 30 years at the lowest rate of 49 options.'],
+        lines: ['€405,000 loan', 'from 3.20%', '49 options'],
       },
       {
         label: 'Could afford',
@@ -216,6 +218,7 @@ describe('a home plan carrying what the host card showed', () => {
         sub: ['4× income', '90% loan'],
         quiet: [],
         detail: [],
+        lines: ['4× income', '90% loan'],
       },
     ],
     assumptions: [
