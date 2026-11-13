@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { StreamEvent } from '@contracts/stream.ts'
 import { streamSaoirseTurn } from '@/saoirse/saoirseTurnClient'
 import { useConversation, type TurnEntry } from '@/saoirse/useConversation'
+import { useProductSelection } from '@/saoirse/productSelection'
 
 vi.mock('@/saoirse/saoirseTurnClient', () => ({ streamSaoirseTurn: vi.fn() }))
 
@@ -57,7 +58,7 @@ describe('a round that was withdrawn', () => {
 
     const { result } = renderHook(() => useConversation('case-1'))
 
-    let turn: Promise<void> = Promise.resolve()
+    let turn: Promise<unknown> = Promise.resolve()
     act(() => {
       turn = result.current.send('here is my payslip')
     })
@@ -91,7 +92,7 @@ describe('a round that was withdrawn', () => {
 
     const { result } = renderHook(() => useConversation('case-1'))
 
-    let turn: Promise<void> = Promise.resolve()
+    let turn: Promise<unknown> = Promise.resolve()
     act(() => {
       turn = result.current.send('can you invite Hannah')
     })
@@ -110,5 +111,103 @@ describe('a round that was withdrawn', () => {
       'customer: can you invite Hannah',
       'assistant: Right.\n\nHannah has already joined.',
     ])
+  })
+})
+
+/**
+ * Products selected to compare go with the customer's message ("Compare these", or anything
+ * they type) and come out of the selection when the reply is saved, not before: a turn that
+ * fails leaves them selected for the retry.
+ */
+describe('a message with products selected', () => {
+  const selected = (rowId: string, lead: string) => ({ rowId, lead, cardMessageId: 'entry-1' })
+
+  afterEach(() => {
+    useProductSelection.getState().clear()
+  })
+
+  it('sends the selection with the message, shows the message as theirs, and clears on the reply', async () => {
+    useProductSelection.setState({
+      selected: [
+        selected('bunq:easy-savings', 'bunq Easy Savings'),
+        selected('boi:supersaver', 'Bank of Ireland SuperSaver'),
+      ],
+    })
+    const script = scripted([{ type: 'text_delta', text: 'Side by side.' }], [DONE])
+    const { result } = renderHook(() => useConversation('case-1'))
+    const selection = [
+      { rowId: 'bunq:easy-savings', lead: 'bunq Easy Savings' },
+      { rowId: 'boi:supersaver', lead: 'Bank of Ireland SuperSaver' },
+    ]
+
+    let turn: Promise<boolean> = Promise.resolve(false)
+    act(() => {
+      turn = result.current.send('Compare these', 'message', undefined, selection)
+    })
+
+    expect(vi.mocked(streamSaoirseTurn).mock.calls[0]?.[0]).toEqual({
+      caseId: 'case-1',
+      trigger: 'message',
+      message: 'Compare these',
+      selection,
+    })
+    expect(transcript(result.current.entries)[0]).toBe('customer: Compare these')
+    // Still selected while the reply is on its way.
+    expect(useProductSelection.getState().selected).toHaveLength(2)
+
+    // One selected mid-turn is not part of this turn, and stays.
+    act(() => {
+      useProductSelection.getState().toggle(selected('moco:instant', 'MoCo Instant Access'))
+    })
+
+    let saved = false
+    await act(async () => {
+      script.resume()
+      saved = await turn
+    })
+
+    expect(saved).toBe(true)
+    expect(useProductSelection.getState().selected.map((item) => item.rowId)).toEqual([
+      'moco:instant',
+    ])
+  })
+
+  it('keeps the selection when the turn fails', async () => {
+    useProductSelection.setState({
+      selected: [
+        selected('bunq:easy-savings', 'bunq Easy Savings'),
+        selected('boi:supersaver', 'Bank of Ireland SuperSaver'),
+      ],
+    })
+    vi.mocked(streamSaoirseTurn).mockImplementation(async (_input, onEvent) => {
+      onEvent({ type: 'error', error: { code: 'upstream_unavailable', message: 'Down.' } })
+      await Promise.resolve()
+    })
+    const { result } = renderHook(() => useConversation('case-1'))
+
+    let saved = true
+    await act(async () => {
+      saved = await result.current.send('Compare these', 'message', undefined, [
+        { rowId: 'bunq:easy-savings', lead: 'bunq Easy Savings' },
+        { rowId: 'boi:supersaver', lead: 'Bank of Ireland SuperSaver' },
+      ])
+    })
+
+    expect(saved).toBe(false)
+    expect(result.current.error).toBe('Down.')
+    expect(useProductSelection.getState().selected).toHaveLength(2)
+  })
+
+  it('sends no selection when none is held', async () => {
+    scripted([], [DONE]).resume()
+    const { result } = renderHook(() => useConversation('case-1'))
+    await act(async () => {
+      await result.current.send('hello', 'message', undefined, [])
+    })
+    expect(vi.mocked(streamSaoirseTurn).mock.calls[0]?.[0]).toEqual({
+      caseId: 'case-1',
+      trigger: 'message',
+      message: 'hello',
+    })
   })
 })

@@ -203,6 +203,43 @@ describe('where the turn is posted', () => {
     expect(seen).toEqual(reply)
   })
 
+  it('sends the products selected to compare with the message', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(framed(reply))
+    vi.stubGlobal('fetch', viaRequest(fetchMock))
+
+    await streamSaoirseTurn(
+      {
+        caseId: 'case-1',
+        message: 'Compare these',
+        selection: [
+          { rowId: 'bunq:easy-savings', lead: 'bunq Easy Savings' },
+          { rowId: 'boi:supersaver', lead: 'Bank of Ireland SuperSaver' },
+        ],
+      },
+      () => undefined,
+    )
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(init.body as string)).toEqual({
+      trigger: 'message',
+      message: 'Compare these',
+      selection: [
+        { rowId: 'bunq:easy-savings', lead: 'bunq Easy Savings' },
+        { rowId: 'boi:supersaver', lead: 'Bank of Ireland SuperSaver' },
+      ],
+    })
+  })
+
+  it('leaves selection out when nothing is selected', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(framed(reply))
+    vi.stubGlobal('fetch', viaRequest(fetchMock))
+
+    await streamSaoirseTurn({ caseId: 'case-1', message: 'hello', selection: [] }, () => undefined)
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(init.body as string)).toEqual({ trigger: 'message', message: 'hello' })
+  })
+
   it('turns a refusal from the service into an error event the chat can show', async () => {
     vi.stubGlobal(
       'fetch',

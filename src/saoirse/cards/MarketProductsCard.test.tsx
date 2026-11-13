@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { cardSchema, type MarketProductsCard as Payload } from '@contracts/cards.ts'
+import { useProductSelection } from '@/saoirse/productSelection'
 import { MarketProductsCard } from './MarketProductsCard'
+
+beforeEach(() => {
+  useProductSelection.getState().clear()
+})
 
 /**
  * Fixtures in the server's conventions (`domain/market/products-card.ts` in `chris-88/saoi`):
@@ -317,14 +322,12 @@ describe('MarketProductsCard', () => {
         expect(item).toHaveTextContent(row.figure)
         expect(item).toHaveTextContent(row.kind)
       }
-      // Nothing on the card is a pick: the controls only open detail (the fold, and each row
-      // with something to open).
-      const openable = card.rows.filter(
-        (row) =>
-          (row.mustKnow?.length ?? 0) > 0 ||
-          (row.detail === undefined ? row.note !== null : row.detail.length > 0),
-      )
-      expect(screen.getAllByRole('button')).toHaveLength(1 + openable.length)
+      // Nothing on the card is a pick: one fold, and each row a checkbox the customer ticks to
+      // compare, none of them ticked to begin with.
+      expect(screen.getAllByRole('button')).toHaveLength(1)
+      const boxes = screen.getAllByRole('checkbox')
+      expect(boxes).toHaveLength(card.rows.length)
+      for (const box of boxes) expect(box).toHaveAttribute('aria-checked', 'false')
     },
   )
 
@@ -337,7 +340,7 @@ describe('MarketProductsCard', () => {
     expect(within(items[0]!).getByText('yours')).toBeInTheDocument()
     expect(items[1]).toHaveTextContent('bunq Easy Savings')
     expect(screen.getAllByText('yours')).toHaveLength(1)
-    expect(screen.getByText('your rate as you gave it')).not.toBeVisible()
+    expect(screen.queryByText('your rate as you gave it')).not.toBeInTheDocument()
   })
 
   it('sets instant access, notice and fixed term side by side, each with its kind', () => {
@@ -352,7 +355,7 @@ describe('MarketProductsCard', () => {
     render(<MarketProductsCard card={fitsDate} />)
     expect(screen.getByText(/6-month fixed$/)).toBeInTheDocument()
     expect(screen.getByText('€201 by Jul 2028')).toBeInTheDocument()
-    expect(screen.getByText('bonus paid after drawdown, not counted')).not.toBeVisible()
+    expect(screen.queryByText('bonus paid after drawdown, not counted')).not.toBeInTheDocument()
     expect(screen.getByText('1 more; ask to see it')).toBeInTheDocument()
   })
 
@@ -424,10 +427,10 @@ describe('MarketProductsCard', () => {
   })
 
   describe('rows as key facts', () => {
-    const rowButton = (lead: string): HTMLElement =>
-      screen.getByRole('button', { name: new RegExp(`^${lead}`) })
+    const rowBox = (lead: string): HTMLElement =>
+      screen.getByRole('checkbox', { name: new RegExp(`^${lead}`) })
 
-    it('shows only the key facts on a closed row', () => {
+    it('shows only the key facts on a row, and nothing it used to open to', () => {
       render(<MarketProductsCard card={keyFacts} />)
       const bunq = within(
         screen.getByRole('list', { name: keyFacts.arrangement.title }),
@@ -440,12 +443,13 @@ describe('MarketProductsCard', () => {
       expect(within(bunq).getByText('instant access')).toBeVisible()
       expect(within(bunq).getByText('€581 by Jul 2028')).toBeVisible()
       expect(within(bunq).getByText('B')).toBeVisible()
-      // The facts wait for a tap; the old note is not shown at all.
+      // The must-knows and the detail are the comparison card's now; the note is not shown.
       for (const line of [...keyFacts.rows[0]!.mustKnow!, ...keyFacts.rows[0]!.detail!]) {
-        expect(within(bunq).getByText(line)).not.toBeVisible()
+        expect(screen.queryByText(line)).not.toBeInTheDocument()
       }
       expect(screen.queryByText(keyFacts.rows[0]!.note!)).not.toBeInTheDocument()
-      expect(rowButton('bunq Easy Savings')).toHaveAttribute('aria-expanded', 'false')
+      expect(rowBox('bunq Easy Savings')).not.toHaveAttribute('aria-expanded')
+      expect(screen.queryByRole('region', { name: /^About / })).toBeNull()
     })
 
     it('splits the value from its period', () => {
@@ -456,55 +460,16 @@ describe('MarketProductsCard', () => {
       expect(screen.getByText('2.25%')).toBeVisible()
     })
 
-    it('opens a row to what to know first, then the rest, one row at a time', () => {
+    it('makes every row a checkbox, a row with no facts included', () => {
       render(<MarketProductsCard card={keyFacts} />)
-      const bunq = rowButton('bunq Easy Savings')
-      fireEvent.click(bunq)
-      expect(bunq).toHaveAttribute('aria-expanded', 'true')
-      const panel = screen.getByRole('region', { name: 'About bunq Easy Savings' })
-      expect(bunq).toHaveAttribute('aria-controls', panel.id)
-      const first = within(panel).getByText('Rate ends 1 Jan, then 1.61%')
-      const rest = within(panel).getByText('From bunq’s own site, checked 12 Nov 2026')
-      expect(first).toBeVisible()
-      expect(rest).toBeVisible()
-      expect(within(panel).getAllByRole('listitem')).toHaveLength(2)
-      expect(first.compareDocumentPosition(rest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-
-      const boi = rowButton('Bank of Ireland Fixed Term Deposit')
-      fireEvent.click(boi)
-      expect(boi).toHaveAttribute('aria-expanded', 'true')
-      expect(bunq).toHaveAttribute('aria-expanded', 'false')
-      expect(within(panel).getByText('Rate ends 1 Jan, then 1.61%')).not.toBeVisible()
-      expect(screen.getByText('Money locked for 18 months')).toBeVisible()
-
-      fireEvent.click(boi)
-      expect(boi).toHaveAttribute('aria-expanded', 'false')
-    })
-
-    it('has no control on a row with nothing to open', () => {
-      render(<MarketProductsCard card={keyFacts} />)
-      expect(screen.getAllByRole('button')).toHaveLength(4)
-      expect(screen.getByText('State Savings Deposit Account').closest('button')).toBeNull()
+      expect(screen.getAllByRole('checkbox')).toHaveLength(keyFacts.rows.length)
+      expect(rowBox('State Savings Deposit Account')).toHaveAttribute('aria-checked', 'false')
       expect(screen.getByText('SS')).toBeVisible()
-    })
-
-    it('opens and closes from the keyboard', () => {
-      render(<MarketProductsCard card={keyFacts} />)
-      const moco = rowButton('MoCo Instant Access')
-      // A native button: Tab reaches it, Enter and Space press it.
-      expect(moco.tagName).toBe('BUTTON')
-      moco.focus()
-      expect(moco).toHaveFocus()
-      fireEvent.click(moco)
-      expect(moco).toHaveAttribute('aria-expanded', 'true')
-      fireEvent.keyDown(moco, { key: 'Escape' })
-      expect(moco).toHaveAttribute('aria-expanded', 'false')
-      expect(moco).toHaveFocus()
     })
 
     it('keeps the unconfirmed marker and the footnote', () => {
       render(<MarketProductsCard card={keyFacts} />)
-      expect(within(rowButton('MoCo Instant Access')).getByLabelText('not confirmed')).toBeVisible()
+      expect(within(rowBox('MoCo Instant Access')).getByLabelText('not confirmed')).toBeVisible()
       expect(screen.getByText(/^\* From CCPC only/)).toBeInTheDocument()
     })
 
@@ -515,14 +480,116 @@ describe('MarketProductsCard', () => {
       expect(screen.getByText(keyFacts.basis.objective)).toBeVisible()
     })
 
-    it('opens a card saved before key facts to its note', () => {
+    it('shows a card saved before key facts as the same closed row', () => {
       render(<MarketProductsCard card={heldVsMarket} />)
-      // Their own account has a note, so it opens to it; bunq has none, so it has no control.
-      fireEvent.click(rowButton('Your BoI savings'))
-      expect(screen.getByText('your rate as you gave it')).toBeVisible()
-      expect(screen.getByText('bunq Easy Savings').closest('button')).toBeNull()
+      expect(screen.getAllByRole('checkbox')).toHaveLength(heldVsMarket.rows.length)
+      expect(screen.queryByText('your rate as you gave it')).not.toBeInTheDocument()
       // A neutral monogram from the lead when there is no provider.
       expect(screen.getByText('BoI')).toBeVisible()
+    })
+  })
+
+  describe('selecting to compare', () => {
+    const rowBox = (lead: string): HTMLElement =>
+      screen.getByRole('checkbox', { name: new RegExp(`^${lead}`) })
+    const tick = (box: HTMLElement): Element | null =>
+      box.querySelector('[data-slot="select-mark"] svg')
+
+    it('selects a row with a tap anywhere on it, and takes it out with another', () => {
+      render(<MarketProductsCard card={keyFacts} cardId="card-1" />)
+      const bunq = rowBox('bunq Easy Savings')
+      expect(bunq).toHaveAttribute('aria-checked', 'false')
+      expect(tick(bunq)).toBeNull()
+
+      // On the figure, not the circle: the whole row is the hit area.
+      fireEvent.click(within(bunq).getByText('€581 by Jul 2028'))
+      expect(bunq).toHaveAttribute('aria-checked', 'true')
+      expect(tick(bunq)).not.toBeNull()
+      expect(useProductSelection.getState().selected).toEqual([
+        { rowId: 'bunq:easy-savings', lead: 'bunq Easy Savings', cardMessageId: 'card-1' },
+      ])
+
+      fireEvent.click(bunq)
+      expect(bunq).toHaveAttribute('aria-checked', 'false')
+      expect(useProductSelection.getState().selected).toEqual([])
+    })
+
+    it('is reached and pressed from the keyboard', () => {
+      render(<MarketProductsCard card={keyFacts} />)
+      const moco = rowBox('MoCo Instant Access')
+      // A native button with the checkbox role: Tab reaches it, Enter and Space press it.
+      expect(moco.tagName).toBe('BUTTON')
+      expect(moco).toHaveAttribute('type', 'button')
+      expect(moco).not.toHaveAttribute('tabindex', '-1')
+      moco.focus()
+      expect(moco).toHaveFocus()
+      fireEvent.click(moco)
+      expect(moco).toHaveAttribute('aria-checked', 'true')
+      expect(moco).toHaveFocus()
+    })
+
+    it('refuses a fourth with a short note on that card, and takes one out to make room', () => {
+      render(<MarketProductsCard card={keyFacts} cardId="card-1" />)
+      for (const lead of [
+        'bunq Easy Savings',
+        'MoCo Instant Access',
+        'State Savings Deposit Account',
+      ]) {
+        fireEvent.click(rowBox(lead))
+      }
+      expect(screen.getByRole('status')).toHaveTextContent('')
+
+      const boi = rowBox('Bank of Ireland Fixed Term Deposit')
+      fireEvent.click(boi)
+      expect(boi).toHaveAttribute('aria-checked', 'false')
+      expect(useProductSelection.getState().selected).toHaveLength(3)
+      expect(screen.getByRole('status')).toHaveTextContent('Up to three to compare')
+
+      fireEvent.click(rowBox('MoCo Instant Access'))
+      expect(screen.getByRole('status')).toHaveTextContent('')
+      fireEvent.click(boi)
+      expect(boi).toHaveAttribute('aria-checked', 'true')
+      expect(useProductSelection.getState().selected.map((item) => item.rowId)).toEqual([
+        'bunq:easy-savings',
+        'state-savings:deposit',
+        'boi:fixed-18',
+      ])
+    })
+
+    it('counts the same product on two cards once, and ticks it on both', () => {
+      render(
+        <>
+          <MarketProductsCard card={keyFacts} cardId="card-1" />
+          <MarketProductsCard card={grouped} cardId="card-2" />
+        </>,
+      )
+      const boxes = screen.getAllByRole('checkbox', { name: /^bunq Easy Savings/ })
+      expect(boxes).toHaveLength(2)
+      fireEvent.click(boxes[0]!)
+      expect(boxes[0]).toHaveAttribute('aria-checked', 'true')
+      expect(boxes[1]).toHaveAttribute('aria-checked', 'true')
+      expect(useProductSelection.getState().selected).toHaveLength(1)
+
+      // Tapped on the other card, it comes out of both.
+      fireEvent.click(boxes[1]!)
+      expect(boxes[0]).toHaveAttribute('aria-checked', 'false')
+      expect(useProductSelection.getState().selected).toHaveLength(0)
+    })
+
+    it('notes the refusal only on the card where it happened', () => {
+      render(
+        <>
+          <MarketProductsCard card={heldVsMarket} cardId="card-1" />
+          <MarketProductsCard card={byAccess} cardId="card-2" />
+        </>,
+      )
+      for (const lead of ['Your BoI savings', 'MoCo Instant Access', 'PTSB Notice Account']) {
+        fireEvent.click(rowBox(lead))
+      }
+      fireEvent.click(rowBox('PTSB Fixed Term'))
+      const [first, second] = screen.getAllByRole('status')
+      expect(first).toHaveTextContent('')
+      expect(second).toHaveTextContent('Up to three to compare')
     })
   })
 
@@ -572,14 +639,14 @@ describe('MarketProductsCard', () => {
       expect(labelsInOrder()).toEqual(['Instant access', 'Fixed term'])
     })
 
-    it('opens one row at a time across groups', () => {
+    it('selects across groups like any row', () => {
       render(<MarketProductsCard card={grouped} />)
-      const bunq = screen.getByRole('button', { name: /^bunq Easy Savings/ })
-      const boi = screen.getByRole('button', { name: /^Bank of Ireland Fixed Term Deposit/ })
+      const bunq = screen.getByRole('checkbox', { name: /^bunq Easy Savings/ })
+      const boi = screen.getByRole('checkbox', { name: /^Bank of Ireland Fixed Term Deposit/ })
       fireEvent.click(bunq)
       fireEvent.click(boi)
-      expect(bunq).toHaveAttribute('aria-expanded', 'false')
-      expect(boi).toHaveAttribute('aria-expanded', 'true')
+      expect(bunq).toHaveAttribute('aria-checked', 'true')
+      expect(boi).toHaveAttribute('aria-checked', 'true')
     })
 
     it('shows one list, without labels, when there are no groups', () => {

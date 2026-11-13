@@ -7219,6 +7219,72 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/admin/market/views': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * One entry per market product, as the comparison engine folds the rows
+     * @description The engine’s normalised views over every current row, both sources and every provider (Raisin’s platform banks included): a bank-direct row and its CCPC twin are one view, CCPC’s one-row-per-term deposits one ladder. Each view carries its readable provider name, category label, headline, term, rate lines, conditions, unknowns, freshness and the rows it was built from. Withdrawn products are not listed.
+     */
+    get: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description The market views. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['AdminMarketViews']
+          }
+        }
+        /** @description Missing or invalid token. */
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Not an administrator. */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -7672,6 +7738,8 @@ export interface components {
                     sub: string[]
                     quiet: string[]
                     detail: string[]
+                    /** @default [] */
+                    lines: string[]
                   }[]
                   assumptions: string[]
                   hookQuestion: {
@@ -7692,6 +7760,10 @@ export interface components {
                   kind: 'held_vs_market' | 'by_access' | 'fits_date' | 'mortgage_by_sort'
                   title: string
                   line: string
+                  groups?: {
+                    label: string
+                    rowIds: string[]
+                  }[]
                 }
                 rows: {
                   id: string
@@ -7702,11 +7774,54 @@ export interface components {
                   note: string | null
                   held: boolean
                   confirmed: boolean
+                  providerId?: string
+                  brand?: {
+                    bg: string
+                    /** @enum {string} */
+                    fg: '#fff' | '#000'
+                  } | null
+                  detail?: string[]
+                  mustKnow?: string[]
                 }[]
                 more: number
                 basis: {
                   figures: string[]
                   objective: string
+                  assumptions: string[]
+                  coverage: string
+                  warnings: string[]
+                }
+                statement: string
+              }
+            | {
+                /** @enum {string} */
+                type: 'product_comparison'
+                title: string
+                columns: {
+                  rowId: string
+                  lead: string
+                  providerId?: string
+                  brand?: {
+                    bg: string
+                    /** @enum {string} */
+                    fg: '#fff' | '#000'
+                  } | null
+                  kind: string
+                }[]
+                rows: {
+                  label: string
+                  values: string[]
+                  differs: boolean
+                }[]
+                differences: string[]
+                decides: string
+                mustKnow: {
+                  rowId: string
+                  facts: string[]
+                  detail?: string[]
+                }[]
+                basis: {
+                  figures: string[]
                   assumptions: string[]
                   coverage: string
                   warnings: string[]
@@ -7972,6 +8087,10 @@ export interface components {
       trigger: 'message' | 'opening' | 'return' | 'action'
       message?: string
       note?: string
+      selection?: {
+        rowId: string
+        lead: string
+      }[]
     }
     /** @description What the case is being told about: alerts and the dates behind reminders. */
     CaseAlerts: {
@@ -9048,6 +9167,8 @@ export interface components {
                       sub: string[]
                       quiet: string[]
                       detail: string[]
+                      /** @default [] */
+                      lines: string[]
                     }[]
                     assumptions: string[]
                     hookQuestion: {
@@ -9068,6 +9189,10 @@ export interface components {
                     kind: 'held_vs_market' | 'by_access' | 'fits_date' | 'mortgage_by_sort'
                     title: string
                     line: string
+                    groups?: {
+                      label: string
+                      rowIds: string[]
+                    }[]
                   }
                   rows: {
                     id: string
@@ -9078,11 +9203,54 @@ export interface components {
                     note: string | null
                     held: boolean
                     confirmed: boolean
+                    providerId?: string
+                    brand?: {
+                      bg: string
+                      /** @enum {string} */
+                      fg: '#fff' | '#000'
+                    } | null
+                    detail?: string[]
+                    mustKnow?: string[]
                   }[]
                   more: number
                   basis: {
                     figures: string[]
                     objective: string
+                    assumptions: string[]
+                    coverage: string
+                    warnings: string[]
+                  }
+                  statement: string
+                }
+              | {
+                  /** @enum {string} */
+                  type: 'product_comparison'
+                  title: string
+                  columns: {
+                    rowId: string
+                    lead: string
+                    providerId?: string
+                    brand?: {
+                      bg: string
+                      /** @enum {string} */
+                      fg: '#fff' | '#000'
+                    } | null
+                    kind: string
+                  }[]
+                  rows: {
+                    label: string
+                    values: string[]
+                    differs: boolean
+                  }[]
+                  differences: string[]
+                  decides: string
+                  mustKnow: {
+                    rowId: string
+                    facts: string[]
+                    detail?: string[]
+                  }[]
+                  basis: {
+                    figures: string[]
                     assumptions: string[]
                     coverage: string
                     warnings: string[]
@@ -9365,6 +9533,8 @@ export interface components {
             sub: string[]
             quiet: string[]
             detail: string[]
+            /** @default [] */
+            lines: string[]
           }[]
           assumptions: string[]
           hookQuestion: {
@@ -9500,6 +9670,8 @@ export interface components {
           sub: string[]
           quiet: string[]
           detail: string[]
+          /** @default [] */
+          lines: string[]
         }[]
         assumptions: string[]
         hookQuestion: {
@@ -11747,6 +11919,8 @@ export interface components {
           runsTo: 'keys_month' | 'date_given' | 'no_date'
           /** @description How the top rate and the interest are worked out, in one sentence. */
           basis: string
+          /** @description Where `topRatePct` is a bonus or introductory rate that ends before `by`, one line naming the end and what the interest counts after it ("3.11% is a bonus rate to 1 January; the interest figure counts the rate after it."), naming no provider. Null or absent: the rate holds to `by` (2026-11-12). */
+          topRatePeriod?: string | null
         } | null
         /** @description Mortgages that fit the figures. Null: no price is known yet, or none fits. */
         mortgage: {
@@ -12957,6 +13131,8 @@ export interface components {
             sub: string[]
             quiet: string[]
             detail: string[]
+            /** @default [] */
+            lines: string[]
           }[]
           assumptions: string[]
           hookQuestion: {
@@ -13921,6 +14097,8 @@ export interface components {
               sub: string[]
               quiet: string[]
               detail: string[]
+              /** @default [] */
+              lines: string[]
             }[]
             assumptions: string[]
             hookQuestion: {
@@ -15237,6 +15415,77 @@ export interface components {
         supersededAt: string | null
       }[]
       skipped: number
+    }
+    AdminMarketViews: {
+      /** @description When the views were built (ISO). */
+      asOf: string
+      views: {
+        /** @description The engine’s view id: `<provider>:<productId>`, or `…ladder_…` for a ladder. */
+        id: string
+        /** @description The provider id: `boi`, `aib`. */
+        provider: string
+        /** @description The readable name (`Bank of Ireland`); the id when none is recorded. */
+        providerName: string
+        /**
+         * @description The platform the product is sold through (`Raisin`), as the engine marks the view; null when it is opened with the provider directly. The console shows `Raisin · <providerName>` and groups these under Raisin.
+         * @enum {string|null}
+         */
+        platform: 'Raisin' | null
+        /** @description The provider’s own public website domain (`bankofireland.com`), for its logo; never the platform’s. Null where none is recorded. */
+        providerDomain: string | null
+        /** @enum {string} */
+        category:
+          'savings' | 'deposits' | 'mortgages' | 'loans' | 'credit_cards' | 'current_accounts'
+        /** @description "Savings", "Deposits", "Mortgages", "Loans", "Credit cards", "Current accounts". */
+        categoryLabel: string
+        /** @description The product’s name; a ladder’s without the term. */
+        name: string
+        /** @description The one figure for a list. A ladder shows its shortest term’s. */
+        headline: {
+          ratePct: number | null
+          /** @description "2.48% AER", "3.20% initial", "APR 9.90%"; empty when none. */
+          label: string
+        }
+        /** @description A deposit’s term (a ladder’s shortest), a mortgage’s fixed period, a loan’s longest term. Null for variable or none. */
+        termMonths: number | null
+        /** @description "18 months", "6 to 18 months", "4-year fixed", "variable", "up to 7 years". */
+        termLabel: string | null
+        /** @description A deposit’s terms and rates, shortest first. Empty for anything else. */
+        ladder: {
+          months: number
+          ratePct: number
+        }[]
+        /**
+         * @description A short chip label from a fixed set, for savings and deposits; null for anything else. `Instant access`: withdraw any time. `Notice`: withdrawals need notice (the days are in `conditions`/`lines`). `Regular saver`: a monthly saver. `Fixed term`: money placed for a term.
+         * @enum {string|null}
+         */
+        access: 'Instant access' | 'Notice' | 'Regular saver' | 'Fixed term' | null
+        /** @description The rates as the comparison engine words them. */
+        lines: string[]
+        /** @description Limits, fees, bonus, guarantee, who can open it, the checks the data cannot make, attribution. */
+        conditions: {
+          label: string
+          value: string
+        }[]
+        /** @description What the source does not state, in words. */
+        unknown: string[]
+        /** @description The oldest check of the rows the figures rest on. */
+        checkedAt: string
+        lastChangedAt: string | null
+        /** @description Checked more than 8 whole days before `asOf`. */
+        stale: boolean
+        /** @description Always false today: the engine builds views from current rows only, so a withdrawn product is not listed. */
+        retired: boolean
+        /** @description Every current row folded into the view: the figures’ rows, then any set aside. */
+        sources: {
+          /** @enum {string} */
+          source: 'bank' | 'ccpc'
+          /** @description `<provider>:<productId>` of the row. */
+          rowId: string
+          url: string | null
+          checkedAt: string
+        }[]
+      }[]
     }
   }
   responses: never

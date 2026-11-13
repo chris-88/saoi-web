@@ -1,4 +1,6 @@
 import { api, apiError } from '@/api/client'
+import type { components } from '@/api/schema'
+import type { ProductSelection } from '@contracts/cards.ts'
 import { parseStreamEvent, type StreamEvent } from '@contracts/stream.ts'
 
 /**
@@ -16,8 +18,12 @@ export type SaoirseTurnInput = {
   readonly message?: string
   /** For `action`: what Saoirse should do about it. Not recorded. */
   readonly note?: string
+  /** The products the customer selected to compare, sent with their message. Up to three. */
+  readonly selection?: readonly ProductSelection[]
   readonly signal?: AbortSignal
 }
+
+type TurnRequestBody = components['schemas']['SaoirseTurnRequest']
 
 /**
  * How long the stream may say nothing before it is treated as dead.
@@ -32,10 +38,14 @@ export async function streamSaoirseTurn(
   input: SaoirseTurnInput,
   onEvent: (event: StreamEvent) => void,
 ): Promise<void> {
-  const fields = {
+  const fields: TurnRequestBody = {
     trigger: input.trigger ?? 'message',
     ...(input.message === undefined ? {} : { message: input.message }),
     ...(input.note === undefined ? {} : { note: input.note }),
+    // Only when something is selected: an empty list is no selection, and older turns had none.
+    ...(input.selection === undefined || input.selection.length === 0
+      ? {}
+      : { selection: input.selection.map(({ rowId, lead }) => ({ rowId, lead })) }),
   }
 
   const { response, error } = await api.POST('/api/cases/{caseId}/turns', {

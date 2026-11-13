@@ -1,8 +1,9 @@
 import { useCallback, useRef, useState } from 'react'
-import type { Card } from '@contracts/cards.ts'
+import type { Card, ProductSelection } from '@contracts/cards.ts'
 import { withdraw } from '@contracts/stream.ts'
 import { streamSaoirseTurn } from '@/saoirse/saoirseTurnClient'
 import { settledState, type CaseState } from '@/saoirse/cardState'
+import { useProductSelection } from '@/saoirse/productSelection'
 
 export type TurnEntry =
   | {
@@ -60,13 +61,22 @@ export function useConversation(caseId: string | null) {
     return `entry-${String(counter.current)}`
   }
 
+  /**
+   * Takes a turn. With a `selection` (the products the customer selected to compare), those go
+   * with the message, and come out of the selection once the reply is saved (`done`); a turn
+   * that fails leaves them selected, so a retry sends them again.
+   *
+   * Resolves true when the reply was saved.
+   */
   const send = useCallback(
     async (
       message: string,
       trigger: 'message' | 'opening' | 'return' | 'action' = 'message',
       note?: string,
-    ) => {
-      if (!caseId || inFlight.current) return
+      selection?: readonly ProductSelection[],
+    ): Promise<boolean> => {
+      if (!caseId || inFlight.current) return false
+      let saved = false
 
       inFlight.current = true
       setError(null)
@@ -113,6 +123,7 @@ export function useConversation(caseId: string | null) {
             trigger,
             ...(trigger === 'message' || trigger === 'action' ? { message } : {}),
             ...(note === undefined ? {} : { note }),
+            ...(selection === undefined || selection.length === 0 ? {} : { selection }),
           },
           (event) => {
             switch (event.type) {
@@ -176,6 +187,11 @@ export function useConversation(caseId: string | null) {
                 break
 
               case 'done': {
+                saved = true
+                // The products it compared are answered; any selected since stay selected.
+                if (selection !== undefined && selection.length > 0) {
+                  useProductSelection.getState().remove(selection.map((item) => item.rowId))
+                }
                 // The reply is now a row. Nothing else about the entry changes, so the bubble
                 // keeps its key and only the thumbs under it appear.
                 const messageId = event.messageId
@@ -202,6 +218,7 @@ export function useConversation(caseId: string | null) {
         inFlight.current = false
         setStreaming(false)
       }
+      return saved
     },
     [caseId],
   )
