@@ -16,10 +16,12 @@ import {
   callCaseActionApi,
   callPartnerApi,
   callSessionApi,
+  choosePlanProduct,
   fetchCaseHistory,
   fetchCasePlan,
   fetchCaseSnapshot,
   followCaseFeed,
+  removePlanChoice,
   updateCasePlan,
   uploadDocumentApi,
 } from '@/lib/saoiApi'
@@ -154,6 +156,72 @@ describe('saoiApi', () => {
     it('refuses an edit reply without its reading', async () => {
       fetchMock.mockResolvedValueOnce(json(plan))
       await expect(updateCasePlan(CASE, { homePrice: 1 })).rejects.toThrow()
+    })
+
+    const choice = {
+      slot: 'monthly_saving',
+      rowId: 'bunq:savings.bunq_savings',
+      lead: 'bunq Easy Savings',
+      kind: 'instant access',
+      value: '2.01%',
+      figure: '€815 by Mar 2028',
+      chosenAt: '2026-11-13T09:00:00.000Z',
+    }
+    const chosen = {
+      ...plan,
+      choices: { lump_sum: null, monthly_saving: choice, mortgage: null },
+    }
+
+    it('reads a plan without choices (today’s server) as nothing chosen yet', async () => {
+      fetchMock.mockResolvedValueOnce(json(plan))
+      expect((await fetchCasePlan(CASE))?.choices).toEqual({
+        lump_sum: null,
+        monthly_saving: null,
+        mortgage: null,
+      })
+    })
+
+    it('chooses a product for a slot with the POST, and returns the plan with it', async () => {
+      fetchMock.mockResolvedValueOnce(json(chosen))
+      const result = await choosePlanProduct(CASE, {
+        slot: 'monthly_saving',
+        rowId: 'bunq:savings.bunq_savings',
+      })
+
+      expect(result.choices.monthly_saving).toMatchObject({ lead: 'bunq Easy Savings' })
+      const [url, init] = fetchMock.mock.calls[0] ?? []
+      expect(url).toBe(`https://api.example.test/saoi/api/cases/${CASE}/plan/choices`)
+      expect(init?.method).toBe('POST')
+      expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer tok')
+      expect(typeof init?.body === 'string' ? JSON.parse(init.body) : undefined).toEqual({
+        slot: 'monthly_saving',
+        rowId: 'bunq:savings.bunq_savings',
+      })
+    })
+
+    it('surfaces the server’s sentence when a choice is refused', async () => {
+      fetchMock.mockResolvedValueOnce(
+        json(
+          { ok: false, error: { code: 'bad_request', message: 'That is not a mortgage.' } },
+          400,
+        ),
+      )
+      await expect(
+        choosePlanProduct(CASE, { slot: 'mortgage', rowId: 'bunq:savings.bunq_savings' }),
+      ).rejects.toMatchObject({ status: 400, message: 'That is not a mortgage.' })
+    })
+
+    it('removes a slot’s choice with the DELETE', async () => {
+      fetchMock.mockResolvedValueOnce(json(plan))
+      const result = await removePlanChoice(CASE, 'monthly_saving')
+
+      expect(result.choices.monthly_saving).toBeNull()
+      const [url, init] = fetchMock.mock.calls[0] ?? []
+      expect(url).toBe(
+        `https://api.example.test/saoi/api/cases/${CASE}/plan/choices/monthly_saving`,
+      )
+      expect(init?.method).toBe('DELETE')
+      expect(init?.body).toBeUndefined()
     })
   })
 
