@@ -638,7 +638,7 @@ export const marketProductsCardSchema = z.object({
     kind: z.enum(MARKET_ARRANGEMENT_KINDS),
     /** "Your account against the market", "Mortgage options at 90% loan-to-value". */
     title: z.string(),
-    /** Names the arrangement and how to change it. */
+    /** One short sentence: the arrangement and how to change it. */
     line: z.string(),
   }),
   rows: z
@@ -660,6 +660,15 @@ export const marketProductsCardSchema = z.object({
         held: z.boolean(),
         /** False where the rate or an incentive rests on CCPC's figure alone. */
         confirmed: z.boolean(),
+        // Key facts (2026-11-13). Optional: cards saved before them still parse and render.
+        /** The provider, for the monogram. */
+        providerId: z.string().optional(),
+        /** The provider's colours for the monogram; null when it has none on record. */
+        brand: z.object({ bg: z.string(), fg: z.string() }).nullable().optional(),
+        /** Everything that left the closed row: the period and what follows, conditions, source. */
+        detail: z.array(z.string()).max(6).optional(),
+        /** The one to three facts a person should know before choosing this product. */
+        mustKnow: z.array(z.string()).max(3).optional(),
       }),
     )
     .max(PRODUCTS_CARD_MAX_ROWS),
