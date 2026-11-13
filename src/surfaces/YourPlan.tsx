@@ -32,13 +32,8 @@ import {
 } from '@/lib/plan'
 import type { CasePlan, CasePlanEdit, PlanEditable } from '@contracts/case-plan.ts'
 import { handComposerLine, handSaoirseLine } from '@/lib/planArrival'
-import {
-  changeLine,
-  PLAN_CHOICE_SLOTS,
-  slotName,
-  type CasePlanRead,
-  type PlanChoiceSlot,
-} from '@/lib/planChoices'
+import { PLAN_CHOICE_SLOTS, type PlanChoiceSlot } from '@contracts/market-plan.ts'
+import { changeLine, slotName } from '@/lib/planChoices'
 import { routes } from '@/app/routes'
 import { Group, GroupLabel, LinkRow, rowClass } from '@/surfaces/YouRows'
 
@@ -84,7 +79,7 @@ export function PlanSection({ caseId }: { readonly caseId: string }): ReactNode 
   return <PlanBody caseId={caseId} plan={plan.data} />
 }
 
-function PlanBody({ caseId, plan }: { readonly caseId: string; readonly plan: CasePlanRead }) {
+function PlanBody({ caseId, plan }: { readonly caseId: string; readonly plan: CasePlan }) {
   return (
     <div className="space-y-6">
       <Summary plan={plan} />
@@ -607,7 +602,7 @@ function SwitchEditor({ label, initial, onSave, ...actions }: EditorProps<boolea
  * the chat with the customer's own line waiting in the composer, unsent; "Remove" clears the
  * slot (`DELETE …/plan/choices/{slot}`), and a refusal shows the server's sentence on its row.
  */
-function Choices({ caseId, plan }: { readonly caseId: string; readonly plan: CasePlanRead }) {
+function Choices({ caseId, plan }: { readonly caseId: string; readonly plan: CasePlan }) {
   const navigate = useNavigate()
   const remove = useRemovePlanChoice(caseId)
   const anyChosen = PLAN_CHOICE_SLOTS.some((slot) => plan.choices[slot] !== null)

@@ -5,7 +5,7 @@ import { expect, test, type Locator, type Page, type Route } from '@playwright/t
  * the product lists we're presenting"): one row selected, "Choose for…" on the bar, the sheet
  * with the plan's slots in their figures, the POST, the badge on the row, the plan card's
  * "Your choices", and Your plan's section with Change and Remove, at 390px in light and dark.
- * The API is stubbed (the choices routes are not deployed yet), so it runs without the stack.
+ * The API is stubbed, so it runs without the stack.
  * CHOICES_SHOTS_DIR copies the screenshots out.
  */
 

@@ -7,7 +7,9 @@ import { PlanRoutes } from '@/saoirse/cards/PlanRoutes'
 import { useCaseHoldings } from '@/api/holdings'
 import { useCasePlan } from '@/api/plan'
 import { Button } from '@/components/ui/button'
-import { PLAN_CHOICE_SLOTS, slotName, type CasePlanRead } from '@/lib/planChoices'
+import type { CasePlan } from '@contracts/case-plan.ts'
+import { PLAN_CHOICE_SLOTS } from '@contracts/market-plan.ts'
+import { slotName } from '@/lib/planChoices'
 import { ChooseSheet } from '@/saoirse/ChooseSheet'
 import { ChosenBadge } from '@/saoirse/cards/ChosenBadge'
 
@@ -74,7 +76,7 @@ export function PlanChoicesBlock({ caseId }: { caseId: string }): ReactNode {
   )
 }
 
-function ChoiceLines({ plan }: { plan: CasePlanRead | null }): ReactNode {
+function ChoiceLines({ plan }: { plan: CasePlan | null }): ReactNode {
   return (
     <dl className="mt-1.5 space-y-1.5">
       {PLAN_CHOICE_SLOTS.map((slot) => {
@@ -167,7 +169,7 @@ export function CompactPlanCard({
           left: `${option.lender} · ${shortKind(option.kind)}`,
           right: (option.lead ?? option.fiveYear).replace(/ \/ 5 yrs$| over 5 years$/, ''),
           unconfirmed: !option.confirmed,
-          rowId: rowIdOf(option),
+          rowId: option.rowId ?? null,
         }))
       : plan.products.slice(0, 3).map((product, index) => ({
           key: String(index),
@@ -248,14 +250,4 @@ export function CompactPlanCard({
       <PlanRoutes routes={plan.routes} />
     </div>
   )
-}
-
-/**
- * A saved comparison option's row id, once the server carries one (saoi `feat/plan-choices`);
- * until `shared:sync` brings it into the card contract, none, and the row has no Choose.
- */
-function rowIdOf(option: object): string | null {
-  return 'rowId' in option && typeof option.rowId === 'string' && option.rowId !== ''
-    ? option.rowId
-    : null
 }

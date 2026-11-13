@@ -35,16 +35,16 @@ import {
   type Holding,
   type UpdateHoldingBody,
 } from '@contracts/holdings.ts'
-import type { CasePlanEdit, CasePlanEdited } from '@contracts/case-plan.ts'
-import type { Client } from 'openapi-fetch'
 import {
-  casePlanEditedReadSchema,
-  casePlanReadSchema,
-  planChoiceRequestSchema,
-  type CasePlanRead,
-  type PlanChoiceRequest,
-  type PlanChoiceSlot,
-} from '@/lib/planChoices'
+  casePlanChoiceBodySchema,
+  casePlanEditedSchema,
+  casePlanSchema,
+  type CasePlan,
+  type CasePlanChoiceBody,
+  type CasePlanEdit,
+  type CasePlanEdited,
+} from '@contracts/case-plan.ts'
+import type { PlanChoiceSlot } from '@contracts/market-plan.ts'
 
 export { SaoiApiError }
 
@@ -170,13 +170,13 @@ export async function deleteHolding(caseId: string, holdingId: string): Promise<
  * The plan claimed on the case, as the profile shows it, or null when there is none (the
  * server's 404). Any other failure is thrown.
  */
-export async function fetchCasePlan(caseId: string): Promise<CasePlanRead | null> {
+export async function fetchCasePlan(caseId: string): Promise<CasePlan | null> {
   const { data, error, response } = await api.GET('/api/cases/{caseId}/plan', {
     params: { path: { caseId } },
   })
   if (response.status === 404) return null
   if (!response.ok) throw apiError(response.status, error)
-  return casePlanReadSchema.parse(data)
+  return casePlanSchema.parse(data)
 }
 
 /**
@@ -189,69 +189,32 @@ export function updateCasePlan(caseId: string, body: CasePlanEdit): Promise<Case
       params: { path: { caseId } },
       body: compact(body),
     }),
-    casePlanEditedReadSchema,
+    casePlanEditedSchema,
   )
 }
-
-/** One response of the choices routes, as `openapi-typescript` writes it. */
-type PlanResponses = {
-  200: { headers: { [name: string]: unknown }; content: { 'application/json': unknown } }
-  default: { headers: { [name: string]: unknown }; content: { 'application/json': unknown } }
-}
-type NoParams = { query?: never; header?: never; path?: never; cookie?: never }
-
-/**
- * The two choices routes, typed by hand until `npm run api:generate` reads them from the
- * deployed OpenAPI document (saoi `feat/plan-choices`); then `api` covers them and this goes.
- */
-type PlanChoicePaths = {
-  '/api/cases/{caseId}/plan/choices': {
-    parameters: NoParams
-    post: {
-      parameters: { query?: never; header?: never; path: { caseId: string }; cookie?: never }
-      requestBody: { content: { 'application/json': PlanChoiceRequest } }
-      responses: PlanResponses
-    }
-  }
-  '/api/cases/{caseId}/plan/choices/{slot}': {
-    parameters: NoParams
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: { caseId: string; slot: PlanChoiceSlot }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: PlanResponses
-    }
-  }
-}
-/** The same client, bearer and all, seen through the hand-written paths. */
-const choicesApi = api as unknown as Client<PlanChoicePaths>
 
 /**
  * The customer's own tap choosing a product for one slot of their plan (the model proposes, the
  * UI commits). Replaces whatever that slot held. Returns the plan with its choices; the server
  * narrates the choice on the next turn, so nothing is said here.
  */
-export function choosePlanProduct(caseId: string, body: PlanChoiceRequest): Promise<CasePlanRead> {
+export function choosePlanProduct(caseId: string, body: CasePlanChoiceBody): Promise<CasePlan> {
   return parsed(
-    choicesApi.POST('/api/cases/{caseId}/plan/choices', {
+    api.POST('/api/cases/{caseId}/plan/choices', {
       params: { path: { caseId } },
-      body: planChoiceRequestSchema.parse(body),
+      body: casePlanChoiceBodySchema.parse(body),
     }),
-    casePlanReadSchema,
+    casePlanSchema,
   )
 }
 
 /** Clears one slot's choice. Returns the plan with its choices. */
-export function removePlanChoice(caseId: string, slot: PlanChoiceSlot): Promise<CasePlanRead> {
+export function removePlanChoice(caseId: string, slot: PlanChoiceSlot): Promise<CasePlan> {
   return parsed(
-    choicesApi.DELETE('/api/cases/{caseId}/plan/choices/{slot}', {
+    api.DELETE('/api/cases/{caseId}/plan/choices/{slot}', {
       params: { path: { caseId, slot } },
     }),
-    casePlanReadSchema,
+    casePlanSchema,
   )
 }
 

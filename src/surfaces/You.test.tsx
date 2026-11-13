@@ -5,15 +5,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ListCasesResponse } from '@contracts/session.ts'
 import type { CaseHoldingsResponse, Holding } from '@contracts/holdings.ts'
 import type { Identity } from '@/lib/identity'
-import type { CasePlanEdit, CasePlanEdited } from '@contracts/case-plan.ts'
-import type { CasePlanRead, PlanChoiceSlot } from '@/lib/planChoices'
+import type { CasePlan, CasePlanEdit, CasePlanEdited } from '@contracts/case-plan.ts'
+import type { PlanChoiceSlot } from '@contracts/market-plan.ts'
 import type * as IdentityModule from '@/lib/identity'
 
 const listCases = vi.fn<() => Promise<ListCasesResponse>>()
 const fetchCaseHoldings = vi.fn<(caseId: string) => Promise<CaseHoldingsResponse>>()
 const currentIdentity = vi.fn<() => Promise<Identity>>()
-const fetchCasePlan = vi.fn<(caseId: string) => Promise<CasePlanRead | null>>()
-const removePlanChoice = vi.fn<(caseId: string, slot: PlanChoiceSlot) => Promise<CasePlanRead>>()
+const fetchCasePlan = vi.fn<(caseId: string) => Promise<CasePlan | null>>()
+const removePlanChoice = vi.fn<(caseId: string, slot: PlanChoiceSlot) => Promise<CasePlan>>()
 const updateCasePlan = vi.fn<(caseId: string, body: CasePlanEdit) => Promise<CasePlanEdited>>()
 
 vi.mock('@/lib/session', () => ({
@@ -77,7 +77,7 @@ const cases = (presenter = false): ListCasesResponse => ({
   ],
 })
 
-const PLAN: CasePlanRead = {
+const PLAN: CasePlan = {
   planId: '44444444-4444-4444-8444-444444444444',
   title: 'A first home in Dublin',
   editable: {
@@ -108,7 +108,7 @@ const PLAN: CasePlanRead = {
 }
 
 /** The plan with a product chosen for the monthly saving. */
-const CHOSEN: CasePlanRead = {
+const CHOSEN: CasePlan = {
   ...PLAN,
   choices: {
     lump_sum: null,

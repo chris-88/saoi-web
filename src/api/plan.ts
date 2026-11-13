@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { CasePlanEdit } from '@contracts/case-plan.ts'
+import type { CasePlan, CasePlanChoiceBody, CasePlanEdit } from '@contracts/case-plan.ts'
 import { SaoiApiError } from '@/api/client'
 import { choosePlanProduct, fetchCasePlan, removePlanChoice, updateCasePlan } from '@/lib/saoiApi'
 import { queryKeys } from '@/lib/queryKeys'
-import type { CasePlanRead, PlanChoiceRequest, PlanChoiceSlot } from '@/lib/planChoices'
+import type { PlanChoiceSlot } from '@contracts/market-plan.ts'
 
 /**
  * The plan claimed on the case ("Your plan" under You). `null` when the case has none, which
@@ -50,7 +50,7 @@ export function useUpdateCasePlan(caseId: string | null) {
  * rather than read again by each card as it mounts; a choice made or removed invalidates it.
  * `null` with no plan or no case, or while it loads or fails.
  */
-export function usePlanForCards(caseId: string | null): CasePlanRead | null {
+export function usePlanForCards(caseId: string | null): CasePlan | null {
   const plan = useQuery({
     queryKey: queryKeys.case.plan(caseId ?? 'none'),
     enabled: caseId !== null,
@@ -72,7 +72,7 @@ export function usePlanForCards(caseId: string | null): CasePlanRead | null {
 export function useChoosePlanProduct(caseId: string | null) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (body: PlanChoiceRequest) => {
+    mutationFn: (body: CasePlanChoiceBody) => {
       if (caseId === null) throw new Error('There is no conversation yet.')
       return choosePlanProduct(caseId, body)
     },

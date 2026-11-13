@@ -136,9 +136,9 @@ from model text; nothing sensitive in URLs; nothing secret in `VITE_*`.
   for…" (and every comparison column has "Choose"), a sheet of the plan's three slots
   (`src/saoirse/ChooseSheet.tsx`). The tap is the commit, `POST …/plan/choices`; the chat says
   nothing (the server narrates on the next turn). Badges and the plan card's "Your choices" read
-  the live plan (`usePlanForCards`), not the card's stored `chosen`. The shapes are typed by hand
-  in `src/lib/planChoices.ts` until `shared:sync` and `api:generate` bring them into
-  `@contracts` and `schema.d.ts`; then those take over.
+  the live plan (`usePlanForCards`), not the card's stored `chosen`. Contract:
+  `@contracts/case-plan.ts` (`choices`, `casePlanChoiceBodySchema`); the wording is
+  `src/lib/planChoices.ts`.
 - shadcn components are added with the CLI; the look comes from tokens in `src/index.css`.
   Mobile first at 390px.
 - Sentry never receives message content or fact values.

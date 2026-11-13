@@ -3,10 +3,10 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Card } from '@contracts/cards.ts'
 import type { CaseHoldingsResponse } from '@contracts/holdings.ts'
-import type { CasePlanRead } from '@/lib/planChoices'
+import type { CasePlan } from '@contracts/case-plan.ts'
 
 const fetchCaseHoldings = vi.fn<(caseId: string) => Promise<CaseHoldingsResponse>>()
-const fetchCasePlan = vi.fn<(caseId: string) => Promise<CasePlanRead | null>>()
+const fetchCasePlan = vi.fn<(caseId: string) => Promise<CasePlan | null>>()
 vi.mock('@/lib/saoiApi', () => ({
   fetchCaseHoldings: (caseId: string) => fetchCaseHoldings(caseId),
   fetchCasePlan: (caseId: string) => fetchCasePlan(caseId),
@@ -377,7 +377,7 @@ describe('a home plan carrying what the host card showed', () => {
 
 describe('the choices on the plan card', () => {
   const CASE = '22222222-2222-4222-8222-222222222222'
-  const PLAN: CasePlanRead = {
+  const PLAN: CasePlan = {
     planId: card.planId,
     title: card.title,
     editable: {

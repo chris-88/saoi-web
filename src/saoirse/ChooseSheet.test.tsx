@@ -6,15 +6,15 @@ import type {
   MarketProductsCard as ProductsPayload,
   ProductComparisonCard as ComparisonPayload,
 } from '@contracts/cards.ts'
-import type { CasePlanRead, PlanChoice, PlanChoiceRequest } from '@/lib/planChoices'
+import type { CasePlan, CasePlanChoiceBody } from '@contracts/case-plan.ts'
+import type { PlanChoice } from '@contracts/market-plan.ts'
 import { SaoiApiError } from '@/api/client'
 
-const fetchCasePlan = vi.fn<(caseId: string) => Promise<CasePlanRead | null>>()
-const choosePlanProduct =
-  vi.fn<(caseId: string, body: PlanChoiceRequest) => Promise<CasePlanRead>>()
+const fetchCasePlan = vi.fn<(caseId: string) => Promise<CasePlan | null>>()
+const choosePlanProduct = vi.fn<(caseId: string, body: CasePlanChoiceBody) => Promise<CasePlan>>()
 vi.mock('@/lib/saoiApi', () => ({
   fetchCasePlan: (caseId: string) => fetchCasePlan(caseId),
-  choosePlanProduct: (caseId: string, body: PlanChoiceRequest) => choosePlanProduct(caseId, body),
+  choosePlanProduct: (caseId: string, body: CasePlanChoiceBody) => choosePlanProduct(caseId, body),
 }))
 
 const { CompareBar } = await import('@/saoirse/CompareBar')
@@ -24,7 +24,7 @@ const { ProductComparisonCard } = await import('@/saoirse/cards/ProductCompariso
 
 const CASE = '22222222-2222-4222-8222-222222222222'
 
-const PLAN: CasePlanRead = {
+const PLAN: CasePlan = {
   planId: '44444444-4444-4444-8444-444444444444',
   title: 'A first home in Dublin',
   editable: {
@@ -51,7 +51,7 @@ const choice = (slot: PlanChoice['slot'], rowId: string, lead: string): PlanChoi
   chosenAt: '2026-11-13T09:00:00.000Z',
 })
 
-const withChoice = (next: PlanChoice): CasePlanRead => ({
+const withChoice = (next: PlanChoice): CasePlan => ({
   ...PLAN,
   choices: { ...PLAN.choices, [next.slot]: next },
 })

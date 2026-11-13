@@ -120,6 +120,7 @@ describe('saoiApi', () => {
       },
       summary: { keysOn: '2028-03', neededAtKeysEur: 48000, savedEur: 12000, progressLine: null },
       watched: [],
+      choices: { lump_sum: null, monthly_saving: null, mortgage: null },
       updatedAt: '2026-11-12T10:00:00.000Z',
     }
 
@@ -172,13 +173,10 @@ describe('saoiApi', () => {
       choices: { lump_sum: null, monthly_saving: choice, mortgage: null },
     }
 
-    it('reads a plan without choices (today’s server) as nothing chosen yet', async () => {
-      fetchMock.mockResolvedValueOnce(json(plan))
-      expect((await fetchCasePlan(CASE))?.choices).toEqual({
-        lump_sum: null,
-        monthly_saving: null,
-        mortgage: null,
-      })
+    it('refuses a plan read without its choices', async () => {
+      const { choices: _choices, ...withoutChoices } = plan
+      fetchMock.mockResolvedValueOnce(json(withoutChoices))
+      await expect(fetchCasePlan(CASE)).rejects.toThrow()
     })
 
     it('chooses a product for a slot with the POST, and returns the plan with it', async () => {

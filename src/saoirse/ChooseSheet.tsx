@@ -10,12 +10,9 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { useCasePlan, useChoosePlanProduct } from '@/api/plan'
-import {
-  PLAN_CHOICE_SLOTS,
-  slotName,
-  type CasePlanRead,
-  type PlanChoiceSlot,
-} from '@/lib/planChoices'
+import type { CasePlan } from '@contracts/case-plan.ts'
+import { PLAN_CHOICE_SLOTS, type PlanChoiceSlot } from '@contracts/market-plan.ts'
+import { slotName } from '@/lib/planChoices'
 import { useProductSelection } from '@/saoirse/productSelection'
 
 /** The product being chosen: a products row, or a comparison column, by its row id. */
@@ -108,7 +105,7 @@ function ChooseBody({
 
   // Without the plan (none yet, or it would not load) the slots are in plain words; the choice
   // can still be made, and the server says so if it cannot take it.
-  const read: CasePlanRead | null = plan.isError ? null : plan.data
+  const read: CasePlan | null = plan.isError ? null : plan.data
 
   return (
     <div className="space-y-2 px-4 pb-2">
