@@ -112,8 +112,8 @@ function ProductRow({
     <>
       <Monogram row={row} />
       <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-sm leading-5 font-medium" title={row.lead}>
+        <span className="flex min-w-0 items-start gap-1.5">
+          <span className="line-clamp-2 min-w-0 text-sm leading-5 font-medium" title={row.lead}>
             {row.lead}
           </span>
           {!row.confirmed && (
@@ -122,7 +122,7 @@ function ProductRow({
             </span>
           )}
           {row.held && (
-            <Badge variant="secondary" className="px-1.5 py-0 text-2xs font-normal">
+            <Badge variant="secondary" className="mt-0.5 px-1.5 py-0 text-2xs font-normal">
               yours
             </Badge>
           )}
@@ -130,14 +130,14 @@ function ProductRow({
         {/* Spaces between the parts (collapsed by the flex layout) keep the button's spoken
             name and the text apart: "bunq Easy Savings €581 by Jul 2028 instant access". The
             figure comes first, under the lead; the kind follows, and wraps under it if need be. */}{' '}
-        <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
-          <span className="text-foreground/75 text-xs leading-snug tabular-nums">{row.figure}</span>{' '}
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-1">
+          <span className="text-foreground/75 text-xs leading-snug">{row.figure}</span>{' '}
           <span className="bg-muted text-muted-foreground max-w-full truncate rounded-full px-1.5 text-2xs">
             {row.kind}
           </span>
         </span>
       </span>{' '}
-      <span className="flex shrink-0 flex-col items-end">
+      <span className="flex min-w-14 shrink-0 flex-col items-end">
         <span className="text-sm leading-5 font-semibold whitespace-nowrap tabular-nums">
           {value}
         </span>
@@ -160,7 +160,7 @@ function ProductRow({
     </>
   )
 
-  const line = 'flex w-full items-start gap-3 px-4 py-2.5 text-left'
+  const line = 'flex w-full items-start gap-2.5 px-4 py-2.5 text-left'
   if (!expandable) {
     return (
       <li>
@@ -196,7 +196,7 @@ function ProductRow({
         role="region"
         aria-label={`About ${row.lead}`}
         hidden={!open}
-        className="bg-muted/50 space-y-1.5 pr-4 pb-3 pl-14"
+        className="bg-muted/50 space-y-1.5 pr-4 pb-3 pl-13.5"
       >
         {mustKnow.length > 0 && (
           <ul className="text-foreground/75 list-disc space-y-0.5 pl-4 text-xs leading-snug">
