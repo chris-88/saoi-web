@@ -744,6 +744,82 @@ export const marketProductsCardSchema = z.object({
 })
 export type MarketProductsCard = z.infer<typeof marketProductsCardSchema>
 
+/*
+ * HAND-TYPED AHEAD OF THE BACKEND (saoi-web `feat/compare-selected`, 2026-11-13). The backend's
+ * `feat/compare-selected` adds these to `_shared/contracts`; once it deploys, `npm run
+ * shared:sync` replaces this copy and anything that no longer compiles is fixed then.
+ */
+
+/** The most products the customer can hold selected to compare (`selection` on a turn). */
+export const PRODUCT_SELECTION_MAX = 3
+
+/**
+ * One product the customer selected on a products card, sent with their message as the turn
+ * request's `selection` (Chris, 2026-11-13: "select products from any of the cards that are
+ * presented, then compare the two that have been selected").
+ */
+export const productSelectionSchema = z.object({
+  /** The row's id on the products card (`<provider>:<productId>`, `held:<n>`). */
+  rowId: z.string(),
+  /** The row's lead, as the card showed it. */
+  lead: z.string(),
+})
+export type ProductSelection = z.infer<typeof productSelectionSchema>
+
+/**
+ * The selected products side by side (`compare_products`): two or three columns in the
+ * customer's selection order, a row per fact with a value per column, what differs, the one
+ * question that decides between them, and each product's facts to know. Never ordered, never a
+ * pick.
+ */
+export const productComparisonCardSchema = z.object({
+  type: z.literal('product_comparison'),
+  title: z.string(),
+  columns: z
+    .array(
+      z.object({
+        rowId: z.string(),
+        lead: z.string(),
+        providerId: z.string().optional(),
+        brand: providerBrandSchema.nullable().optional(),
+        kind: z.string(),
+      }),
+    )
+    .min(2)
+    .max(PRODUCT_SELECTION_MAX),
+  rows: z.array(
+    z.object({
+      label: z.string(),
+      /** One value per column, in the columns' order. */
+      values: z.array(z.string()),
+      /** Whether the values differ; the rest are set quietly. */
+      differs: z.boolean(),
+    }),
+  ),
+  differences: z.array(z.string()),
+  /** The one question that decides between them, Saoirse's. */
+  decides: z.string(),
+  /**
+   * Each product's facts to know before choosing (the products card's `mustKnow`), and the rest
+   * of what its row used to open to (`detail`, optional).
+   */
+  mustKnow: z.array(
+    z.object({
+      rowId: z.string(),
+      facts: z.array(z.string()),
+      detail: z.array(z.string()).optional(),
+    }),
+  ),
+  basis: z.object({
+    figures: z.array(z.string()),
+    assumptions: z.array(z.string()),
+    coverage: z.string(),
+    warnings: z.array(z.string()),
+  }),
+  statement: z.string(),
+})
+export type ProductComparisonCard = z.infer<typeof productComparisonCardSchema>
+
 /**
  * Open banking, simulated (Nexus, a stand-in aggregator). Three cards.
  *
@@ -834,6 +910,7 @@ export const cardSchema = z.discriminatedUnion('type', [
   accountOpenedCardSchema,
   savedPlanCardSchema,
   marketProductsCardSchema,
+  productComparisonCardSchema,
   connectAccountsCardSchema,
   accountsOverviewCardSchema,
   transferCardSchema,
@@ -864,6 +941,7 @@ export const CARD_TYPES = [
   'account_opened',
   'saved_plan',
   'market_products',
+  'product_comparison',
   'connect_accounts',
   'accounts_overview',
   'transfer',

@@ -26,6 +26,7 @@ import { AccountsOverviewCard } from '@/saoirse/cards/AccountsOverviewCard'
 import { TransferCard } from '@/saoirse/cards/TransferCard'
 import type { CONSENT_SCOPE, LINKABLE_BANKS } from '@contracts/cards.ts'
 import { MarketProductsCard } from '@/saoirse/cards/MarketProductsCard'
+import { ProductComparisonCard } from '@/saoirse/cards/ProductComparisonCard'
 import { Settling } from '@/saoirse/cards/Settling'
 import { assertNever } from '@/lib/assertNever'
 
@@ -105,12 +106,15 @@ export function CardRenderer({
   disabled,
   settled,
   caseId = null,
+  cardId,
 }: {
   card: Card
   actions?: CardActions
   disabled?: boolean
   /** The conversation the card is in, for cards that read from the case (the plan's progress). */
   caseId?: string | null
+  /** The chat entry the card is, for a products card's selection note. */
+  cardId?: string | undefined
   /**
    * What became of this card, where the case knows.
    *
@@ -127,6 +131,7 @@ export function CardRenderer({
         card={card}
         actions={actions}
         caseId={caseId}
+        cardId={cardId}
         {...(disabled === undefined ? {} : { disabled })}
       />
     </Settling>
@@ -139,11 +144,13 @@ function LiveCard({
   actions,
   disabled,
   caseId,
+  cardId,
 }: {
   card: Card
   actions: CardActions
   disabled?: boolean
   caseId: string | null
+  cardId: string | undefined
 }): ReactNode {
   switch (card.type) {
     case 'plan_proposal':
@@ -317,7 +324,10 @@ function LiveCard({
       )
 
     case 'market_products':
-      return <MarketProductsCard card={card} />
+      return <MarketProductsCard card={card} cardId={cardId} />
+
+    case 'product_comparison':
+      return <ProductComparisonCard card={card} />
 
     default:
       return assertNever(card, 'card')

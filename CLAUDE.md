@@ -126,7 +126,9 @@ from model text; nothing sensitive in URLs; nothing secret in `VITE_*`.
 - TanStack Query keys from `src/lib/queryKeys.ts`. No fetching in `useEffect`. Realtime and feed
   handlers invalidate; they do not write to the cache. The only manual cache write is the
   optimistic chat message.
-- Zustand for the composer draft and open sheets only.
+- Zustand for the composer draft, open sheets and the products selected to compare
+  (`src/saoirse/productSelection.ts`: up to three by row id across every products card, sent as
+  the turn's `selection` with the next message and cleared when its reply is saved) only.
 - shadcn components are added with the CLI; the look comes from tokens in `src/index.css`.
   Mobile first at 390px.
 - Sentry never receives message content or fact values.

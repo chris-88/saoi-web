@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import type { Card, MarketProductsCard } from '@contracts/cards.ts'
+import {
+  CARD_TYPES,
+  cardSchema,
+  type Card,
+  type MarketProductsCard,
+  type ProductComparisonCard,
+} from '@contracts/cards.ts'
 import { assertNever } from '@/lib/assertNever'
 import { CardRenderer } from './CardRenderer'
 
@@ -46,6 +52,34 @@ describe('CardRenderer', () => {
     expect(
       screen.getByRole('heading', { name: 'Mortgage options at 90% loan-to-value' }),
     ).toBeInTheDocument()
+  })
+
+  it('renders a product_comparison card', () => {
+    const comparison: ProductComparisonCard = {
+      type: 'product_comparison',
+      title: 'Avant Money and AIB side by side',
+      columns: [
+        { rowId: 'avant:fixed-4', lead: 'Avant Money', kind: '4-year fixed' },
+        { rowId: 'aib:green-3', lead: 'AIB', kind: '3-year fixed' },
+      ],
+      rows: [{ label: 'Monthly', values: ['€1,567', '€1,612'], differs: true }],
+      differences: ['The fixed periods differ by a year.'],
+      decides: 'How long do you want the repayment fixed?',
+      mustKnow: [],
+      basis: { figures: [], assumptions: [], coverage: '2 lenders', warnings: [] },
+      statement: marketProducts.statement,
+    }
+    render(<CardRenderer card={comparison} />)
+    expect(
+      screen.getByRole('heading', { name: 'Avant Money and AIB side by side' }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader')).toHaveLength(2)
+  })
+
+  it('has a component for every card type in the contract', () => {
+    // The switch is exhaustive by type; this holds the list and the switch to each other too.
+    expect(CARD_TYPES).toContain('product_comparison')
+    expect(new Set(CARD_TYPES).size).toBe(cardSchema.options.length)
   })
 
   it('throws, rather than rendering nothing, for a card type it does not know', () => {

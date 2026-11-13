@@ -10,6 +10,8 @@ import { TypingBubble } from '@/saoirse/TypingBubble'
 import { TurnFeedback } from '@/saoirse/TurnFeedback'
 import { useReloadHold } from '@/app/reloadGate'
 import { Composer } from '@/saoirse/Composer'
+import { COMPARE_MESSAGE, CompareBar } from '@/saoirse/CompareBar'
+import { selectionForTurn, useProductSelection } from '@/saoirse/productSelection'
 import { SuggestionList, type Suggestion } from '@/saoirse/SuggestionList'
 import { ZeroState } from '@/saoirse/ZeroState'
 import { chatUiState, showsZeroState } from '@/saoirse/chatUiState'
@@ -128,6 +130,11 @@ export function SaoirseChat({
    * reload is not an entrance, it is a loading screen.
    */
   const [liveFrom, setLiveFrom] = useState(0)
+
+  // A selection belongs to the conversation it was made in: another case starts with none.
+  useEffect(() => {
+    useProductSelection.getState().clear()
+  }, [caseId])
   const atBottom = useRef(true)
   const openingSent = useRef(false)
   const returnSent = useRef(false)
@@ -196,9 +203,12 @@ export function SaoirseChat({
     setFollowUps([])
     setFailedDraft(null)
     lastSent.current = message
+    // Whatever products are selected go with the message, typed or "Compare these", and come
+    // out of the selection when the reply arrives.
+    const selection = selectionForTurn(useProductSelection.getState().selected)
 
     if (entries.length > 0) {
-      void send(message)
+      void send(message, 'message', undefined, selection)
       return
     }
 
@@ -210,7 +220,7 @@ export function SaoirseChat({
      */
     withViewTransition(() => {
       flushSync(() => {
-        void send(message)
+        void send(message, 'message', undefined, selection)
       })
     })
     // Long enough for the transition to land; the state machine only uses it to hold the
@@ -824,6 +834,7 @@ export function SaoirseChat({
                       disabled={streaming}
                       settled={entry.settled}
                       caseId={caseId}
+                      cardId={entry.id}
                     />
                   </Reveal>
                 ) : (
@@ -833,6 +844,7 @@ export function SaoirseChat({
                     disabled={streaming}
                     settled={entry.settled}
                     caseId={caseId}
+                    cardId={entry.id}
                   />
                 )}
               </div>
@@ -982,6 +994,13 @@ export function SaoirseChat({
           composerClassName,
         )}
       >
+        <CompareBar
+          className="mb-2"
+          canSend={ready && !streaming}
+          onCompare={() => {
+            sendFromComposer(COMPARE_MESSAGE)
+          }}
+        />
         <Composer
           hint={zeroState}
           disabled={!ready || streaming}

@@ -1,10 +1,13 @@
-import { useId, useState, type ReactNode } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { useId, type ReactNode } from 'react'
+import { Check } from 'lucide-react'
 import type { MarketProductsCard as Payload } from '@contracts/cards.ts'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { groupRows, providerInitials, splitValue } from './productRow'
+import { useProductSelection } from '@/saoirse/productSelection'
+import { BasisPart, Fold } from './Fold'
+import { ProviderMonogram } from './ProviderMonogram'
+import { groupRows, splitValue } from './productRow'
 
 type Row = Payload['rows'][number]
 
@@ -17,18 +20,37 @@ type Row = Payload['rows'][number]
  * card names that arrangement first, in one short line. Then one row per product with its key
  * facts only (Chris, 2026-11-13: "we don't need to display everything in the line item"): the
  * provider's monogram, the lead, the kind as a chip, the figure in their money, and the headline
- * value with its period. Tapping a row opens what a person should know before choosing it, then
- * the rest; one row at a time. How it was worked out is folded behind one line; the statement
- * closes the card.
+ * value with its period. How it was worked out is folded behind one line; the statement closes
+ * the card.
+ *
+ * A row is selected to compare by a tap anywhere on it (Chris, 2026-11-13: "select products from
+ * any of the cards that are presented, then compare the two that have been selected"), up to
+ * three across every card, the circle at its edge showing the state. Rows no longer open: what a
+ * person should know before choosing (`mustKnow`, `detail`) is in the comparison card instead,
+ * and the data stays on the row for it and for Saoirse.
  *
  * When the server groups the rows by type ("Instant access", "Fixed term"; Chris, 2026-11-13:
  * different products were mixed in one list), each group sits under a small quiet label.
  *
  * Every word and figure is the server's; the card only lays them out and, in an ungrouped list,
- * puts the customer's own account first. Nothing here is a pick: the customer asks in the chat for more, or for another
- * arrangement, so the only controls on the card open and close detail.
+ * puts the customer's own account first. Nothing here is a pick: selecting is the customer's
+ * own choice of what to compare, and the comparison never orders or favours.
  */
-export function MarketProductsCard({ card }: { card: Payload }): ReactNode {
+export function MarketProductsCard({
+  card,
+  cardId,
+}: {
+  card: Payload
+  /** The chat entry this card is, so a refused fourth selection is noted on this card. */
+  cardId?: string | undefined
+}): ReactNode {
+  const fallbackId = useId()
+  const cardMessageId = cardId ?? fallbackId
+  const selected = useProductSelection((state) => state.selected)
+  const refusedHere = useProductSelection((state) => state.refusedOn === cardMessageId)
+  const toggle = useProductSelection((state) => state.toggle)
+  const selectedIds = new Set(selected.map((item) => item.rowId))
+
   // Stable sort: the server's order, with the customer's own account lifted to the top.
   const rows = [...card.rows].sort((a, b) => Number(b.held) - Number(a.held))
   // Grouped, the server's groups decide the order, a "Yours" group included.
@@ -37,9 +59,6 @@ export function MarketProductsCard({ card }: { card: Payload }): ReactNode {
     card.arrangement.groups,
   )
   const anyUnconfirmed = rows.some((row) => !row.confirmed)
-  const [openId, setOpenId] = useState<string | null>(null)
-  // When any row opens, every row keeps the chevron's room, so the values line up.
-  const chevronRoom = rows.some(isExpandable)
 
   return (
     <Card className="gap-0 overflow-hidden p-0">
@@ -64,16 +83,23 @@ export function MarketProductsCard({ card }: { card: Payload }): ReactNode {
               <ProductRow
                 key={row.id}
                 row={row}
-                open={openId === row.id}
-                chevronRoom={chevronRoom}
-                onToggle={(next) => {
-                  setOpenId(next ? row.id : null)
+                selected={selectedIds.has(row.id)}
+                onToggle={() => {
+                  toggle({ rowId: row.id, lead: row.lead, cardMessageId })
                 }}
               />
             ))}
           </RowSection>
         ))
       )}
+
+      {/* Always mounted, so the refusal is announced when it appears. */}
+      <p
+        role="status"
+        className={cn('text-muted-foreground px-4 text-xs', refusedHere && 'border-t py-2')}
+      >
+        {refusedHere ? 'Up to three to compare. Untick one to add another.' : ''}
+      </p>
 
       {card.more > 0 && (
         <p className="text-muted-foreground border-t px-4 py-2 text-xs tabular-nums">
@@ -128,220 +154,100 @@ function RowSection({
   )
 }
 
-/**
- * What a row opens to: the facts to know first, then the rest. A card saved before 2026-11-13
- * has neither, so its `note` (which the closed row no longer shows) is the rest instead.
- */
-function rowFacts(row: Row): { mustKnow: readonly string[]; detail: readonly string[] } {
-  const mustKnow = (row.mustKnow ?? []).filter((line) => line !== '')
-  const detail = row.detail === undefined ? (row.note === null ? [] : [row.note]) : row.detail
-  return { mustKnow, detail: detail.filter((line) => line !== '') }
-}
-
-function isExpandable(row: Row): boolean {
-  const { mustKnow, detail } = rowFacts(row)
-  return mustKnow.length > 0 || detail.length > 0
-}
-
 function ProductRow({
   row,
-  open,
-  chevronRoom,
+  selected,
   onToggle,
 }: {
   row: Row
-  open: boolean
-  chevronRoom: boolean
-  onToggle: (open: boolean) => void
+  selected: boolean
+  onToggle: () => void
 }): ReactNode {
-  const panelId = useId()
-  const { mustKnow, detail } = rowFacts(row)
-  const expandable = isExpandable(row)
   const { value, period } = splitValue(row.value)
 
-  const body = (
-    <>
-      <Monogram row={row} />
-      <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-start gap-1.5">
-          <span className="line-clamp-2 min-w-0 text-sm leading-5 font-medium" title={row.lead}>
-            {row.lead}
-          </span>
-          {!row.confirmed && (
-            <span className="text-muted-foreground -ml-1 text-sm" aria-label="not confirmed">
-              *
-            </span>
-          )}
-          {row.held && (
-            <Badge variant="secondary" className="mt-0.5 px-1.5 py-0 text-2xs font-normal">
-              yours
-            </Badge>
-          )}
-        </span>
-        {/* Spaces between the parts (collapsed by the flex layout) keep the button's spoken
-            name and the text apart: "bunq Easy Savings €581 by Jul 2028 instant access". The
-            figure comes first, under the lead; the kind follows, and wraps under it if need be. */}{' '}
-        <span className="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-1">
-          <span className="text-foreground/75 text-xs leading-snug">{row.figure}</span>{' '}
-          <span className="bg-muted text-muted-foreground max-w-full truncate rounded-full px-1.5 text-2xs">
-            {row.kind}
-          </span>
-        </span>
-      </span>{' '}
-      <span className="flex min-w-14 shrink-0 flex-col items-end">
-        <span className="text-sm leading-5 font-semibold whitespace-nowrap tabular-nums">
-          {value}
-        </span>
-        {period !== null && ' '}
-        {period !== null && (
-          <span className="text-muted-foreground text-2xs whitespace-nowrap">{period}</span>
-        )}
-      </span>
-      {expandable ? (
-        <ChevronDown
-          aria-hidden
-          className={cn(
-            'text-muted-foreground mt-[3px] -ml-1 size-3.5 shrink-0 transition-transform',
-            open && 'rotate-180',
-          )}
-        />
-      ) : (
-        chevronRoom && <span aria-hidden className="-ml-1 size-3.5 shrink-0" />
-      )}
-    </>
-  )
-
-  const line = 'flex w-full items-start gap-2.5 px-4 py-2.5 text-left'
-  if (!expandable) {
-    return (
-      <li>
-        <div className={line}>{body}</div>
-      </li>
-    )
-  }
   return (
     <li>
+      {/*
+        The whole row is the control: a tap anywhere selects it to compare, or takes it out. A
+        native button, so Tab reaches it and Enter and Space press it; the circle at its edge is
+        the state. Its spoken name is the row's own text.
+      */}
       <button
         type="button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => {
-          onToggle(!open)
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape' && open) {
-            event.preventDefault()
-            onToggle(false)
-          }
-        }}
-        className={cn(
-          line,
-          'hover:bg-muted/50 focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px] focus-visible:ring-inset',
-          open && 'bg-muted/50',
-        )}
+        role="checkbox"
+        aria-checked={selected}
+        onClick={onToggle}
+        className="hover:bg-muted/50 focus-visible:ring-ring/50 flex min-h-11 w-full items-start gap-2.5 py-2.5 pr-3 pl-4 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
       >
-        {body}
+        <ProviderMonogram lead={row.lead} providerId={row.providerId} brand={row.brand} />
+        <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 items-start gap-1.5">
+            <span className="line-clamp-2 min-w-0 text-sm leading-5 font-medium" title={row.lead}>
+              {row.lead}
+            </span>
+            {!row.confirmed && (
+              <span className="text-muted-foreground -ml-1 text-sm" aria-label="not confirmed">
+                *
+              </span>
+            )}
+            {row.held && (
+              <Badge variant="secondary" className="mt-0.5 px-1.5 py-0 text-2xs font-normal">
+                yours
+              </Badge>
+            )}
+          </span>
+          {/* Spaces between the parts (collapsed by the flex layout) keep the spoken name and
+              the text apart: "bunq Easy Savings €581 by Jul 2028 instant access". The figure
+              comes first, under the lead; the kind follows, and wraps under it if need be. */}{' '}
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-1">
+            <span className="text-foreground/75 text-xs leading-snug">{row.figure}</span>{' '}
+            <span className="bg-muted text-muted-foreground max-w-full truncate rounded-full px-1.5 text-2xs">
+              {row.kind}
+            </span>
+          </span>
+        </span>{' '}
+        <span className="flex min-w-14 shrink-0 flex-col items-end">
+          <span className="text-sm leading-5 font-semibold whitespace-nowrap tabular-nums">
+            {value}
+          </span>
+          {period !== null && ' '}
+          {period !== null && (
+            <span className="text-muted-foreground text-2xs whitespace-nowrap">{period}</span>
+          )}
+        </span>
+        <SelectMark selected={selected} />
       </button>
-      <div
-        id={panelId}
-        role="region"
-        aria-label={`About ${row.lead}`}
-        hidden={!open}
-        className="bg-muted/50 space-y-1.5 pr-4 pb-3 pl-13.5"
-      >
-        {mustKnow.length > 0 && (
-          <ul className="text-foreground/75 list-disc space-y-0.5 pl-4 text-xs leading-snug">
-            {mustKnow.map((fact) => (
-              <li key={fact}>{fact}</li>
-            ))}
-          </ul>
-        )}
-        {detail.map((fact) => (
-          <p key={fact} className="text-muted-foreground text-2xs leading-snug">
-            {fact}
-          </p>
-        ))}
-      </div>
     </li>
   )
 }
 
-/** The provider's initials in its own colours, or neutral when it has none on record. */
-function Monogram({ row }: { row: Row }): ReactNode {
-  const initials = providerInitials(row.lead, row.providerId)
-  const brand = row.brand ?? null
+/** The 20px circle at the row's edge: empty, or a tick in the primary colour. */
+function SelectMark({ selected }: { selected: boolean }): ReactNode {
   return (
     <span
       aria-hidden
+      data-slot="select-mark"
       className={cn(
-        'grid size-7 shrink-0 place-items-center rounded-full leading-none font-semibold tracking-tight',
-        // "B", "BoI", "MoCo": smaller as it lengthens, so four letters still sit inside.
-        initials.length <= 2
-          ? 'text-[11px]'
-          : initials.length === 3
-            ? 'text-[9.5px]'
-            : 'text-[8px]',
-        brand === null && 'bg-muted text-muted-foreground',
+        'grid size-5 shrink-0 place-items-center self-center rounded-full border-[1.5px] transition-colors',
+        selected
+          ? 'border-primary bg-primary text-primary-foreground'
+          : 'border-muted-foreground/40 bg-card',
       )}
-      style={brand === null ? undefined : { backgroundColor: brand.bg, color: brand.fg }}
     >
-      {initials}
+      {selected && <Check className="size-3" strokeWidth={3} />}
     </span>
   )
 }
 
 /** The basis statement (duty-of-care standard 2.4), folded: detail only when asked. */
 function Basis({ basis }: { basis: Payload['basis'] }): ReactNode {
-  const [open, setOpen] = useState(false)
-  const panelId = useId()
-
   return (
-    <div className="border-t">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => {
-          setOpen((current) => !current)
-        }}
-        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-xs outline-none focus-visible:ring-[3px]"
-      >
-        How this was worked out
-        <ChevronDown
-          aria-hidden
-          className={cn('size-3.5 shrink-0 transition-transform', open && 'rotate-180')}
-        />
-      </button>
-      <div
-        id={panelId}
-        role="region"
-        aria-label="How this was worked out"
-        hidden={!open}
-        className="space-y-2 px-4 pb-3"
-      >
-        <BasisPart label="Figures used" lines={basis.figures} />
-        <BasisPart label="Arranged by" lines={[basis.objective]} />
-        <BasisPart label="Assumed" lines={basis.assumptions} />
-        <BasisPart label="Covered" lines={[basis.coverage]} />
-        <BasisPart label="Warnings" lines={basis.warnings} />
-      </div>
-    </div>
-  )
-}
-
-function BasisPart({ label, lines }: { label: string; lines: readonly string[] }): ReactNode {
-  const shown = lines.filter((line) => line !== '')
-  if (shown.length === 0) return null
-  return (
-    <div>
-      <p className="text-muted-foreground text-2xs font-medium tracking-wider uppercase">{label}</p>
-      <ul className="mt-0.5 space-y-0.5">
-        {shown.map((line) => (
-          <li key={line} className="text-foreground/75 text-xs leading-snug">
-            {line}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Fold label="How this was worked out">
+      <BasisPart label="Figures used" lines={basis.figures} />
+      <BasisPart label="Arranged by" lines={[basis.objective]} />
+      <BasisPart label="Assumed" lines={basis.assumptions} />
+      <BasisPart label="Covered" lines={[basis.coverage]} />
+      <BasisPart label="Warnings" lines={basis.warnings} />
+    </Fold>
   )
 }
