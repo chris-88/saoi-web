@@ -63,6 +63,15 @@ describe('the products selected to compare', () => {
     expect(useProductSelection.getState().refusedOn).toBeNull()
   })
 
+  it('leaves out a row id the turn would refuse, and cuts a long lead', () => {
+    expect(
+      selectionForTurn([
+        { rowId: 'bad id<script>', lead: 'Odd', cardMessageId: 'card-1' },
+        { rowId: 'held:0', lead: `  ${'x'.repeat(200)}`, cardMessageId: 'card-1' },
+      ]),
+    ).toEqual([{ rowId: 'held:0', lead: 'x'.repeat(160) }])
+  })
+
   it('goes on the turn without the card it was tapped on', () => {
     expect(selectionForTurn([product('a'), product('b', 'card-2')])).toEqual([
       { rowId: 'a', lead: 'Lead of a' },

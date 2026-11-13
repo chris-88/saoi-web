@@ -23,13 +23,7 @@ export type SaoirseTurnInput = {
   readonly signal?: AbortSignal
 }
 
-/**
- * The request body, with `selection` typed by hand until `npm run api:generate` picks it up from
- * the deployed API (saoi `feat/compare-selected`); then this is the generated type alone.
- */
-type TurnRequestBody = components['schemas']['SaoirseTurnRequest'] & {
-  selection?: ProductSelection[]
-}
+type TurnRequestBody = components['schemas']['SaoirseTurnRequest']
 
 /**
  * How long the stream may say nothing before it is treated as dead.

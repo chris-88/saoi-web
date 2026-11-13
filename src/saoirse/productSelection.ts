@@ -1,5 +1,9 @@
 import { create } from 'zustand'
-import { PRODUCT_SELECTION_MAX, type ProductSelection } from '@contracts/cards.ts'
+import {
+  PRODUCT_SELECTION_MAX,
+  productSelectionSchema,
+  type ProductSelection,
+} from '@contracts/cards.ts'
 
 /**
  * The products the customer has selected to compare (Chris, 2026-11-13: "select products from
@@ -53,7 +57,15 @@ export const useProductSelection = create<ProductSelectionState>((set, get) => (
   clear: () => set({ selected: [], refusedOn: null }),
 }))
 
-/** What goes on the turn: the products in the order they were selected, without the card. */
+/**
+ * What goes on the turn: the products in the order they were selected, without the card, held to
+ * the turn's own contract (`productSelectionSchema`). A lead is cut to the length the turn takes;
+ * a row id the turn would refuse (outside `PRODUCT_ROW_ID_PATTERN`) is left out rather than
+ * failing the customer's whole message.
+ */
 export function selectionForTurn(selected: readonly SelectedProduct[]): ProductSelection[] {
-  return selected.map(({ rowId, lead }) => ({ rowId, lead }))
+  return selected.flatMap(({ rowId, lead }) => {
+    const parsed = productSelectionSchema.safeParse({ rowId, lead: lead.trim().slice(0, 160) })
+    return parsed.success ? [parsed.data] : []
+  })
 }
