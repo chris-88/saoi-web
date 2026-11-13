@@ -72,3 +72,31 @@ export function splitValue(value: string): { value: string; period: string | nul
   if (match === null) return { value, period: null }
   return { value: match[1] ?? value, period: match[2] ?? null }
 }
+
+/**
+ * The rows under the server's group labels, in the groups' order and each group's own order; a
+ * row in no group follows them under no label, and a row named twice stays in its first group.
+ * Without groups, the rows are one unlabelled list, in the order given.
+ */
+export function groupRows<R extends { id: string }>(
+  rows: readonly R[],
+  groups: readonly { label: string; rowIds: readonly string[] }[] | undefined,
+): { label: string | null; rows: R[] }[] {
+  if (groups === undefined || groups.length === 0) return [{ label: null, rows: [...rows] }]
+  const byId = new Map(rows.map((row) => [row.id, row]))
+  const placed = new Set<string>()
+  const sections: { label: string | null; rows: R[] }[] = []
+  for (const group of groups) {
+    const members: R[] = []
+    for (const id of group.rowIds) {
+      const row = byId.get(id)
+      if (row === undefined || placed.has(id)) continue
+      placed.add(id)
+      members.push(row)
+    }
+    if (members.length > 0) sections.push({ label: group.label, rows: members })
+  }
+  const rest = rows.filter((row) => !placed.has(row.id))
+  if (rest.length > 0) sections.push({ label: null, rows: rest })
+  return sections
+}

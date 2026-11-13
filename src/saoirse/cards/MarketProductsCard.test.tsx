@@ -276,6 +276,21 @@ const keyFacts: Payload = {
   statement,
 }
 
+/** The same rows by type (2026-11-13): instant access, then fixed term. */
+const grouped: Payload = {
+  ...keyFacts,
+  arrangement: {
+    ...keyFacts.arrangement,
+    groups: [
+      {
+        label: 'Instant access',
+        rowIds: ['bunq:easy-savings', 'moco:instant', 'state-savings:deposit'],
+      },
+      { label: 'Fixed term', rowIds: ['boi:fixed-18'] },
+    ],
+  },
+}
+
 const fixtures = [heldVsMarket, byAccess, fitsDate, mortgageBySort, keyFacts] as const
 
 describe('MarketProductsCard', () => {
@@ -508,6 +523,71 @@ describe('MarketProductsCard', () => {
       expect(screen.getByText('bunq Easy Savings').closest('button')).toBeNull()
       // A neutral monogram from the lead when there is no provider.
       expect(screen.getByText('BoI')).toBeVisible()
+    })
+  })
+
+  describe('rows by type', () => {
+    const labelsInOrder = (): string[] =>
+      screen.getAllByText(/^(Instant access|Fixed term)$/).map((element) => element.textContent)
+
+    it('shows each group under its label, in the groups’ order', () => {
+      render(<MarketProductsCard card={grouped} />)
+      expect(cardSchema.parse(grouped)).toEqual(grouped)
+      expect(labelsInOrder()).toEqual(['Instant access', 'Fixed term'])
+      const instant = within(screen.getByRole('list', { name: 'Instant access' })).getAllByRole(
+        'listitem',
+      )
+      expect(instant.map((item) => item.textContent)).toEqual([
+        expect.stringContaining('bunq Easy Savings'),
+        expect.stringContaining('MoCo Instant Access'),
+        expect.stringContaining('State Savings Deposit Account'),
+      ])
+      const fixed = within(screen.getByRole('list', { name: 'Fixed term' })).getAllByRole(
+        'listitem',
+      )
+      expect(fixed).toHaveLength(1)
+      expect(fixed[0]).toHaveTextContent('Bank of Ireland Fixed Term Deposit')
+      // Grouped, there is no one list for the whole card.
+      expect(screen.queryByRole('list', { name: grouped.arrangement.title })).toBeNull()
+    })
+
+    it('puts a row in no group after the groups, under no label', () => {
+      const card: Payload = {
+        ...grouped,
+        arrangement: {
+          ...grouped.arrangement,
+          groups: [
+            { label: 'Instant access', rowIds: ['bunq:easy-savings', 'moco:instant'] },
+            { label: 'Fixed term', rowIds: ['boi:fixed-18'] },
+          ],
+        },
+      }
+      render(<MarketProductsCard card={card} />)
+      const lists = screen.getAllByRole('list').filter((list) => list.tagName === 'OL')
+      expect(lists).toHaveLength(3)
+      const rest = lists[2]!
+      expect(rest).not.toHaveAccessibleName()
+      expect(within(rest).getAllByRole('listitem')).toHaveLength(1)
+      expect(rest).toHaveTextContent('State Savings Deposit Account')
+      expect(labelsInOrder()).toEqual(['Instant access', 'Fixed term'])
+    })
+
+    it('opens one row at a time across groups', () => {
+      render(<MarketProductsCard card={grouped} />)
+      const bunq = screen.getByRole('button', { name: /^bunq Easy Savings/ })
+      const boi = screen.getByRole('button', { name: /^Bank of Ireland Fixed Term Deposit/ })
+      fireEvent.click(bunq)
+      fireEvent.click(boi)
+      expect(bunq).toHaveAttribute('aria-expanded', 'false')
+      expect(boi).toHaveAttribute('aria-expanded', 'true')
+    })
+
+    it('shows one list, without labels, when there are no groups', () => {
+      render(<MarketProductsCard card={keyFacts} />)
+      expect(screen.queryByText('Instant access')).toBeNull()
+      expect(screen.queryByText('Fixed term')).toBeNull()
+      const list = screen.getByRole('list', { name: keyFacts.arrangement.title })
+      expect(within(list).getAllByRole('listitem')).toHaveLength(keyFacts.rows.length)
     })
   })
 })

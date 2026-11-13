@@ -640,6 +640,14 @@ export const marketProductsCardSchema = z.object({
     title: z.string(),
     /** One short sentence: the arrangement and how to change it. */
     line: z.string(),
+    /**
+     * The rows by type, in order: "Instant access", "Fixed term", "Yours", "The market"
+     * (2026-11-13). Optional: absent, the rows are one list. A row in no group follows them.
+     */
+    groups: z
+      .array(z.object({ label: z.string(), rowIds: z.array(z.string()) }))
+      .max(4)
+      .optional(),
   }),
   rows: z
     .array(

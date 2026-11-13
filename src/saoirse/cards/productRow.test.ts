@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { providerInitials, splitValue } from './productRow'
+import { groupRows, providerInitials, splitValue } from './productRow'
 
 describe('providerInitials', () => {
   it.each([
@@ -38,5 +38,40 @@ describe('splitValue', () => {
     expect(splitValue('2.51%')).toEqual({ value: '2.51%', period: null })
     expect(splitValue('€1,751/mo')).toEqual({ value: '€1,751/mo', period: null })
     expect(splitValue('up to 3%')).toEqual({ value: 'up to 3%', period: null })
+  })
+})
+
+describe('groupRows', () => {
+  const rows = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'held:0' }]
+  const ids = (sections: ReturnType<typeof groupRows>) =>
+    sections.map((section) => [section.label, section.rows.map((row) => row.id)])
+
+  it('is one unlabelled list without groups', () => {
+    expect(ids(groupRows(rows, undefined))).toEqual([[null, ['a', 'b', 'c', 'held:0']]])
+    expect(ids(groupRows(rows, []))).toEqual([[null, ['a', 'b', 'c', 'held:0']]])
+  })
+
+  it('follows the groups and their own order, the rest after', () => {
+    const groups = [
+      { label: 'Yours', rowIds: ['held:0'] },
+      { label: 'The market', rowIds: ['c', 'a'] },
+    ]
+    expect(ids(groupRows(rows, groups))).toEqual([
+      ['Yours', ['held:0']],
+      ['The market', ['c', 'a']],
+      [null, ['b']],
+    ])
+  })
+
+  it('skips unknown ids, a second mention, and a group left empty', () => {
+    const groups = [
+      { label: 'One', rowIds: ['a', 'zzz', 'b'] },
+      { label: 'Two', rowIds: ['b'] },
+      { label: 'Three', rowIds: ['c', 'held:0'] },
+    ]
+    expect(ids(groupRows(rows, groups))).toEqual([
+      ['One', ['a', 'b']],
+      ['Three', ['c', 'held:0']],
+    ])
   })
 })

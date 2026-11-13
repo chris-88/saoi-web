@@ -4,7 +4,7 @@ import type { MarketProductsCard as Payload } from '@contracts/cards.ts'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { providerInitials, splitValue } from './productRow'
+import { groupRows, providerInitials, splitValue } from './productRow'
 
 type Row = Payload['rows'][number]
 
@@ -21,13 +21,21 @@ type Row = Payload['rows'][number]
  * the rest; one row at a time. How it was worked out is folded behind one line; the statement
  * closes the card.
  *
- * Every word and figure is the server's; the card only lays them out and puts the customer's own
- * account first. Nothing here is a pick: the customer asks in the chat for more, or for another
+ * When the server groups the rows by type ("Instant access", "Fixed term"; Chris, 2026-11-13:
+ * different products were mixed in one list), each group sits under a small quiet label.
+ *
+ * Every word and figure is the server's; the card only lays them out and, in an ungrouped list,
+ * puts the customer's own account first. Nothing here is a pick: the customer asks in the chat for more, or for another
  * arrangement, so the only controls on the card open and close detail.
  */
 export function MarketProductsCard({ card }: { card: Payload }): ReactNode {
   // Stable sort: the server's order, with the customer's own account lifted to the top.
   const rows = [...card.rows].sort((a, b) => Number(b.held) - Number(a.held))
+  // Grouped, the server's groups decide the order, a "Yours" group included.
+  const sections = groupRows(
+    card.arrangement.groups === undefined ? rows : card.rows,
+    card.arrangement.groups,
+  )
   const anyUnconfirmed = rows.some((row) => !row.confirmed)
   const [openId, setOpenId] = useState<string | null>(null)
   // When any row opens, every row keeps the chevron's room, so the values line up.
@@ -45,19 +53,26 @@ export function MarketProductsCard({ card }: { card: Payload }): ReactNode {
           Nothing in the market matches this.
         </p>
       ) : (
-        <ol className="divide-y border-t" aria-label={card.arrangement.title}>
-          {rows.map((row) => (
-            <ProductRow
-              key={row.id}
-              row={row}
-              open={openId === row.id}
-              chevronRoom={chevronRoom}
-              onToggle={(next) => {
-                setOpenId(next ? row.id : null)
-              }}
-            />
-          ))}
-        </ol>
+        sections.map((section, index) => (
+          <RowSection
+            // Labels are the server's and distinct; the unlabelled rest comes last.
+            key={section.label ?? `rest-${String(index)}`}
+            label={section.label}
+            listLabel={sections.length === 1 ? card.arrangement.title : undefined}
+          >
+            {section.rows.map((row) => (
+              <ProductRow
+                key={row.id}
+                row={row}
+                open={openId === row.id}
+                chevronRoom={chevronRoom}
+                onToggle={(next) => {
+                  setOpenId(next ? row.id : null)
+                }}
+              />
+            ))}
+          </RowSection>
+        ))
       )}
 
       {card.more > 0 && (
@@ -74,6 +89,42 @@ export function MarketProductsCard({ card }: { card: Payload }): ReactNode {
         <p>{card.statement}</p>
       </div>
     </Card>
+  )
+}
+
+/**
+ * One list of rows: under a small quiet label when the server grouped them, else unlabelled (the
+ * whole card's list, named by the arrangement, or the rows no group named).
+ */
+function RowSection({
+  label,
+  listLabel,
+  children,
+}: {
+  label: string | null
+  listLabel: string | undefined
+  children: ReactNode
+}): ReactNode {
+  const labelId = useId()
+  if (label === null) {
+    return (
+      <ol className="divide-y border-t" aria-label={listLabel}>
+        {children}
+      </ol>
+    )
+  }
+  return (
+    <div className="border-t">
+      <p
+        id={labelId}
+        className="text-muted-foreground px-4 pt-2.5 text-2xs font-medium tracking-wider uppercase"
+      >
+        {label}
+      </p>
+      <ol className="divide-y" aria-labelledby={labelId}>
+        {children}
+      </ol>
+    </div>
   )
 }
 
