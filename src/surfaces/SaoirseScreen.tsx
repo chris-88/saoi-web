@@ -3,7 +3,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { SaoirseChat } from '@/saoirse/SaoirseChat'
 import { PlanArrival } from '@/saoirse/PlanArrival'
-import { takeFirstMessage, takeSaoirseLine } from '@/lib/planArrival'
+import { takeComposerLine, takeFirstMessage, takeSaoirseLine } from '@/lib/planArrival'
 import { SaoirseWordmark } from '@/saoirse/SaoirseWordmark'
 import { ProfileButton } from '@/saoirse/ProfileButton'
 import { rememberPresenterKey } from '@/lib/session'
@@ -34,6 +34,8 @@ export function SaoirseScreen({ arrivalToken }: { arrivalToken?: string } = {}):
   const [firstMessage] = useState(() => (arrivalToken === undefined ? takeFirstMessage() : null))
   /** What a plan edit under You changed, in Saoirse's words: shown as her line, once. */
   const [saoirseLine] = useState(() => (arrivalToken === undefined ? takeSaoirseLine() : null))
+  /** A line "Change" on a plan choice put in the composer, unsent, once. */
+  const [composerLine] = useState(() => (arrivalToken === undefined ? takeComposerLine() : null))
   const [started, setStarted] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   useViewportHeight()
@@ -154,6 +156,7 @@ export function SaoirseScreen({ arrivalToken }: { arrivalToken?: string } = {}):
           className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col"
           openingMessage={firstMessage ?? searchParams.get('say')}
           saoirseLine={saoirseLine}
+          composerLine={composerLine}
           mode="new"
           source={source}
           /*

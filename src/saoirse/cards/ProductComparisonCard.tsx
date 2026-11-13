@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react'
 import type { ProductComparisonCard as Payload } from '@contracts/cards.ts'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { ChooseSheet } from '@/saoirse/ChooseSheet'
+import { ChosenBadge } from './ChosenBadge'
 import { BasisPart, Fold } from './Fold'
 import { ProviderMonogram } from './ProviderMonogram'
 
@@ -17,9 +20,19 @@ import { ProviderMonogram } from './ProviderMonogram'
  * Saoirse asks it. What to know about each (the products card's must-knows and detail) and how
  * it was worked out are folded; the statement closes the card.
  *
+ * Each column header has its own "Choose" (the Choose sheet: put this one into the plan), the
+ * same for every column; a column already chosen carries the slot's badge.
+ *
  * At 390px two columns fit the card; three scroll sideways inside the table only, never the page.
  */
-export function ProductComparisonCard({ card }: { card: Payload }): ReactNode {
+export function ProductComparisonCard({
+  card,
+  caseId = null,
+}: {
+  card: Payload
+  /** The conversation, for choosing into its plan; with none, no Choose and no badges. */
+  caseId?: string | null
+}): ReactNode {
   const three = card.columns.length > 2
   const knowing = card.columns
     .map((column) => {
@@ -70,6 +83,7 @@ export function ProductComparisonCard({ card }: { card: Payload }): ReactNode {
                     <span className="bg-muted text-muted-foreground max-w-full truncate rounded-full px-1.5 text-2xs">
                       {column.kind}
                     </span>
+                    {caseId !== null && <ChosenColumn caseId={caseId} column={column} />}
                   </span>
                 </th>
               ))}
@@ -157,5 +171,35 @@ export function ProductComparisonCard({ card }: { card: Payload }): ReactNode {
         {card.statement}
       </p>
     </Card>
+  )
+}
+
+/** A column's badge when it is chosen, and its own Choose. */
+function ChosenColumn({
+  caseId,
+  column,
+}: {
+  caseId: string
+  column: Payload['columns'][number]
+}): ReactNode {
+  return (
+    <>
+      <ChosenBadge caseId={caseId} rowId={column.rowId} className="max-w-full truncate" />
+      <ChooseSheet
+        caseId={caseId}
+        product={{ rowId: column.rowId, lead: column.lead }}
+        trigger={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-0.5 h-8 rounded-full px-3 text-xs"
+            aria-label={`Choose ${column.lead}`}
+          >
+            Choose
+          </Button>
+        }
+      />
+    </>
   )
 }

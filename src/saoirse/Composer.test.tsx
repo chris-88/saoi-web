@@ -20,4 +20,23 @@ describe('Composer', () => {
     expect(onSend).toHaveBeenCalledWith('How much can I borrow')
     expect(reloadBlocked(false)).toBe(false)
   })
+
+  it('starts with a line put in it, focused and unsent, for the customer to send or change', () => {
+    const onSend = vi.fn()
+    render(
+      <Composer
+        onSend={onSend}
+        hint={false}
+        initialText="Show me the options for my monthly saving again"
+      />,
+    )
+    const box = screen.getByRole('textbox', { name: 'Message Saoirse' })
+    expect(box).toHaveTextContent('Show me the options for my monthly saving again')
+    expect(box).toHaveFocus()
+    expect(onSend).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(onSend).toHaveBeenCalledWith('Show me the options for my monthly saving again')
+  })
 })

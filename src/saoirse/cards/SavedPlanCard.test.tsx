@@ -3,15 +3,22 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Card } from '@contracts/cards.ts'
 import type { CaseHoldingsResponse } from '@contracts/holdings.ts'
+import type { CasePlanRead } from '@/lib/planChoices'
 
 const fetchCaseHoldings = vi.fn<(caseId: string) => Promise<CaseHoldingsResponse>>()
+const fetchCasePlan = vi.fn<(caseId: string) => Promise<CasePlanRead | null>>()
 vi.mock('@/lib/saoiApi', () => ({
   fetchCaseHoldings: (caseId: string) => fetchCaseHoldings(caseId),
+  fetchCasePlan: (caseId: string) => fetchCasePlan(caseId),
 }))
 
 const { SavedPlanCard } = await import('./SavedPlanCard')
 
-beforeEach(() => fetchCaseHoldings.mockReset())
+beforeEach(() => {
+  fetchCaseHoldings.mockReset()
+  fetchCasePlan.mockReset()
+  fetchCasePlan.mockResolvedValue(null)
+})
 
 const card: Extract<Card, { type: 'saved_plan' }> = {
   type: 'saved_plan',
@@ -365,5 +372,128 @@ describe('a home plan carrying what the host card showed', () => {
       </QueryClientProvider>,
     )
     expect(await screen.findByText(LINE)).toBeInTheDocument()
+  })
+})
+
+describe('the choices on the plan card', () => {
+  const CASE = '22222222-2222-4222-8222-222222222222'
+  const PLAN: CasePlanRead = {
+    planId: card.planId,
+    title: card.title,
+    editable: {
+      targetDate: '2028-11',
+      homePrice: 350000,
+      monthlySaving: 1000,
+      propertyKind: null,
+      firstTimeBuyer: null,
+      buyingTogether: null,
+    },
+    summary: { keysOn: '2028-11', neededAtKeysEur: 40000, savedEur: 32000, progressLine: null },
+    watched: [],
+    updatedAt: '2026-11-12T10:00:00.000Z',
+    choices: {
+      lump_sum: null,
+      monthly_saving: {
+        slot: 'monthly_saving',
+        rowId: 'boi:supersaver',
+        lead: 'Bank of Ireland SuperSaver',
+        kind: 'regular saver',
+        value: '3.00%',
+        figure: '€702 by Nov 2028',
+        chosenAt: '2026-11-13T09:00:00.000Z',
+      },
+      mortgage: null,
+    },
+  }
+
+  const mortgageOption = {
+    lender: 'Bank of Ireland',
+    kind: '4-year fixed',
+    rate: '3.2%',
+    monthly: '€1,362/mo',
+    fiveYear: '€49,338 over 5 years',
+    keys: 'July 2028',
+    confirmed: true,
+    lead: '€49,338 / 5 yrs',
+  }
+
+  function inCase(caseId: string | null, payload: typeof card = card) {
+    fetchCaseHoldings.mockResolvedValue({ holdings: [], progress: null })
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <SavedPlanCard card={payload} caseId={caseId} />
+      </QueryClientProvider>,
+    )
+  }
+
+  it('lists the three slots under the figures, the open ones not chosen yet', async () => {
+    fetchCasePlan.mockResolvedValue(PLAN)
+    inCase(CASE)
+    const block = await screen.findByRole('region', { name: 'Your choices' })
+    await within(block).findByText('Bank of Ireland SuperSaver')
+    const terms = within(block)
+      .getAllByRole('term')
+      .map((term) => term.textContent)
+    expect(terms).toEqual(['Your €32,000', 'Your €1,000 a month', 'Your mortgage'])
+    const values = within(block)
+      .getAllByRole('definition')
+      .map((value) => value.textContent)
+    expect(values).toEqual([
+      'not chosen yet',
+      'Bank of Ireland SuperSaver€702 by Nov 2028',
+      'not chosen yet',
+    ])
+  })
+
+  it('says so while the choices load, and when they would not', async () => {
+    fetchCasePlan.mockRejectedValue(new Error('offline'))
+    inCase(CASE)
+    const block = screen.getByRole('region', { name: 'Your choices' })
+    expect(within(block).getByRole('status')).toHaveTextContent('Looking up your choices…')
+    expect(await within(block).findByRole('alert')).toHaveTextContent(
+      'Your choices would not load. offline',
+    )
+  })
+
+  it('has no choices block without a case', () => {
+    inCase(null)
+    expect(screen.queryByRole('region', { name: 'Your choices' })).not.toBeInTheDocument()
+    expect(fetchCasePlan).not.toHaveBeenCalled()
+  })
+
+  it('offers Choose on a mortgage row only once it carries a row id', async () => {
+    fetchCasePlan.mockResolvedValue({
+      ...PLAN,
+      choices: {
+        ...PLAN.choices,
+        mortgage: {
+          slot: 'mortgage',
+          rowId: 'boi:fixed-4',
+          lead: 'Bank of Ireland · 4-yr fixed',
+          kind: '4-year fixed',
+          value: '3.2%',
+          figure: '€1,362/mo',
+          chosenAt: '2026-11-13T09:00:00.000Z',
+        },
+      },
+    })
+    const withRowId = { ...mortgageOption, rowId: 'boi:fixed-4' }
+    const comparison = {
+      headline: 'Keys around July 2028.',
+      sortedBy: 'Sorted by cost over 5 years.',
+      sortBy: 'five_year_cost' as const,
+      filters: [],
+      total: 2,
+      options: [withRowId, { ...mortgageOption, lender: 'AIB' }],
+    }
+    inCase(CASE, { ...card, comparison })
+    const options = within(screen.getByRole('list', { name: 'The first three options' }))
+    expect(
+      options.getByRole('button', { name: 'Choose Bank of Ireland · 4-yr fixed' }),
+    ).toBeVisible()
+    expect(options.queryByRole('button', { name: /choose aib/i })).not.toBeInTheDocument()
+    expect(await options.findByText('your mortgage')).toBeInTheDocument()
   })
 })

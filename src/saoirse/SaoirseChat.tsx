@@ -58,6 +58,7 @@ const SIGNED_IN_NOTE = [
 export function SaoirseChat({
   openingMessage,
   saoirseLine = null,
+  composerLine = null,
   onStarted,
   onCase,
   mode = 'new',
@@ -77,6 +78,11 @@ export function SaoirseChat({
    * `plan_edited` event the edit wrote. Never sent: it is not something the customer said.
    */
   saoirseLine?: string | null
+  /**
+   * A line put in the composer unsent (a plan choice's "Change" under You): the customer's to
+   * edit and send, or not. Never sent by itself.
+   */
+  composerLine?: string | null
   /** Whether a conversation has started, so the chrome around this can settle with it (§8). */
   onStarted?: ((started: boolean) => void) | undefined
   /**
@@ -996,6 +1002,7 @@ export function SaoirseChat({
       >
         <CompareBar
           className="mb-2"
+          caseId={caseId}
           canSend={ready && !streaming}
           onCompare={() => {
             sendFromComposer(COMPARE_MESSAGE)
@@ -1005,6 +1012,7 @@ export function SaoirseChat({
           hint={zeroState}
           disabled={!ready || streaming}
           onSend={sendFromComposer}
+          initialText={composerLine}
           onFocusChange={setComposerFocused}
           {...(joining ? { placeholder: 'Connecting…' } : {})}
         />

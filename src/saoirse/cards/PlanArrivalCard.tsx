@@ -21,11 +21,14 @@ export function PlanArrivalCard({
   arrival,
   routes,
   progressLine,
+  choices,
 }: {
   arrival: PlanArrivalView
   routes: readonly PlanRoute[]
   /** Where the plan stands now, from the case's holdings, once it is in a conversation. */
   progressLine?: ReactNode
+  /** The products chosen for the plan, under the figures, once it is in a conversation. */
+  choices?: ReactNode
 }): ReactNode {
   return (
     <div className="space-y-2">
@@ -54,6 +57,7 @@ export function PlanArrivalCard({
         {progressLine}
 
         {arrival.tiles.length > 0 && <Tiles tiles={arrival.tiles} />}
+        {choices}
 
         <div className="text-muted-foreground space-y-0.5 border-t px-4 py-2 text-[11px] leading-snug">
           {arrival.assumptions.map((line) => (
