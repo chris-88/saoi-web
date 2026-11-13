@@ -44,6 +44,7 @@ const PLAN = {
     },
     { lead: 'PTSB', kind: 'regular saver', value: '3.00%', figure: '€1,380 by March 2028' },
   ],
+  choices: { lump_sum: null, monthly_saving: null, mortgage: null },
   updatedAt: '2026-11-12T10:00:00.000Z',
 }
 

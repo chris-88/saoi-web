@@ -21,6 +21,7 @@ const plan = (summary: Partial<CasePlan['summary']> = {}): CasePlan => ({
     ...summary,
   },
   watched: [],
+  choices: { lump_sum: null, monthly_saving: null, mortgage: null },
   updatedAt: '2026-11-12T10:00:00.000Z',
 })
 

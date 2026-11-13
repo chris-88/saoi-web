@@ -1572,6 +1572,166 @@ export interface paths {
     }
     trace?: never
   }
+  '/api/cases/{caseId}/plan/choices': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Choose a product for a part of the plan
+     * @description The customer chose a product on a card for one part of the claimed plan: the sum held (`lump_sum`), the monthly saving (`monthly_saving`) or the mortgage (`mortgage`). Only the row id is sent; its key facts are rebuilt from the market (a products row, a comparison column, or for the mortgage one of the plan’s comparison options). Replaces any earlier choice for that part. A rate or term with an end keeps a reminder dated to it. Writes `product_chosen`; the next return turn says it and asks the next open part’s question. Choosing the row already chosen changes nothing.
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          caseId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['CasePlanChoice']
+        }
+      }
+      responses: {
+        /** @description The plan, with its choices. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['CasePlan']
+          }
+        }
+        /** @description The body is not valid (an unknown part, a malformed row id), or the product is not the kind that part takes: a mortgage for a savings part, a fixed term for the monthly saving. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Missing or invalid token. */
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No such case for this caller, it has no claimed plan, or the row is on no card it can show. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/cases/{caseId}/plan/choices/{slot}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Take a choice off the plan
+     * @description Opens that part of the plan again and removes the reminder kept for the choice. Writes `product_choice_removed`. A part that is already open changes nothing.
+     */
+    delete: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          caseId: string
+          /** @description `lump_sum`: the sum held. `monthly_saving`: the monthly saving. `mortgage`: the mortgage. */
+          slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description The plan, with its choices. */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['CasePlan']
+          }
+        }
+        /** @description Not one of the parts of a plan. */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Missing or invalid token. */
+        401: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description No such case for this caller, or it has no claimed plan. */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+        /** @description Too many requests. See `Retry-After`. */
+        429: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ErrorResponse']
+          }
+        }
+      }
+    }
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/cases/{caseId}/products/select': {
     parameters: {
       query?: never
@@ -7690,6 +7850,9 @@ export interface components {
                     keys: string | null
                     confirmed: boolean
                     lead?: string
+                    rowId?: string
+                    /** @enum {string} */
+                    chosen?: 'lump_sum' | 'monthly_saving' | 'mortgage'
                   }[]
                 }
                 /** @default [] */
@@ -7748,6 +7911,47 @@ export interface components {
                     why: string
                   } | null
                 }
+                choices?: {
+                  lump_sum: {
+                    /** @enum {string} */
+                    slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+                    rowId: string
+                    lead: string
+                    providerId?: string
+                    kind: string
+                    value: string
+                    figure: string
+                    /** Format: date-time */
+                    chosenAt: string
+                    endsOn?: string
+                  } | null
+                  monthly_saving: {
+                    /** @enum {string} */
+                    slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+                    rowId: string
+                    lead: string
+                    providerId?: string
+                    kind: string
+                    value: string
+                    figure: string
+                    /** Format: date-time */
+                    chosenAt: string
+                    endsOn?: string
+                  } | null
+                  mortgage: {
+                    /** @enum {string} */
+                    slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+                    rowId: string
+                    lead: string
+                    providerId?: string
+                    kind: string
+                    value: string
+                    figure: string
+                    /** Format: date-time */
+                    chosenAt: string
+                    endsOn?: string
+                  } | null
+                }
                 createdAt: string
                 dataCheckedAt: string
               }
@@ -7782,6 +7986,8 @@ export interface components {
                   } | null
                   detail?: string[]
                   mustKnow?: string[]
+                  /** @enum {string} */
+                  chosen?: 'lump_sum' | 'monthly_saving' | 'mortgage'
                 }[]
                 more: number
                 basis: {
@@ -7807,6 +8013,8 @@ export interface components {
                     fg: '#fff' | '#000'
                   } | null
                   kind: string
+                  /** @enum {string} */
+                  chosen?: 'lump_sum' | 'monthly_saving' | 'mortgage'
                 }[]
                 rows: {
                   label: string
@@ -8482,6 +8690,8 @@ export interface components {
       }
       /** @description The plan’s first three options in the customer’s order. Never a pick. */
       watched: {
+        /** @description For a mortgage option: its row id, to choose it with `POST …/plan/choices` (slot `mortgage`). */
+        rowId?: string
         /** @description The lender, or the provider for a savings plan. */
         lead: string
         /** @description "3-year fixed", "variable", or the product’s part in the plan. */
@@ -8491,7 +8701,52 @@ export interface components {
         /** @description The figure the options are sorted by ("€1,751/mo"), or the amounts placed. */
         figure: string
       }[]
-      /** @description When the plan last changed: its last edit, else when it was made. */
+      /** @description The products chosen for each part of the plan. */
+      choices: {
+        /** @description The account for the sum held. Null: open. */
+        lump_sum: {
+          /** @enum {string} */
+          slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+          rowId: string
+          lead: string
+          providerId?: string
+          kind: string
+          value: string
+          figure: string
+          /** Format: date-time */
+          chosenAt: string
+          endsOn?: string
+        } | null
+        /** @description The account for the monthly saving. Null: open. */
+        monthly_saving: {
+          /** @enum {string} */
+          slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+          rowId: string
+          lead: string
+          providerId?: string
+          kind: string
+          value: string
+          figure: string
+          /** Format: date-time */
+          chosenAt: string
+          endsOn?: string
+        } | null
+        /** @description The mortgage option. Null: open. */
+        mortgage: {
+          /** @enum {string} */
+          slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+          rowId: string
+          lead: string
+          providerId?: string
+          kind: string
+          value: string
+          figure: string
+          /** Format: date-time */
+          chosenAt: string
+          endsOn?: string
+        } | null
+      }
+      /** @description When the plan last changed: its last edit or choice, else when it was made. */
       updatedAt: string
     }
     /** @description The rebuilt plan, and what the change does. */
@@ -8530,6 +8785,8 @@ export interface components {
       }
       /** @description The plan’s first three options in the customer’s order. Never a pick. */
       watched: {
+        /** @description For a mortgage option: its row id, to choose it with `POST …/plan/choices` (slot `mortgage`). */
+        rowId?: string
         /** @description The lender, or the provider for a savings plan. */
         lead: string
         /** @description "3-year fixed", "variable", or the product’s part in the plan. */
@@ -8539,7 +8796,52 @@ export interface components {
         /** @description The figure the options are sorted by ("€1,751/mo"), or the amounts placed. */
         figure: string
       }[]
-      /** @description When the plan last changed: its last edit, else when it was made. */
+      /** @description The products chosen for each part of the plan. */
+      choices: {
+        /** @description The account for the sum held. Null: open. */
+        lump_sum: {
+          /** @enum {string} */
+          slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+          rowId: string
+          lead: string
+          providerId?: string
+          kind: string
+          value: string
+          figure: string
+          /** Format: date-time */
+          chosenAt: string
+          endsOn?: string
+        } | null
+        /** @description The account for the monthly saving. Null: open. */
+        monthly_saving: {
+          /** @enum {string} */
+          slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+          rowId: string
+          lead: string
+          providerId?: string
+          kind: string
+          value: string
+          figure: string
+          /** Format: date-time */
+          chosenAt: string
+          endsOn?: string
+        } | null
+        /** @description The mortgage option. Null: open. */
+        mortgage: {
+          /** @enum {string} */
+          slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+          rowId: string
+          lead: string
+          providerId?: string
+          kind: string
+          value: string
+          figure: string
+          /** Format: date-time */
+          chosenAt: string
+          endsOn?: string
+        } | null
+      }
+      /** @description When the plan last changed: its last edit or choice, else when it was made. */
       updatedAt: string
       /** @description What changed and which options now fit, in their figures: one or two sentences of fact, never "better" and never a pick. The conversation opens with it. */
       reading: string
@@ -8554,6 +8856,16 @@ export interface components {
       propertyKind?: 'new_build' | 'self_build' | 'second_hand'
       firstTimeBuyer?: boolean
       buyingTogether?: boolean
+    }
+    /** @description A product the customer chose on a card for one part of the plan. Only the row id is sent: its figures are rebuilt from the market. */
+    CasePlanChoice: {
+      /**
+       * @description `lump_sum`: the sum held. `monthly_saving`: the monthly saving. `mortgage`: the mortgage.
+       * @enum {string}
+       */
+      slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+      /** @description The row id the card carried: a products row’s `id` (`bunq:savings.bunq_savings`, a ladder rung’s, `held:<n>`), a comparison column’s `rowId`, or a mortgage option’s `rowId`. */
+      rowId: string
     }
     CaseActionResult: {
       applications: {
@@ -9119,6 +9431,9 @@ export interface components {
                       keys: string | null
                       confirmed: boolean
                       lead?: string
+                      rowId?: string
+                      /** @enum {string} */
+                      chosen?: 'lump_sum' | 'monthly_saving' | 'mortgage'
                     }[]
                   }
                   /** @default [] */
@@ -9177,6 +9492,47 @@ export interface components {
                       why: string
                     } | null
                   }
+                  choices?: {
+                    lump_sum: {
+                      /** @enum {string} */
+                      slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+                      rowId: string
+                      lead: string
+                      providerId?: string
+                      kind: string
+                      value: string
+                      figure: string
+                      /** Format: date-time */
+                      chosenAt: string
+                      endsOn?: string
+                    } | null
+                    monthly_saving: {
+                      /** @enum {string} */
+                      slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+                      rowId: string
+                      lead: string
+                      providerId?: string
+                      kind: string
+                      value: string
+                      figure: string
+                      /** Format: date-time */
+                      chosenAt: string
+                      endsOn?: string
+                    } | null
+                    mortgage: {
+                      /** @enum {string} */
+                      slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+                      rowId: string
+                      lead: string
+                      providerId?: string
+                      kind: string
+                      value: string
+                      figure: string
+                      /** Format: date-time */
+                      chosenAt: string
+                      endsOn?: string
+                    } | null
+                  }
                   createdAt: string
                   dataCheckedAt: string
                 }
@@ -9211,6 +9567,8 @@ export interface components {
                     } | null
                     detail?: string[]
                     mustKnow?: string[]
+                    /** @enum {string} */
+                    chosen?: 'lump_sum' | 'monthly_saving' | 'mortgage'
                   }[]
                   more: number
                   basis: {
@@ -9236,6 +9594,8 @@ export interface components {
                       fg: '#fff' | '#000'
                     } | null
                     kind: string
+                    /** @enum {string} */
+                    chosen?: 'lump_sum' | 'monthly_saving' | 'mortgage'
                   }[]
                   rows: {
                     label: string
@@ -9475,6 +9835,7 @@ export interface components {
           /** @default [] */
           filters: string[]
           options: {
+            rowId?: string
             lender: string
             kind: string
             productName: string
@@ -9595,6 +9956,74 @@ export interface components {
           to: string | number | boolean | unknown
         }[]
         openedWith?: string
+        choices?: {
+          lump_sum?: {
+            /** @enum {string} */
+            slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+            rowId: string
+            lead: string
+            providerId?: string
+            kind: string
+            value: string
+            figure: string
+            /** Format: date-time */
+            chosenAt: string
+            endsOn?: string
+            /** Format: uuid */
+            reminderId?: string
+            watches?: {
+              provider: string
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              productId: string
+              ratePct?: number
+            }[]
+          }
+          monthly_saving?: {
+            /** @enum {string} */
+            slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+            rowId: string
+            lead: string
+            providerId?: string
+            kind: string
+            value: string
+            figure: string
+            /** Format: date-time */
+            chosenAt: string
+            endsOn?: string
+            /** Format: uuid */
+            reminderId?: string
+            watches?: {
+              provider: string
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              productId: string
+              ratePct?: number
+            }[]
+          }
+          mortgage?: {
+            /** @enum {string} */
+            slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+            rowId: string
+            lead: string
+            providerId?: string
+            kind: string
+            value: string
+            figure: string
+            /** Format: date-time */
+            chosenAt: string
+            endsOn?: string
+            /** Format: uuid */
+            reminderId?: string
+            watches?: {
+              provider: string
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              productId: string
+              ratePct?: number
+            }[]
+          }
+        }
         /** Format: date-time */
         createdAt: string
         /** Format: date-time */
@@ -13073,6 +13502,7 @@ export interface components {
           /** @default [] */
           filters: string[]
           options: {
+            rowId?: string
             lender: string
             kind: string
             productName: string
@@ -13193,6 +13623,74 @@ export interface components {
           to: string | number | boolean | unknown
         }[]
         openedWith?: string
+        choices?: {
+          lump_sum?: {
+            /** @enum {string} */
+            slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+            rowId: string
+            lead: string
+            providerId?: string
+            kind: string
+            value: string
+            figure: string
+            /** Format: date-time */
+            chosenAt: string
+            endsOn?: string
+            /** Format: uuid */
+            reminderId?: string
+            watches?: {
+              provider: string
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              productId: string
+              ratePct?: number
+            }[]
+          }
+          monthly_saving?: {
+            /** @enum {string} */
+            slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+            rowId: string
+            lead: string
+            providerId?: string
+            kind: string
+            value: string
+            figure: string
+            /** Format: date-time */
+            chosenAt: string
+            endsOn?: string
+            /** Format: uuid */
+            reminderId?: string
+            watches?: {
+              provider: string
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              productId: string
+              ratePct?: number
+            }[]
+          }
+          mortgage?: {
+            /** @enum {string} */
+            slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+            rowId: string
+            lead: string
+            providerId?: string
+            kind: string
+            value: string
+            figure: string
+            /** Format: date-time */
+            chosenAt: string
+            endsOn?: string
+            /** Format: uuid */
+            reminderId?: string
+            watches?: {
+              provider: string
+              /** @enum {string} */
+              source: 'bank' | 'ccpc'
+              productId: string
+              ratePct?: number
+            }[]
+          }
+        }
         /** Format: date-time */
         createdAt: string
         /** Format: date-time */
@@ -14039,6 +14537,7 @@ export interface components {
             /** @default [] */
             filters: string[]
             options: {
+              rowId?: string
               lender: string
               kind: string
               productName: string
@@ -14159,6 +14658,74 @@ export interface components {
             to: string | number | boolean | unknown
           }[]
           openedWith?: string
+          choices?: {
+            lump_sum?: {
+              /** @enum {string} */
+              slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+              rowId: string
+              lead: string
+              providerId?: string
+              kind: string
+              value: string
+              figure: string
+              /** Format: date-time */
+              chosenAt: string
+              endsOn?: string
+              /** Format: uuid */
+              reminderId?: string
+              watches?: {
+                provider: string
+                /** @enum {string} */
+                source: 'bank' | 'ccpc'
+                productId: string
+                ratePct?: number
+              }[]
+            }
+            monthly_saving?: {
+              /** @enum {string} */
+              slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+              rowId: string
+              lead: string
+              providerId?: string
+              kind: string
+              value: string
+              figure: string
+              /** Format: date-time */
+              chosenAt: string
+              endsOn?: string
+              /** Format: uuid */
+              reminderId?: string
+              watches?: {
+                provider: string
+                /** @enum {string} */
+                source: 'bank' | 'ccpc'
+                productId: string
+                ratePct?: number
+              }[]
+            }
+            mortgage?: {
+              /** @enum {string} */
+              slot: 'lump_sum' | 'monthly_saving' | 'mortgage'
+              rowId: string
+              lead: string
+              providerId?: string
+              kind: string
+              value: string
+              figure: string
+              /** Format: date-time */
+              chosenAt: string
+              endsOn?: string
+              /** Format: uuid */
+              reminderId?: string
+              watches?: {
+                provider: string
+                /** @enum {string} */
+                source: 'bank' | 'ccpc'
+                productId: string
+                ratePct?: number
+              }[]
+            }
+          }
           /** Format: date-time */
           createdAt: string
           /** Format: date-time */
