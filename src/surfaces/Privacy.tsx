@@ -96,12 +96,13 @@ export function Privacy(): ReactNode {
         <Section title="A comparison you save from your AI assistant">
           <p>
             Saving a comparison in your AI assistant holds its figures and preferences with Saoi
-            behind a single-use link. Unopened, it is deleted after 24 hours. Opening it shows the
-            comparison, a link to this page and one question from Saoirse; nothing is stored against
-            you until you write your first message, which puts the comparison into a chat with
-            Saoirse. How long an opened comparison is kept: [To confirm]. Who is responsible for
-            your data: [To confirm]. You can ask for a copy of what Saoi holds about you, or for it
-            to be deleted, at the address below.
+            behind a link that opens into one conversation, in the browser that opens it first; the
+            same link brings that browser back to it. Unopened, it is deleted after 24 hours.
+            Opening it shows the comparison, a link to this page and one question from Saoirse;
+            nothing is stored against you until you write your first message, which puts the
+            comparison into a chat with Saoirse. How long an opened comparison is kept: [To
+            confirm]. Who is responsible for your data: [To confirm]. You can ask for a copy of what
+            Saoi holds about you, or for it to be deleted, at the address below.
           </p>
         </Section>
 
