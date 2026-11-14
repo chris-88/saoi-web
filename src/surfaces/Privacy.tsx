@@ -64,6 +64,10 @@ export function Privacy(): ReactNode {
             kind of home and first-time buyer if given. No figures, no names, nothing that
             identifies you.
           </p>
+          <p>
+            When an AI calls Saoi, Saoi records which assistant, which tool, the figures in bands
+            and any search words, and the time; no name, address or account.
+          </p>
           <p>{REMINDERS_NOTICE_LINE}</p>
           <p>{HOLDINGS_NOTICE_LINE}</p>
         </Section>
