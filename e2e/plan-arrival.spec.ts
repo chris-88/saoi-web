@@ -191,7 +191,7 @@ test('a ?plan= link opens on the card, the notice box and one question; writing 
   await box.press('Enter')
   await expect.poll(() => claims).toEqual([TOKEN])
   // The stub says somebody else opened it: said in the chat, in view, under their message.
-  await expect(page.getByText(/already been opened/)).toBeInViewport()
+  await expect(page.getByText(/opened on another device/)).toBeInViewport()
   await expect(page.getByText('About €40,000 between us')).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('arrival-390-refused.png') })
 })

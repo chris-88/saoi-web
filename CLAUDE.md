@@ -93,7 +93,12 @@ If you can't satisfy an item, say so explicitly rather than quietly skipping it.
                    card), a grey box linking to /#/privacy, and Saoirse's one line (the hook
                    question, `opening`). The customer's first message claims it (token spent
                    then) and is sent as the chat's first turn; the chat shows the server's
-                   history (card and question, their answer, the reply)
+                   history (card and question, their answer, the reply). The same link again
+                   (2026-11-14): the preview's 409 tries the claim at once (`arrive` in
+                   `src/lib/planClaim.ts`); `reopened` lands in the conversation, saying nothing;
+                   a 409 shows "opened on another device" with Sign in and Start again, and after a
+                   sign-in the claim is tried once more (still refused: /#/you/conversations with
+                   one line)
 /#/admin/*         redirect to https://admin.saoi.ie/#/<rest> (the console's own site)
 /#/app/*, /#/try   redirect to /#/ (old links and printed QR codes)
 /#/baz             redirect to /#/ (the chat's old address; query string kept)

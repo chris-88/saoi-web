@@ -36,7 +36,8 @@ const routeObjects: RouteObject[] = [
 
   { path: '/join/:token', element: <LazyPartnerJoin /> },
 
-  // A plan made in the customer's own AI, opened once from the link it was saved behind.
+  // A plan made in the customer's own AI, opened from the link it was saved behind (and the same
+  // browser back into its conversation by the same link).
   { path: '/plan/:token', element: <LazyPlanClaim /> },
 
   // The presenter console is its own site now (chris-88/saoi-admin, admin.saoi.ie).
