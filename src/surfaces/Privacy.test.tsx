@@ -17,6 +17,19 @@ describe('the privacy page', () => {
     ).toBeInTheDocument()
   })
 
+  it('says what is recorded when an AI calls Saoi', () => {
+    render(
+      <MemoryRouter>
+        <Privacy />
+      </MemoryRouter>,
+    )
+    expect(
+      screen.getByText(
+        'When an AI calls Saoi, Saoi records which assistant, which tool, the figures in bands and any search words, and the time; no name, address or account.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('says how long balances and debts are kept', () => {
     render(
       <MemoryRouter>
