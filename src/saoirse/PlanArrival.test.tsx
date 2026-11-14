@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SaoiApiError } from '@/api/client'
 import { previewPlanResponseSchema } from '@contracts/session.ts'
@@ -16,6 +16,11 @@ vi.mock('@/lib/session', () => ({
   claimPlan: (token: string) => claimPlan(token),
   previewPlan: (token: string) => previewPlan(token),
 }))
+const currentIdentity = vi.fn<() => Promise<{ anonymous: boolean }>>()
+vi.mock('@/lib/identity', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  currentIdentity: () => currentIdentity(),
+}))
 const reloadIntoNewerBuild = vi.fn<() => Promise<boolean>>()
 const reloadPage = vi.fn<() => void>()
 vi.mock('@/app/staleDeploy', () => ({
@@ -27,7 +32,19 @@ vi.mock('@/app/staleDeploy', () => ({
 
 const { PlanArrival } = await import('./PlanArrival')
 const { takeFirstMessage } = await import('@/lib/planArrival')
-const { problemOf } = await import('@/lib/planClaim')
+const { cameFromPlanInAnotherAccount, IN_ANOTHER_ACCOUNT_LINE, problemOf } =
+  await import('@/lib/planClaim')
+const { useSignInSignal } = await import('@/saoirse/signInSignal')
+
+/** Stands in for the conversations list under You: says whether a plan link sent it there. */
+function Conversations() {
+  const state: unknown = useLocation().state
+  return (
+    <p>
+      the conversations{cameFromPlanInAnotherAccount(state) ? `: ${IN_ANOTHER_ACCOUNT_LINE}` : ''}
+    </p>
+  )
+}
 
 const HOOK =
   'How much Income Tax and DIRT have you both paid over the last four years? It decides whether Help to Buy covers the €35,000.'
@@ -114,6 +131,7 @@ function open(token = 'AAAAAAAAAAAAAAAAAAAAAA') {
           <Route path="/plan/:token" element={<PlanArrival token={token} />} />
           <Route path="/" element={<p>the conversation</p>} />
           <Route path="/privacy" element={<p>the notice</p>} />
+          <Route path="/you/conversations" element={<Conversations />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -139,6 +157,9 @@ beforeEach(() => {
   reloadIntoNewerBuild.mockReset()
   reloadIntoNewerBuild.mockResolvedValue(false)
   reloadPage.mockReset()
+  currentIdentity.mockReset()
+  currentIdentity.mockResolvedValue({ anonymous: true })
+  useSignInSignal.getState().acknowledge()
   takeFirstMessage()
 })
 
@@ -279,13 +300,14 @@ describe('a link that cannot be opened', () => {
     expect(await screen.findByText('the conversation')).toBeInTheDocument()
   })
 
-  it('says a used link was opened elsewhere', async () => {
-    previewPlan.mockRejectedValue(new SaoiApiError(409, 'used'))
+  it('keeps an unknown link as it was: the line and Start again', async () => {
+    previewPlan.mockRejectedValue(new SaoiApiError(404, 'unknown'))
     open()
-    expect(await screen.findByText(/already been opened/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(await screen.findByText(/isn’t one Saoi gave out/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Start again' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sign in' })).not.toBeInTheDocument()
+    expect(claimPlan).not.toHaveBeenCalled()
   })
-
   it('a network failure offers Try again, and never reaches for a newer build', async () => {
     previewPlan.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     open()
@@ -300,6 +322,103 @@ describe('a link that cannot be opened', () => {
     open()
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+})
+
+describe('the same link again (the card as the way back in)', () => {
+  const USED = () => new SaoiApiError(409, 'used')
+
+  it('this browser opened it before: straight back into the conversation, saying nothing', async () => {
+    previewPlan.mockRejectedValue(USED())
+    claimPlan.mockResolvedValue({ reopened: true })
+    const { container } = open('CCCCCCCCCCCCCCCCCCCCCC')
+    expect(await screen.findByText('the conversation')).toBeInTheDocument()
+    expect(claimPlan).toHaveBeenCalledWith('CCCCCCCCCCCCCCCCCCCCCC')
+    expect(claimPlan).toHaveBeenCalledTimes(1)
+    // No first message to send, and nothing said on the way.
+    expect(takeFirstMessage()).toBeNull()
+    expect(container.textContent).not.toMatch(/already been opened|another device/)
+  })
+
+  it('opened on another device: says so, with Sign in and Start again', async () => {
+    previewPlan.mockRejectedValue(USED())
+    claimPlan.mockRejectedValue(USED())
+    open()
+    expect(
+      await screen.findByText(
+        'This link was opened on another device. If you signed in to Saoi there, sign in here and your conversation is in your list.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Start again' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Ready to buy')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start again' }))
+    expect(await screen.findByText('the conversation')).toBeInTheDocument()
+  })
+
+  it('Sign in opens the shared form; signed in, the claim is tried once more and reopens', async () => {
+    previewPlan.mockRejectedValue(USED())
+    claimPlan.mockRejectedValueOnce(USED())
+    claimPlan.mockResolvedValueOnce({ reopened: true })
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign in' }))
+    expect(screen.getByRole('textbox', { name: 'Your email address' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Start again' })).not.toBeInTheDocument()
+
+    currentIdentity.mockResolvedValue({ anonymous: false })
+    act(() => {
+      useSignInSignal.getState().markSignedIn()
+    })
+    expect(await screen.findByText('the conversation')).toBeInTheDocument()
+    expect(claimPlan).toHaveBeenCalledTimes(2)
+    expect(takeFirstMessage()).toBeNull()
+  })
+
+  it('still refused after signing in: the conversations list, with one line saying where it is', async () => {
+    previewPlan.mockRejectedValue(USED())
+    claimPlan.mockRejectedValue(USED())
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign in' }))
+    currentIdentity.mockResolvedValue({ anonymous: false })
+    act(() => {
+      useSignInSignal.getState().markSignedIn()
+    })
+    expect(
+      await screen.findByText(`the conversations: ${IN_ANOTHER_ACCOUNT_LINE}`),
+    ).toBeInTheDocument()
+    expect(claimPlan).toHaveBeenCalledTimes(2)
+  })
+
+  it('a sign-in from before the form opened does not count as one', async () => {
+    useSignInSignal.getState().markSignedIn()
+    previewPlan.mockRejectedValue(USED())
+    claimPlan.mockRejectedValue(USED())
+    open()
+    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(claimPlan).toHaveBeenCalledTimes(1)
+  })
+
+  it('already signed in (or back from Google): the conversations list at once', async () => {
+    currentIdentity.mockResolvedValue({ anonymous: false })
+    previewPlan.mockRejectedValue(USED())
+    claimPlan.mockRejectedValue(USED())
+    open()
+    expect(
+      await screen.findByText(`the conversations: ${IN_ANOTHER_ACCOUNT_LINE}`),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sign in' })).not.toBeInTheDocument()
+  })
+
+  it('a link opened elsewhere while they were writing gets the same state', async () => {
+    claimPlan.mockRejectedValue(USED())
+    open()
+    await screen.findByText(HOOK)
+    write('About €40,000')
+    expect(await screen.findByText(/opened on another device/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument()
   })
 })
 

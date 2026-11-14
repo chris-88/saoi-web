@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useMutation } from '@tanstack/react-query'
+import { useLocation } from 'react-router-dom'
 import { Check, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { startNewCase, switchCase } from '@/lib/session'
@@ -7,6 +8,7 @@ import { landOnChat } from '@/lib/landOnChat'
 import { useCases } from '@/api/cases'
 import { when } from '@/lib/when'
 import { cn } from '@/lib/utils'
+import { cameFromPlanInAnotherAccount, IN_ANOTHER_ACCOUNT_LINE } from '@/lib/planClaim'
 
 /** The one line that says what the row is. */
 function summaryOf(item: {
@@ -45,9 +47,16 @@ export function ConversationsSection(): ReactNode {
   const goTo = useMutation({ mutationFn: (id: string) => switchCase(id), onSuccess: landOnChat })
   const begin = useMutation({ mutationFn: () => startNewCase('new'), onSuccess: landOnChat })
   const busy = goTo.isPending || begin.isPending
+  /** Arrived from a plan link another account opened (`PlanArrival`): said once, on top. */
+  const fromPlan = cameFromPlanInAnotherAccount(useLocation().state)
 
   return (
     <div className="space-y-4">
+      {fromPlan && (
+        <p role="status" className="bg-muted rounded-md px-3 py-2 text-sm leading-relaxed">
+          {IN_ANOTHER_ACCOUNT_LINE}
+        </p>
+      )}
       {cases.isPending ? (
         <p className="text-muted-foreground text-sm">Looking them up…</p>
       ) : cases.isError ? (
